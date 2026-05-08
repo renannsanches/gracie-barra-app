@@ -32,41 +32,26 @@ export function labelCorFaixa(faixa: CorFaixa): string {
   return LABEL_COR_FAIXA[faixa] ?? faixa
 }
 
-export function mascararTelefonePT(v: string): string {
-  const digits = v.replace(/\D/g, "")
-  if (!digits) return ""
-  // Strip country code prefix if present
-  const local = digits.startsWith("351") && digits.length > 9 ? digits.slice(3) : digits
-  const d = local.slice(0, 9)
-  if (d.length <= 3) return `+351 ${d}`
-  if (d.length <= 6) return `+351 ${d.slice(0, 3)} ${d.slice(3)}`
-  return `+351 ${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`
+export function mascararTelefonePT(valor: string): string {
+  const nums = valor.replace(/\D/g, '').slice(0, 9);
+  if (nums.length <= 4) return nums;
+  if (nums.length <= 7) return `${nums.slice(0,4)} ${nums.slice(4)}`;
+  return `${nums.slice(0,4)} ${nums.slice(4,7)} ${nums.slice(7)}`;
 }
 
-export function formatarTelefonePT(phone: string | null | undefined): string {
-  if (!phone) return "—"
-  return phone.startsWith("+351") ? phone : `+351 ${phone}`
+export function formatarTelefonePT(valor: string): string {
+  return mascararTelefonePT(valor);
 }
 
-export function formatarData(date: string | null | undefined): string {
-  if (!date) return "—"
-  const d = new Date(date.includes("T") ? date : `${date}T00:00:00`)
-  return d.toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric" })
+export function formatarData(data: string | Date | null | undefined): string {
+  if (!data) return '—';
+  return new Date(data).toLocaleDateString('pt-PT');
 }
 
-const MESES_PT = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-]
-
-export function formatarMes(mes: string | null | undefined): string {
-  if (!mes) return "—"
-  const [year, month] = mes.split("-")
-  const m = parseInt(month, 10)
-  return `${MESES_PT[m - 1] ?? mes} ${year}`
+export function formatarMes(ano: number, mes: number): string {
+  return new Date(ano, mes - 1).toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
 }
 
-export function formatarMoeda(value: number | null | undefined): string {
-  if (value == null) return "—"
-  return value.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })
+export function formatarMoeda(valor: number): string {
+  return valor.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
 }
