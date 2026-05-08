@@ -878,9 +878,9 @@ export function AlunoEditView({
                 <tbody className="divide-y divide-gray-50">
                   {mensalidades.map((m) => (
                     <tr key={m.id}>
-                      <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{formatarMes(m.mes_referencia)}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}</td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatarData(m.data_vencimento)}</td>
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatarMoeda(m.valor)}</td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{m.valor != null ? formatarMoeda(m.valor) : "—"}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_MENS_CLASS[m.status]}`}>
                           {STATUS_MENS_LABEL[m.status]}

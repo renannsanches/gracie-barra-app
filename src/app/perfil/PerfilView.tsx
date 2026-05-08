@@ -670,11 +670,11 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   className="flex items-center justify-between gap-3 py-2.5 border-b border-gray-100 last:border-0"
                 >
                   <div className="min-w-0">
-                    <p className="text-[14px] font-medium text-gray-900">{formatarMes(m.mes_referencia)}</p>
+                    <p className="text-[14px] font-medium text-gray-900">{formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}</p>
                     <p className="text-[12px] text-gray-400 mt-0.5">Vence em {formatarData(m.data_vencimento)}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-[14px] font-medium text-gray-900">{formatarMoeda(m.valor)}</p>
+                    <p className="text-[14px] font-medium text-gray-900">{m.valor != null ? formatarMoeda(m.valor) : "—"}</p>
                     <span className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded-full mt-1 ${
                       m.status === "pago"
                         ? "bg-emerald-500/15 text-emerald-600"
