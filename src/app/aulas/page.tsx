@@ -32,7 +32,7 @@ export default async function AulasPage() {
   const categoriaAluno: CategoriaFaixa = (profileRes.data?.categoria as CategoriaFaixa) ?? "adulto";
 
   const dependentes: DependenteOpcao[] = (
-    (dependentesRes.data ?? []) as Array<{ dependente: { id: string; nome_completo: string; categoria: string } | null }>
+    (dependentesRes.data ?? []) as unknown as Array<{ dependente: { id: string; nome_completo: string; categoria: string } | null }>
   )
     .map((d) => d.dependente)
     .filter((d): d is { id: string; nome_completo: string; categoria: string } => d !== null)
