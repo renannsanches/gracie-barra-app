@@ -39,14 +39,33 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Authenticated users on regular login pages → go to /perfil
+  // Authenticated users on regular login pages → go to /perfil (unless profile is incomplete)
   // /tablet/login is intentionally excluded here — the page handles its own redirect
   // Server actions (POST with Next-Action header) must not be redirected
   const isServerAction = request.headers.has("next-action");
   if (user && ["/login", "/cadastro"].includes(pathname) && !isServerAction) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/perfil";
-    return NextResponse.redirect(url);
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("nome_completo")
+      .eq("id", user.id)
+      .single();
+
+    const perfilCompleto = !!(profile?.nome_completo);
+
+    if (perfilCompleto) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/perfil";
+      return NextResponse.redirect(url);
+    }
+
+    // Incomplete profile on /login → send to /cadastro to finish onboarding
+    if (pathname === "/login") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/cadastro";
+      return NextResponse.redirect(url);
+    }
+
+    // Incomplete profile on /cadastro → allow them to stay and complete Step 3
   }
 
   return supabaseResponse;

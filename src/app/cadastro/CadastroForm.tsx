@@ -1117,6 +1117,8 @@ function StepDados({
   onNomeAluno: (v: string) => void;
   onNif: (v: string) => void;
   onNifAluno: (v: string) => void;
+  termoAceito: boolean;
+  onTermoAceito: (v: boolean) => void;
   onBack: () => void;
   onSubmit: () => void;
 }) {
@@ -1127,10 +1129,11 @@ function StepDados({
   const menorDe17 = idadeAluno !== null && idadeAluno <= 16;
   const dataNascValida = dataParaISO(dataNasc) !== null;
   const telefoneValido = telefoneLimpo(telefone) !== null;
-  const podeSubmeter =
+  const dadosValidos =
     tipoUsuario === "aluno"
       ? nomeValido && dataNascValida && telefoneValido && !menorDe17
       : nomeValido && nomeAlunoValido && dataNascValida && telefoneValido;
+  const podeSubmeter = dadosValidos && termoAceito;
   const isResponsavel = tipoUsuario === "responsavel";
 
   return (
@@ -1379,6 +1382,54 @@ function StepDados({
           </span>
         </div>
 
+        {/* Terms checkbox */}
+        <label
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+            marginTop: 4,
+            padding: "12px 14px",
+            borderRadius: 12,
+            background: termoAceito ? "rgba(255,1,0,0.05)" : "#fff",
+            border: `1.5px solid ${termoAceito ? C.red : C.line}`,
+            cursor: loading ? "not-allowed" : "pointer",
+            transition: "border-color 0.15s, background 0.15s",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={termoAceito}
+            disabled={loading}
+            onChange={(e) => onTermoAceito(e.target.checked)}
+            style={{
+              marginTop: 2,
+              width: 18,
+              height: 18,
+              accentColor: C.red,
+              flexShrink: 0,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+          />
+          <span style={{ fontSize: 13, color: C.ink, lineHeight: 1.5 }}>
+            Declaro que estou de acordo com todos os termos do{" "}
+            <a
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                color: C.red,
+                textDecoration: "underline",
+                fontWeight: 600,
+              }}
+            >
+              contrato da Gracie Barra Famalicão
+            </a>
+            .
+          </span>
+        </label>
+
         {erro && (
           <div style={{ marginTop: 12 }}>
             <ErrorBanner msg={erro} />
@@ -1567,6 +1618,28 @@ export function CadastroForm() {
   const [nomeAluno, setNomeAluno] = useState("");
   const [nif, setNif] = useState("");
   const [nifAluno, setNifAluno] = useState("");
+  const [termoAceito, setTermoAceito] = useState(false);
+
+  // On mount: if the user is already authenticated with an incomplete profile (e.g. after
+  // OTP confirmation followed by a page refresh), skip straight to Step 3.
+  useEffect(() => {
+    async function checkIncompleteProfile() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("nome_completo")
+        .eq("id", user.id)
+        .single();
+      if (!profile?.nome_completo) {
+        setEmail(user.email ?? "");
+        setPasso(3);
+      }
+    }
+    checkIncompleteProfile();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleCategoria(cat: CategoriaFaixa) {
     setCategoria(cat);
@@ -1791,6 +1864,8 @@ export function CadastroForm() {
           onNomeAluno={setNomeAluno}
           onNif={setNif}
           onNifAluno={setNifAluno}
+          termoAceito={termoAceito}
+          onTermoAceito={setTermoAceito}
           onBack={() => { setErro(""); setPasso(2); }}
           onSubmit={handleConcluir}
         />
