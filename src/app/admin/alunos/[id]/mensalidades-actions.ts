@@ -134,3 +134,50 @@ export async function excluirPresenca(presencaId: string, alunoId: string): Prom
   revalidatePath(`/admin/alunos/${alunoId}`);
   return { ok: true };
 }
+
+interface MassaResult extends ActionResult {
+  criadas?: number;
+  duplicadas?: number;
+}
+
+export async function adicionarPresencasEmMassa(alunoId: string, dates: string[]): Promise<MassaResult> {
+  if (dates.length === 0) return { ok: true, criadas: 0, duplicadas: 0 };
+
+  const admin = createAdminClient();
+
+  const { data: existentes } = await admin
+    .from("presencas")
+    .select("dia_registro")
+    .eq("aluno_id", alunoId)
+    .in("dia_registro", dates);
+
+  const jaExistem = new Set((existentes ?? []).map((r: { dia_registro: string }) => r.dia_registro));
+  const novas = dates.filter((d) => !jaExistem.has(d));
+
+  if (novas.length > 0) {
+    const rows = novas.map((d) => ({
+      aluno_id: alunoId,
+      registrado_em: `${d}T12:00:00+00:00`,
+    }));
+
+    const { error } = await admin.from("presencas").insert(rows);
+    if (error) return { ok: false, erro: error.message };
+  }
+
+  revalidatePath(`/admin/alunos/${alunoId}`);
+  return { ok: true, criadas: novas.length, duplicadas: jaExistem.size };
+}
+
+export async function zerarAulasManual(alunoId: string): Promise<ActionResult> {
+  const admin = createAdminClient();
+
+  const { error } = await admin
+    .from("profiles")
+    .update({ aulas_manual: 0 })
+    .eq("id", alunoId);
+
+  if (error) return { ok: false, erro: error.message };
+
+  revalidatePath(`/admin/alunos/${alunoId}`);
+  return { ok: true };
+}
