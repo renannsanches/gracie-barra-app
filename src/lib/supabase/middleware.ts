@@ -39,33 +39,29 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Authenticated users on regular login pages → go to /perfil (unless profile is incomplete)
-  // /tablet/login is intentionally excluded here — the page handles its own redirect
-  // Server actions (POST with Next-Action header) must not be redirected
+  // Server actions must never be redirected
   const isServerAction = request.headers.has("next-action");
-  if (user && ["/login", "/cadastro"].includes(pathname) && !isServerAction) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("nome_completo")
-      .eq("id", user.id)
-      .single();
 
-    const perfilCompleto = !!(profile?.nome_completo);
+  // Flag set in user_metadata during signUp(); cleared after Step 3 is completed.
+  // Using session data avoids an extra DB round-trip and is immune to RLS/trigger timing issues.
+  const inOnboarding = user?.user_metadata?.onboarding === true;
 
-    if (perfilCompleto) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/perfil";
-      return NextResponse.redirect(url);
-    }
+  // While onboarding is in progress: block every app page except /cadastro itself
+  if (user && inOnboarding && !isServerAction
+      && pathname !== "/cadastro"
+      && !pathname.startsWith("/tablet")
+      && pathname !== "/auth/callback") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/cadastro";
+    return NextResponse.redirect(url);
+  }
 
-    // Incomplete profile on /login → send to /cadastro to finish onboarding
-    if (pathname === "/login") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/cadastro";
-      return NextResponse.redirect(url);
-    }
-
-    // Incomplete profile on /cadastro → allow them to stay and complete Step 3
+  // Authenticated users who finished onboarding, landing on auth pages → send to app
+  // /tablet/login is excluded — that page handles its own redirect
+  if (user && !inOnboarding && ["/login", "/cadastro"].includes(pathname) && !isServerAction) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/perfil";
+    return NextResponse.redirect(url);
   }
 
   return supabaseResponse;

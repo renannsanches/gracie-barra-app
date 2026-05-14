@@ -1622,24 +1622,19 @@ export function CadastroForm() {
   const [nifAluno, setNifAluno] = useState("");
   const [termoAceito, setTermoAceito] = useState(false);
 
-  // On mount: if the user is already authenticated with an incomplete profile (e.g. after
-  // OTP confirmation followed by a page refresh), skip straight to Step 3.
+  // On mount: if the user already has a session with onboarding=true (e.g. after OTP
+  // verification followed by a page refresh), jump straight to Step 3.
   useEffect(() => {
-    async function checkIncompleteProfile() {
+    async function checkOnboardingState() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("nome_completo")
-        .eq("id", user.id)
-        .single();
-      if (!profile?.nome_completo) {
+      if (user.user_metadata?.onboarding === true) {
         setEmail(user.email ?? "");
         setPasso(3);
       }
     }
-    checkIncompleteProfile();
+    checkOnboardingState();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1691,6 +1686,7 @@ export function CadastroForm() {
         password: senha,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: { onboarding: true },
         },
       });
       if (error) {
@@ -1779,6 +1775,7 @@ export function CadastroForm() {
           setErro("Erro ao guardar dados. Tenta novamente.");
           return;
         }
+        await supabase.auth.updateUser({ data: { onboarding: null } });
       } else {
         const result = await concluirCadastroResponsavel({
           nomeResponsavel: nome.trim(),
@@ -1796,6 +1793,8 @@ export function CadastroForm() {
           setErro(result.erro ?? "Erro ao concluir registo.");
           return;
         }
+        const supabase2 = createClient();
+        await supabase2.auth.updateUser({ data: { onboarding: null } });
       }
 
       setPasso(4);
