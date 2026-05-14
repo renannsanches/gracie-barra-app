@@ -1090,6 +1090,8 @@ function StepDados({
   onNomeAluno,
   onNif,
   onNifAluno,
+  termoAceito,
+  onTermoAceito,
   onBack,
   onSubmit,
 }: {
