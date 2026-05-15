@@ -1,204 +1,451 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Visão geral
-App de gestão de presença para academia de Jiu-Jitsu Gracie Barra, com três experiências:
-1. **App do aluno** — login, perfil com faixa/graus, gerar QR Code de presença, histórico, avisos, turmas, aulas
-2. **App do tablet** — roda na academia com câmera aberta lendo QR Codes (`/tablet`)
-3. **Painel admin/professor** — dashboard, CRUD de alunos, faixas/graus, turmas, avisos, galeria (`/admin`)
+> Este ficheiro serve dois públicos: **programadores** que vão trabalhar no código, e **estrategistas de produto/negócio** com literacia tecnológica que precisam entender o que está construído, o que falta, e para onde vai.
 
 ---
 
-## Comandos
+## 1. O que é este produto
+
+**Gracie Barra Famalicão App** é um sistema de gestão de academia de Jiu-Jitsu, construído como Progressive Web App (PWA) instalável em qualquer dispositivo. Resolve três problemas centrais de uma academia de artes marciais:
+
+1. **Controlo de presença** — substituir a folha de papel por QR Code no telemóvel do aluno + tablet fixo na recepção
+2. **Gestão administrativa** — CRUD de alunos, turmas, aulas, mensalidades, graduações e galeria num painel web
+3. **Comunicação** — avisos, galeria de fotos e histórico de progresso visível pelo aluno
+
+### Quem usa e como
+
+| Persona | Onde acede | O que faz |
+|---------|------------|-----------|
+| **Aluno** | `/perfil`, `/presenca`, `/aulas`, `/avisos`, `/galeria` | Gera QR para registar presença, reserva aulas, vê histórico, fotos e avisos |
+| **Responsável (pai/mãe)** | `/perfil`, `/presenca` | Gera QR para si e para os filhos dependentes num único scan |
+| **Tablet da academia** | `/tablet` | Câmera aberta permanentemente a ler QR Codes; confirma presença com foto e faixa do aluno |
+| **Admin / Professor** | `/admin/*` | Gere alunos, turmas, mensalidades, graduações, avisos e galeria |
+
+### Contexto de negócio
+- Academia: **Gracie Barra Vila Nova de Famalicão**, Portugal
+- Mensalidades: 62 €/mês (adultos), 55 €/mês (menores de 16 anos)
+- Moeda: Euro (€) · Prefixo telefónico: +351 · Locale: pt-PT
+- Contrato de prestação de serviços enviado por email automaticamente no cadastro
+
+---
+
+## 2. Comandos
 
 ```bash
 npm run dev      # servidor local em http://localhost:3000
-npm run build    # build de produção (detecta erros de tipo e lint)
+npm run build    # build de produção (verifica tipos TypeScript e lint)
 npm run lint     # ESLint
 ```
 
-Não há testes automatizados no projeto.
+**Não há testes automatizados.** Este é um débito técnico conhecido e prioritário.
 
 ---
 
-## Stack
-- Next.js 15 (App Router) + TypeScript
-- Tailwind CSS + shadcn/ui
-- Supabase (Postgres + Auth + Storage + RLS)
-- `qrcode` (gerar QR) + `@zxing/browser` (ler QR — carregado via `import()` dinâmico com `ssr: false` em Client Components)
-- Deploy: Vercel
+## 3. Stack técnica
+
+| Camada | Tecnologia |
+|--------|-----------|
+| Framework | Next.js 15 (App Router) + TypeScript |
+| Styling | Tailwind CSS + shadcn/ui (Radix primitivos) |
+| Backend / DB | Supabase (Postgres + Auth + Storage + RLS) |
+| QR — gerar | `qrcode` npm package |
+| QR — ler | `@zxing/browser` (carregado via `dynamic(..., { ssr: false })`) |
+| Email | Nodemailer + Gmail app password |
+| PWA | `@ducanh2912/next-pwa` (Workbox) |
+| Charts | Recharts |
+| Imagens | Next.js Image + `sharp` (compressão WebP no cliente) |
+| Deploy | Vercel (produção automática no push para `master`) |
+| Fonte | SF Pro Display (woff2 local) + Geist (fallback) |
 
 ---
 
-## Variáveis de ambiente
+## 4. Variáveis de ambiente
 
-```
+```bash
+# Público (seguro no cliente)
 NEXT_PUBLIC_SUPABASE_URL=https://fjqiyilzxxyoyposqsfz.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_3wPqhs8SFm2_dvKrH_99Jw_8Nt2tIVR
-SUPABASE_SERVICE_ROLE_KEY=<somente em .env.local, nunca expor ao cliente>
+
+# Secretas — NUNCA expor ao cliente, nunca commitar
+SUPABASE_SERVICE_ROLE_KEY=<somente em .env.local>
+GMAIL_USER=graciebarrafamalicao@gmail.com
+GMAIL_APP_PASSWORD=<app password do Gmail>
 ```
 
 ---
 
-## Arquitetura
+## 5. Mapa de rotas
 
-### Clientes Supabase (três variantes)
-- [`src/lib/supabase/client.ts`](src/lib/supabase/client.ts) — `createBrowserClient` para componentes `"use client"`
-- [`src/lib/supabase/server.ts`](src/lib/supabase/server.ts) — `createServerClient` para Server Components e Server Actions (anon key, respeita RLS)
-- [`src/lib/supabase/admin.ts`](src/lib/supabase/admin.ts) — `createClient` com `service_role` key, **apenas server-side**, ignora RLS; usar para mutations admin e queries de dashboard
+```
+/                           → redireciona para /perfil ou /login
+/login                      → autenticação (email + OTP)
+/cadastro                   → onboarding multi-step (3 tipos de perfil)
+/esqueci-senha              → pedido de reset de password
+/nova-senha                 → formulário de nova password
 
-### Autenticação e rotas protegidas
-O middleware ([`src/middleware.ts`](src/middleware.ts)) delega para [`src/lib/supabase/middleware.ts`](src/lib/supabase/middleware.ts) que:
-- Redireciona usuários não autenticados para `/login` (ou `/tablet/login` se o path começa com `/tablet`)
-- Paths públicos: `/login`, `/cadastro`, `/tablet/login`
-- Usuários autenticados em `/login` ou `/cadastro` são redirecionados para `/perfil`
+/perfil                     → home do aluno: faixa, mensalidade, dependentes, acções rápidas
+/presenca                   → gera QR Code (self ou dependentes); polling até confirmação
+/presencas                  → histórico de presenças com calendário visual e filtro por mês
+/aulas                      → vista semanal de aulas disponíveis; reservar/cancelar
+/turmas                     → turmas em que o aluno está inscrito
+/avisos                     → mural de avisos publicados pela academia
+/galeria                    → lista de álbuns de fotos
+/galeria/[id]               → álbum com lightbox (prev/next, teclado, thumbnails)
+/offline                    → página de fallback PWA sem rede
 
-O layout [`src/app/admin/layout.tsx`](src/app/admin/layout.tsx) verifica adicionalmente `profile.perfil === "admin" | "professor"`, redirecionando outros para `/perfil`.
+/tablet                     → scanner QR permanente (câmera aberta, frontal por defeito)
+/tablet/login               → login exclusivo para conta tablet
 
-### Padrão de página (Server Component + View/Form Client Component)
-Pages (`page.tsx`) são Server Components que buscam dados e passam para componentes client (`*View.tsx`, `*Form.tsx`). Server Actions ficam em arquivos separados `*-actions.ts` com diretiva `"use server"`.
-
-Server Actions seguem o padrão de retorno `{ ok: boolean; erro?: string; ... }` e chamam `revalidatePath()` após mutations.
-
-Mutations admin usam `createAdminClient()` (service_role) para contornar RLS. Verificação de autenticação do usuário corrente usa `createClient()` (server) em paralelo.
-
-### Fluxo de presença via QR Code
-1. Aluno chama RPC `gerar_qr_token()` → retorna `{ token, expira_em }` (60s de validade)
-2. App do aluno renderiza o QR e faz polling na tabela `presencas` a cada 2,5s para detectar registro
-3. Tablet usa `@zxing/browser` para leitura contínua da câmera e chama RPC `registrar_presenca_por_token(p_token)`
-4. Tablet exibe tela de confirmação com nome, foto e faixa do aluno após registro bem-sucedido
-5. Presença única por aluno por dia garantida por índice único na tabela `presencas`
-6. Bloqueio de re-registro: verifica se existe presença nas últimas 1h (via RPC)
-7. **Bloqueio financeiro:** RPC verifica `data_vencimento_mensalidade` — rejeita QR se mensalidade vencida há mais de X dias (configurável), retornando mensagem específica ao aluno
-
-### Banco de dados
-Tabelas: `profiles`, `presencas`, `qr_tokens`, `avisos`, `albuns`, `fotos`, `historico_graduacoes`, `mensalidades`, `turmas`, `aulas`, `reservas`
-
-RPCs:
-- `gerar_qr_token()` — gera token temporário de 60s
-- `registrar_presenca_por_token(p_token)` — valida token, verifica situação financeira, registra presença
-- `limpar_tokens_expirados()` — manutenção periódica
-
-Trigger no Supabase cria `profile` automaticamente no signup. Todos os tipos TypeScript estão em [`src/lib/types.ts`](src/lib/types.ts).
-
-### Cores e design
-Variáveis Tailwind customizadas (prefixo `gb-`):
-- `gb-blue` → `#CC0000` (vermelho Gracie Barra — o nome é histórico)
-- `gb-blue-dark` → `#990000`
-- `gb-black` → `#0A0A0A`
-- `gb-gray` → `#F5F5F5` (background padrão)
-
-Fonte: Inter. Interface em pt-BR. Código React em inglês. Mobile-first.
+/admin                      → dashboard: KPIs, gráfico, alunos ausentes, últimas graduações
+/admin/alunos               → lista de alunos com filtros e pesquisa
+/admin/alunos/novo          → formulário de novo aluno
+/admin/alunos/[id]          → ficha completa: dados, fotos, mensalidades, presenças, graduações, dependentes
+/admin/turmas               → lista de turmas
+/admin/turmas/nova          → criar turma
+/admin/turmas/[id]          → editar turma + gerir aulas + ver reservas + marcar presenças
+/admin/financeiro           → tabela de mensalidades com filtros (mês, status, aluno)
+/admin/avisos               → CRUD de avisos (criar, editar, fixar, publicar/arquivar)
+/admin/albuns               → gestão de álbuns de fotos
+/admin/albuns/[id]/fotos    → upload e gestão de fotos de um álbum
+```
 
 ---
 
-## Padrões
+## 6. Arquitectura
 
-- Admin dashboard usa `createAdminClient()` diretamente no Server Component para queries batch paralelas com `Promise.all()`
-- Componentes `FaixaBJJ` e `FaixaBelt` em [`src/components/`](src/components/) renderizam a faixa com graus visualmente
-- shadcn/ui primitivos em [`src/components/ui/`](src/components/ui/)
-- `import()` dinâmico com `ssr: false` **apenas em Client Components**, nunca em Server Components
-- A `service_role` key nunca deve aparecer em código client-side nem ser commitada
-- Locale: pt-PT (Portugal) — moeda em euros (€), telefone com prefixo +351, datas em formato pt-PT
-- UI polishing é deliberadamente adiado para a Fase 15 — foco em funcionalidade primeiro
+### 6.1 Clientes Supabase — três variantes, regras rígidas
+
+| Ficheiro | Quando usar | Contexto | RLS |
+|----------|------------|----------|-----|
+| `src/lib/supabase/client.ts` | Componentes `"use client"` | Browser | Respeitada |
+| `src/lib/supabase/server.ts` | Server Components, Server Actions | Servidor | Respeitada |
+| `src/lib/supabase/admin.ts` | Server Actions admin, API routes | Servidor | **Ignorada** |
+
+`createAdminClient()` usa `service_role` — nunca deve aparecer em código cliente nem ser commitado.
+
+### 6.2 Autenticação e guardas de rota
+
+**Middleware** (`src/middleware.ts` → `src/lib/supabase/middleware.ts`):
+- Paths públicos: `/login`, `/cadastro`, `/esqueci-senha`, `/nova-senha`, `/auth/callback`, `/tablet/login`
+- Não autenticado + path protegido → `/login` (ou `/tablet/login` se path começa com `/tablet`)
+- Autenticado com `user_metadata.onboarding = true` → forçado para `/cadastro` até completar
+- Autenticado + path de auth → `/perfil`
+
+**Auth guard nas Server Actions** (`src/lib/auth-guard.ts`):
+- `requireAdmin()` — verifica sessão + `perfil === "admin" | "professor"`; retorna `{ ok: false, erro }` se falhar
+- `requireTablet()` — verifica sessão + `perfil === "tablet"`
+- Todas as Server Actions admin e tablet chamam o respectivo guard como primeira instrução
+
+**Layout admin** (`src/app/admin/layout.tsx`): verifica `perfil === "admin" | "professor"` server-side; redireciona para `/perfil` se não autorizado.
+
+### 6.3 Padrão de página
+
+```
+page.tsx (Server Component)
+  ↓ busca dados com createServerClient() ou createAdminClient()
+  ↓ passa props
+*View.tsx ou *Form.tsx (Client Component — "use client")
+  ↓ interactividade, useTransition, estado local
+*-actions.ts ("use server")
+  ↓ requireAdmin() / requireTablet()
+  ↓ mutation com createAdminClient()
+  ↓ revalidatePath()
+  ↓ return { ok: boolean; erro?: string; ...dados }
+```
+
+### 6.4 Fluxo de presença via QR Code
+
+```
+Aluno abre /presenca
+  → selecciona para quem (self + dependentes)
+  → Server Action: gerar_qr_token() RPC → token válido 60s
+  → QR renderizado no ecrã
+  → polling tabela presencas a cada 2,5s
+
+Tablet lê QR
+  → @zxing/browser (dynamic import, ssr:false)
+  → Server Action: registrar_presenca_por_token(token)
+    → RPC verifica: token válido? não expirado?
+    → RPC verifica: mensalidade em dia? (bloqueia se vencida há >X dias)
+    → RPC verifica: reserva confirmada para hoje? (bloqueia se não reservou)
+    → RPC verifica: cooldown 1h? (bloqueia re-entrada)
+    → Insere em presencas (índice único por aluno+data)
+    → Retorna nome, foto, faixa, aula
+  → Tablet exibe confirmação verde 3s
+
+Aluno recebe confirmação via polling
+  → ecrã verde com check
+```
+
+Fluxo manual no tablet (sem QR): pesquisa aluno por nome → selecciona aula disponível (hoje ±2h) → mesmas verificações de cooldown.
+
+### 6.5 Cadastro — fluxo multi-step e 3 tipos de perfil
+
+O cadastro aceita 3 tipos de inscrição:
+- **Aluno** — conta própria com login, perfil de aluno
+- **Responsável** — conta própria com login, sem faixa, gere dependentes
+- **Aluno e Responsável** — conta própria com login, tem perfil de aluno E pode ter dependentes
+
+Steps:
+1. Email + OTP (via Supabase Auth)
+2. Tipo de perfil
+3. Dados pessoais + dependentes (se aplicável) + NIF + aceitar contrato
+
+Ao concluir cadastro:
+- `user_metadata.onboarding` é limpo → middleware liberta o acesso
+- 6 mensalidades geradas automaticamente (mês corrente + 5 seguintes, dia 5, ajustado para segunda-feira se fim-de-semana)
+- Email com PDF do contrato enviado em background (fire-and-forget — falha não bloqueia registo)
+- Trigger Supabase cria row em `profiles` automaticamente no signup
 
 ---
 
-## Regras críticas (aprendidas em produção)
+## 7. Base de dados
+
+### Tabelas
+
+| Tabela | Descrição |
+|--------|-----------|
+| `profiles` | Perfil de cada utilizador (aluno, professor, admin, tablet, responsavel) |
+| `presencas` | Registo de presença (1 por aluno por dia, índice único) |
+| `qr_tokens` | Tokens temporários de 60s para validar presença |
+| `mensalidades` | Mensalidades por aluno (mês referência, vencimento, valor, status) |
+| `turmas` | Definição de turmas (dia, hora, recorrência, lotação, categoria, professor) |
+| `aulas` | Instâncias específicas de aulas geradas a partir de turmas |
+| `reservas` | Reservas de alunos para aulas específicas |
+| `historico_graduacoes` | Registo de cada promoção de faixa/grau |
+| `dependentes` | Relação pai/responsável → filho (responsavel_id → dependente_id) |
+| `avisos` | Avisos publicados pela academia (fixado, publicado, timestamps) |
+| `albuns` | Álbuns de fotos (título, capa, autor) |
+| `fotos` | Fotos dentro de álbuns (URL no Storage, legenda) |
+
+### Campos chave de `profiles`
+
+```typescript
+id: string               // UUID = auth.uid()
+nome_completo: string
+telefone: string | null
+data_nascimento: string | null
+perfil: "aluno" | "professor" | "admin" | "tablet" | "responsavel"
+faixa: CorFaixa | null
+graus: number            // 0–4 graus na faixa actual
+categoria: "adulto" | "infantil" | "adulto_infantil"
+status: "ativo" | "inativo" | "trancado"
+foto_url: string | null  // bucket avatars no Supabase Storage
+contacto_emergencia: string | null
+iban: string | null
+nif: string | null
+aulas_manual: number     // contador de presenças importadas manualmente (fichinhas físicas)
+sem_login: boolean       // true para dependentes (filhos sem conta de auth)
+```
+
+### RPCs (funções Postgres)
+
+| RPC | O que faz |
+|-----|-----------|
+| `gerar_qr_token()` | Cria token UUID válido 60s na tabela `qr_tokens` |
+| `registrar_presenca_por_token(p_token)` | Valida token, verifica financeiro + reserva + cooldown, insere em `presencas` |
+| `limpar_tokens_expirados()` | Remove tokens expirados (manutenção periódica) |
+
+### Storage (Supabase)
+
+| Bucket | Uso |
+|--------|-----|
+| `avatars` | Fotos de perfil dos alunos |
+| `galeria` | Fotos dos álbuns |
+| `Contrato` | PDF do contrato de prestação de serviços |
+
+---
+
+## 8. Tipos TypeScript (`src/lib/types.ts`)
+
+```typescript
+PerfilUsuario    = "aluno" | "professor" | "admin" | "tablet" | "responsavel"
+StatusAluno      = "ativo" | "inativo" | "trancado"
+StatusMensalidade = "pendente" | "pago" | "atrasado"
+StatusAula       = "agendada" | "cancelada" | "concluida"
+StatusReserva    = "confirmada" | "cancelada" | "presente"
+RecorrenciaTurma = "semanal" | "quinzenal" | "mensal" | "diario" | "personalizado"
+
+// Sistema de faixas BJJ (adulto + infantil)
+CategoriaFaixa = "adulto" | "infantil" | "adulto_infantil"
+CorFaixa = "branca" | "cinza_branca" | "cinza" | "cinza_preta" |
+           "amarela_branca" | "amarela" | "amarela_preta" |
+           "laranja_branca" | "laranja" | "laranja_preta" |
+           "verde_branca" | "verde" | "verde_preta" |
+           "azul" | "roxa" | "marrom" | "preta" | "coral" | "vermelha"
+
+ActionResult = { ok: boolean; erro?: string }  // retorno padrão de Server Actions
+```
+
+---
+
+## 9. Componentes de domínio
+
+| Componente | Descrição |
+|-----------|-----------|
+| `FaixaBJJ` | Renderiza imagem `.webp` da faixa com graus (pastas `/img/adulto/` e `/img/infantil/`) |
+| `FaixaBelt` | Variante visual alternativa da faixa |
+| `GBLogo` | Logo Gracie Barra SVG |
+| `PresencasCalendario` | Calendário visual com dias de treino marcados |
+| `AvisosMarkRead` | Marca avisos como lidos via localStorage |
+| `InstallPrompt` | Banner PWA de instalação (respeita `pwa-install-dismissed` no localStorage) |
+| `ServiceWorkerUpdater` | Recarrega página quando novo SW disponível (desactivado em dev) |
+
+---
+
+## 10. Cores e design
+
+```javascript
+// tailwind.config.ts — prefixo gb-
+gb: {
+  blue:        "#CC0000",   // Vermelho GB (nome histórico mantido)
+  "blue-dark": "#990000",
+  "blue-light":"#E31E24",
+  black:       "#0A0A0A",
+  white:       "#FFFFFF",
+  gray:        "#F5F5F5",   // Background padrão
+  "gray-dark": "#6B7280",
+}
+```
+
+**Theme color PWA:** `#ED1C24` · **Fonte principal:** SF Pro Display (local woff2) + Geist · **Locale:** pt-PT · **Interface:** português europeu · **Código:** inglês · **Mobile-first**
+
+---
+
+## 11. Padrões e convenções
+
+- `createAdminClient()` para queries no dashboard e mutations admin (contorna RLS)
+- `Promise.all()` para queries paralelas em Server Components
+- `dynamic(() => import(...), { ssr: false })` — **apenas em Client Components** para `@zxing/browser`
+- Server Actions retornam `{ ok: boolean; erro?: string }` e chamam `revalidatePath()` após mutations
+- Imagens de upload comprimidas para WebP no cliente antes do upload
+- `window.confirm()` para confirmações destrutivas (débito UX a resolver na Fase 15)
+- Sem sistema de toasts — feedback inline nos componentes (débito UX a resolver na Fase 15)
+
+---
+
+## 12. Regras críticas aprendidas em produção
 
 | Problema | Solução |
-|---|---|
-| Queries admin retornando vazio | Usar `createAdminClient()` (service_role), não o client de sessão — RLS bloqueia |
-| Câmera não funciona no tablet | HTTPS obrigatório — HTTP bloqueia acesso à câmera |
-| `@zxing/browser` quebrando SSR | `dynamic(() => import(...), { ssr: false })` apenas em Client Components |
-| `pgcrypto` não disponível | Extensão deve ser habilitada explicitamente no Supabase |
-| UIDs do Supabase em SQL | Requerem aspas simples corretas — verificar quoting |
+|----------|---------|
+| Queries admin retornam vazio | Usar `createAdminClient()` — RLS bloqueia com anon key |
+| Câmera não funciona no tablet | HTTPS obrigatório; HTTP bloqueia API de câmera |
+| `@zxing/browser` quebra SSR | `dynamic(..., { ssr: false })` só em Client Components |
+| `pgcrypto` indisponível | Habilitar extensão explicitamente no Supabase |
+| UIDs em SQL sem aspas | Sempre aspas simples corretas nos UUIDs |
+| Middleware redireciona actions | Detectar header `next-action` antes de redirecionar |
+| Perfil incompleto bypassa onboarding | Usar `user_metadata.onboarding` (não query ao DB — zero round-trips) |
+| Enum `responsavel` em falta no DB | Adicionar ao enum Postgres antes de usar no código |
+| Índice único em `aulas` incompleto | Incluir `horario` — mesmo dia com horas diferentes gerava conflito |
 
 ---
 
-## Roadmap de fases
+## 13. Débitos técnicos conhecidos
 
-### ✅ Concluídas
-
-**Fase 1 — Auth + Perfil**
-Login, cadastro, redirecionamento pós-login, página de perfil. Fix: hydration error, auth callback route, TypeScript CSS fix.
-
-**Fase 2 — QR Code Presença (base)**
-Rotas `/presenca`, `/tablet`, `/tablet/login`. Acesso ao tablet restrito a `perfil = 'tablet'`.
-
-**Fase 3 — Fluxo QR completo**
-Geração de QR com cooldown de 1h, leitura pelo tablet, polling no app do aluno, tela verde de confirmação. Foto do aluno exibida no tablet após scan.
-
-**Fase 4 — Perfil completo do aluno**
-Upload de foto para Supabase Storage (bucket `avatars`), edição de dados pessoais, histórico de presenças com filtro por mês, calendário visual marcando dias de treino, resumo mensal.
-
-**Fase 5 — Painel admin**
-CRUD de alunos (cadastrar, editar, inativar), lista com filtros (status, faixa, categoria), visualizar presenças de qualquer aluno, busca por nome.
-
-**Fase 6 — Gestão financeira**
-Campo `data_vencimento_mensalidade` no perfil, status financeiro automático (em dia / vence em breve / atrasado), visão admin com situação de todos os alunos. Fix: bug de infinite loading. Página `/admin/financeiro` com filtros (aluno, mês, status), marcar/desmarcar pago.
-
-**Fase 7 — Turmas e reservas**
-Tabelas `turmas`, `aulas`, `reservas`. Vista semanal em `/aulas` com tabs por dia, vagas em tempo real, reservar/cancelar. Admin: CRUD de turmas, geração de aulas (semanal, diária seg-sex, quinzenal, mensal, personalizado/avulsa), gestão de reservas por aula. RPC modificado: QR rejeitado se não houver reserva confirmada para hoje. Recorrência diária gera seg-sex apenas.
-
-**Fase 8 — Graduações**
-Admin regista promoção de faixa/grau em `/admin/alunos/[id]` — modal com nova faixa, graus, observações. Atualiza `profiles` e insere em `historico_graduacoes`. Timeline visual no perfil do aluno (read-only). Componente `FaixaBJJ` atualizado para usar imagens `.webp` das pastas `/img/adulto/` e `/img/infantil/`, mapeando enum → nome de ficheiro correto (incluindo `roxa` → `roxo`). Sistema de faixas infantis: branca, cinza/branca, cinza, cinza/preta, amarela/branca, amarela, amarela/preta, laranja/branca, laranja, laranja/preta, verde/branca, verde, verde/preta.
-
-**Fase 9 — Dashboard admin**
-Página `/admin` com cards de resumo (ativos/inativos/trancados, presenças do mês, frequência média, mensalidades atrasadas), seção "Alunos que sumiram" (sem presença há 30+ dias), gráfico de barras (recharts, toggle semanas/meses), situação financeira com 3 números coloridos, últimas 5 graduações.
-
-**Fase 10 — Relatórios** ⚠️ PENDENTE
-Não implementado. A implementar:
-- Página `/admin/relatorios`, seleção de mês
-- Geração Excel/CSV (Bloco 1)
-- Geração PDF com logo (Bloco 2)
-
-**Fase 11 — Avisos**
-CRUD de avisos no admin (criar, editar, fixar, publicar/despublicar, apagar). Página `/avisos` para alunos com cards, badge "Fixado", data formatada. Badge de não lidos na navegação via localStorage timestamp.
-
-**Fase 12 — Galeria de fotos**
-CRUD de álbuns (`/admin/albuns`). Upload múltiplo para bucket `galeria` no Supabase Storage. Página `/galeria` com grid de álbuns e capas. Página `/galeria/[id]` com lightbox (prev/next). Seleção de capa por álbum.
-
-**Fase 13 — Dependentes (Pai + Filhos)**
-Nova tabela `dependentes` (responsavel_id → dependente_id). Filho tem perfil próprio no sistema mas sem login. Fluxo de presença: modal pré-QR "Registar para quem?" com lista do responsável + dependentes, gera 1 QR com array de IDs. RPC atualizado para registar presença para múltiplos alunos. Pai vê faixa, histórico e evolução dos filhos (read-only).
-
-**Fase 14 — PWA**
-Manifest com nome, ícones, cores Gracie Barra. Service worker via `next-pwa` com estratégia NetworkFirst (páginas/API) e CacheFirst (assets). Página `/offline`. Prompt de instalação (banner discreto, respeita localStorage para não repetir). Splash screens para iOS (apple-launch-image) para tamanhos comuns.
+| Débito | Impacto | Prioridade |
+|--------|---------|------------|
+| Zero testes automatizados | Bugs em produção sem aviso | 🔴 Alta |
+| Sem logging/observabilidade (Sentry) | Diagnóstico impossível em prod | 🔴 Alta |
+| Cadastro sem rollback transaccional | Perfis parciais se mensalidades falharem | 🟠 Média |
+| Uploads de Storage não atómicos | Ficheiros órfãos se DB falhar a seguir | 🟠 Média |
+| Race condition na capacidade de aulas | Exceder lotação com utilizadores simultâneos | 🟡 Baixa (academia pequena) |
+| Componentes com 1000+ linhas | `AlunoEditView.tsx`, `CadastroForm.tsx` — difíceis de manter | 🟡 Baixa |
+| `window.confirm()` e banners inline | UX inconsistente (a resolver Fase 15) | 🟡 Baixa |
 
 ---
 
-### 🔄 Em andamento / Próximas
+## 14. Estado actual das funcionalidades
 
-**Fase 10 — Relatórios** *(pendente, implementar antes de avançar)*
-- Bloco 1: Página `/admin/relatorios` + exportação Excel/CSV
-- Bloco 2: Geração PDF com logo e formatação
+### ✅ Implementado e em produção
 
-**Fase 15 — UI/UX Polishing**
-- Redesign completo já iniciado (perfil do aluno com accordion, hero alinhado à esquerda, grid de ações 2 colunas com "Registrar Presença" fullwidth)
-- Revisão das restantes páginas
-- Animações, micro-interações, acessibilidade
+| Fase | Funcionalidade | Notas |
+|------|---------------|-------|
+| 1 | Auth + Perfil | Login OTP, cadastro, reset de password, perfil completo |
+| 2 | QR Code base | Rotas `/presenca`, `/tablet`, `/tablet/login` |
+| 3 | Fluxo QR completo | Geração, leitura, polling, confirmação, bloqueio financeiro |
+| 4 | Perfil do aluno | Upload de foto, edição de dados, calendário de presenças |
+| 5 | Painel admin | CRUD de alunos, filtros, busca, visualizar presenças |
+| 6 | Gestão financeira | Mensalidades, status automático, marcar pago/pendente, edição inline, eliminar |
+| 7 | Turmas e reservas | CRUD turmas, geração de aulas, reservar/cancelar, bloqueio por reserva no QR |
+| 8 | Graduações | Registo de promoções, timeline visual, faixas adulto + infantil |
+| 9 | Dashboard admin | KPIs, gráfico presenças (recharts), alunos ausentes, últimas graduações |
+| 11 | Avisos | CRUD admin, publicar/fixar, badge de não lidos |
+| 12 | Galeria de fotos | Álbuns, upload múltiplo, lightbox com teclado |
+| 13 | Dependentes | 3 tipos de cadastro, QR multi-aluno, pai vê filhos |
+| 14 | PWA | Manifest, service worker, splash screens iOS, install prompt, offline |
+| — | Tablet melhorado | Câmera frontal/traseira toggle, presença manual sem QR |
+| — | Importação histórica | Admin selecciona dias em calendário para importar presenças antigas |
+| — | Frequência semanal | Painel de semanas com 0/1/2/3+ treinos no perfil admin do aluno |
+| — | Categoria adulto_infantil | Alunos que treinam nos dois grupos vêem turmas de ambas as categorias |
+| — | Email de contrato | Enviado automaticamente no cadastro (fire-and-forget) |
+| — | Auth guard nas actions | `requireAdmin()` / `requireTablet()` em todas as Server Actions |
 
-**Fase 16 — Notificações push**
-- Web Push API + Supabase Edge Functions + cron jobs
-- Avisos gerais, lembretes de mensalidade (3 dias antes, no dia, após vencimento), parabéns por graduação
+### ❌ Por implementar
 
-**Fase 17 — Gamificação (bônus)**
-- Ranking de presença mensal
-- Streak de treinos consecutivos
-- Badges ("10 treinos seguidos", "100 presenças total")
+| Fase | Funcionalidade | Prioridade |
+|------|---------------|------------|
+| 10 | **Relatórios** — Excel/CSV de presenças e financeiro, PDF com logo | 🔴 Próxima |
+| 15 | **UI/UX Polishing** — toast system, modais, skeletons, micro-interacções | 🟠 |
+| 16 | **Notificações push** — Web Push + Edge Functions + cron (mensalidades, avisos, graduações) | 🟠 |
+| 17 | **Gamificação** — ranking de presenças, streaks, badges | 🟡 |
 
 ---
 
-## Funcionalidades transversais (implementar junto às fases relevantes)
+## 15. Roadmap de produto — visão estratégica
 
-### Controle financeiro no QR e reservas (implementar na Fase 7)
-- `registrar_presenca_por_token()` verifica `data_vencimento_mensalidade` antes de registrar
-- Se vencida há mais de X dias: rejeita com mensagem `"Autenticação não permitida. Mais informações falar com Simone."` + link WhatsApp
-- Reserva de aula também bloqueada se mensalidade vencida há mais de X dias
-- Banner vermelho no app do aluno quando mensalidade vencida ou próxima do vencimento
+O produto evolui em 3 horizontes. Cada horizonte só começa depois do anterior estar estável.
 
-### Modal de pagamento (implementar na Fase 6 ou 7)
-- Botão "Pagar mensalidade" no app do aluno
-- Modal exibe dados de MBWay e IBAN da academia
-- Solução manual no curto prazo; futuramente considerar Stripe ou EuPago para confirmação automática
+### Horizonte 1 — Estabilização Famalicão *(actual)*
+Consolidar o produto para a academia actual antes de qualquer expansão.
+
+**Pendente:**
+- Fase 10: Relatórios (Excel + PDF) — pedido imediato da gestão
+- Testes E2E nos fluxos críticos (QR, cadastro, marcação de pago)
+- Logging com Sentry (free tier suficiente)
+- Notificações push (Fase 16)
+- UI Polishing (Fase 15)
+
+### Horizonte 2 — Rede Gracie Barra *(multi-tenant, mesma marca)*
+Expandir para outras unidades da Gracie Barra, cada uma com a sua configuração local.
+
+**O que muda tecnicamente:**
+- Adicionar `academia_id UUID` a todas as 11 tabelas
+- Reescrever RLS policies para filtrar por academia
+- Nova tabela `academias` (nome, cidade, logo, cores, WhatsApp, email, preços, contrato PDF)
+- Roteamento por subdomínio (`famalicao.grb.app`, `porto.grb.app`) ou path
+- Context de tenant injectado no middleware e propagado às Server Actions
+- Painel super-admin para gerir todas as unidades
+- Config de preços e contacto vinda do DB, não hardcoded
+
+**O que NÃO muda:** sistema de faixas BJJ, fluxo de QR, estrutura de turmas/aulas
+
+**Modelo de negócio:** subscrição mensal por unidade (valor a definir)
+
+### Horizonte 3 — Outras academias de artes marciais *(white-label)*
+Abrir o produto para academias de Karaté, Taekwondo, Judo, Muay Thai, etc.
+
+**Adicionalmente ao Horizonte 2:**
+- Sistema de graduação configurável (substituir enum `CorFaixa` fixo por tabela `graduacoes_config` por academia)
+- Componente `GraduacaoWidget` genérico em vez de `FaixaBJJ`
+- Terminologia configurável ("faixa" / "cinturão" / "dan" / "grau")
+- Self-service onboarding — academia cria conta e configura sozinha
+- Billing integrado (Stripe) — plataforma cobra as academias
+
+**Fora de âmbito neste horizonte:** outros desportos sem sistema de graduação (natação, tênis, etc.)
+
+---
+
+## 16. Valores hardcoded a migrar para config (Horizonte 2)
+
+Antes de escalar, estes valores precisam sair do código para a tabela `academias`:
+
+| Valor | Localização actual |
+|-------|--------------------|
+| "Gracie Barra Famalicão" | `layout.tsx`, `InstallPrompt.tsx`, `login/page.tsx`, `cadastro/CadastroForm.tsx` (múltiplos) |
+| `graciebarrafamalicao@gmail.com` | `send-contract-email.ts` |
+| PDF do contrato URL | `send-contract-email.ts` |
+| WhatsApp link | `send-contract-email.ts`, `tablet-actions.ts` |
+| 62 € / 55 € mensalidade | `cadastro-actions.ts` |
+| +351 prefixo telefónico | `CadastroForm.tsx`, `NovoAlunoForm.tsx`, `AlunoEditView.tsx`, `PerfilView.tsx` |
+| Manifest name/short_name | `public/manifest.json` |
+| Logo e ícones | `public/` (imagens estáticas) |
