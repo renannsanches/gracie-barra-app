@@ -24,10 +24,11 @@ const STATUS_LABELS: Record<string, { label: string; variant: "success" | "destr
 };
 
 const PERFIL_LABELS: Record<string, string> = {
-  aluno:     "Aluno",
-  professor: "Professor",
-  admin:     "Administrador",
-  tablet:    "Tablet",
+  aluno:       "Aluno",
+  professor:   "Professor",
+  admin:       "Administrador",
+  tablet:      "Tablet",
+  responsavel: "Responsável",
 };
 
 const MENS_BG: Record<StatusMensalidade, string> = {
@@ -149,10 +150,12 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
   const [salvoOk, setSalvoOk] = useState(false);
   const [salvoErro, setSalvoErro] = useState("");
   const [form, setForm] = useState({
-    nome:     profileProp?.nome_completo ?? "",
-    telefone: profileProp?.telefone ?? "",
-    dataNasc: profileProp?.data_nascimento ?? "",
+    nome:      profileProp?.nome_completo ?? "",
+    telefone:  profileProp?.telefone ?? "",
+    dataNasc:  profileProp?.data_nascimento ?? "",
+    novoEmail: "",
   });
+  const [emailMsgOk, setEmailMsgOk] = useState("");
 
   async function handleLogout() {
     setSaindo(true);
@@ -217,11 +220,13 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
 
   function iniciarEdicao() {
     setForm({
-      nome:     profile?.nome_completo ?? "",
-      telefone: profile?.telefone ?? "",
-      dataNasc: profile?.data_nascimento ?? "",
+      nome:      profile?.nome_completo ?? "",
+      telefone:  profile?.telefone ?? "",
+      dataNasc:  profile?.data_nascimento ?? "",
+      novoEmail: "",
     });
     setSalvoErro("");
+    setEmailMsgOk("");
     setEditando(true);
   }
 
@@ -265,6 +270,14 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
             }
           : prev
       );
+
+      // Handle email change separately
+      const emailNovo = form.novoEmail.trim().toLowerCase();
+      if (emailNovo && emailNovo !== email.toLowerCase()) {
+        const { error: emailErr } = await supabase.auth.updateUser({ email: emailNovo });
+        if (emailErr) throw emailErr;
+        setEmailMsgOk(`Email de confirmação enviado para ${emailNovo}. Confirma para concluir a alteração.`);
+      }
 
       setEditando(false);
       setSalvoOk(true);
@@ -504,8 +517,8 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
           )}
         </div>
 
-        {/* Faixa + Stats */}
-        <AccordionCard
+        {/* Faixa + Stats — hidden for pure responsavel */}
+        {profile?.perfil !== "responsavel" && <AccordionCard
           open={faixaOpen}
           onToggle={() => setFaixaOpen((o) => !o)}
           icon={<Award size={16} className="text-gray-400" />}
@@ -594,7 +607,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                 </div>
               )}
             </div>
-        </AccordionCard>
+        </AccordionCard>}
 
         {/* Dados pessoais */}
         <AccordionCard
@@ -661,9 +674,20 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-gray-400">Email</Label>
-                  <p className="text-sm text-gray-400 px-1">{email}</p>
-                  <p className="text-xs text-gray-300 px-1">O email não pode ser alterado</p>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder={email}
+                    value={form.novoEmail}
+                    onChange={(e) => setForm((f) => ({ ...f, novoEmail: e.target.value }))}
+                  />
+                  <p className="text-xs text-gray-400 px-1">
+                    Deixa em branco para manter {email}. Ao alterar, receberás um email de confirmação.
+                  </p>
+                  {emailMsgOk && (
+                    <p className="text-xs text-green-600 px-1">{emailMsgOk}</p>
+                  )}
                 </div>
 
                 {profile.faixa && (

@@ -1,4 +1,4 @@
-export type PerfilUsuario = "aluno" | "professor" | "admin" | "tablet";
+export type PerfilUsuario = "aluno" | "professor" | "admin" | "tablet" | "responsavel";
 export type StatusMensalidade = "pendente" | "pago" | "atrasado";
 
 export interface Mensalidade {
