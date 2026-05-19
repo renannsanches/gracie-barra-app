@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Check, Loader2, Users, Calendar, ChevronDown, ChevronUp,
-  RotateCcw, X, Plus, Trash2,
+  RotateCcw, X, Plus, Trash2, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
   gerarAulas,
   buscarAulasComContagem,
   atualizarStatusAula,
+  atualizarAula,
   excluirAula,
   excluirTurma,
   adicionarAulaAvulsa,
@@ -116,6 +117,10 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp 
 
   const [updatingAula, setUpdatingAula] = useState<string | null>(null);
   const [excluindoAula, setExcluindoAula] = useState<string | null>(null);
+
+  const [editandoAula, setEditandoAula] = useState<string | null>(null);
+  const [editHorario, setEditHorario]   = useState("");
+  const [salvandoAula, setSalvandoAula] = useState(false);
 
   const [expandedAula, setExpandedAula]     = useState<string | null>(null);
   const [reservasPorAula, setReservasPorAula] = useState<Record<string, ReservaComAluno[]>>({});
@@ -223,17 +228,34 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp 
     setUpdatingAula(null);
   }
 
-  async function handleExcluirAula(aulaId: string) {
-    if (!confirm("Excluir esta aula permanentemente?")) return;
-    setExcluindoAula(aulaId);
-    const result = await excluirAula(aulaId, turma.id);
+  async function handleExcluirAula(aula: AulaComContagem) {
+    const msg = aula.reservas_confirmadas > 0
+      ? `Esta aula tem ${aula.reservas_confirmadas} reserva(s). Excluir irá removê-las permanentemente. Confirmar?`
+      : "Excluir esta aula permanentemente?";
+    if (!confirm(msg)) return;
+    setExcluindoAula(aula.id);
+    const result = await excluirAula(aula.id, turma.id);
     if (!result.ok) {
       alert(result.erro ?? "Erro ao excluir.");
     } else {
-      setAulas((prev) => prev.filter((a) => a.id !== aulaId));
-      if (expandedAula === aulaId) setExpandedAula(null);
+      setAulas((prev) => prev.filter((a) => a.id !== aula.id));
+      if (expandedAula === aula.id) setExpandedAula(null);
     }
     setExcluindoAula(null);
+  }
+
+  function iniciarEdicaoAula(aula: AulaComContagem) {
+    setEditandoAula(aula.id);
+    setEditHorario(aula.horario.slice(0, 5));
+  }
+
+  async function handleSalvarEdicaoAula(aulaId: string) {
+    setSalvandoAula(true);
+    const result = await atualizarAula(aulaId, turma.id, { horario: editHorario + ":00" });
+    setSalvandoAula(false);
+    if (!result.ok) { alert(result.erro ?? "Erro ao salvar."); return; }
+    setEditandoAula(null);
+    setAulas((prev) => prev.map((a) => a.id === aulaId ? { ...a, horario: editHorario + ":00" } : a));
   }
 
   async function handleVerReservas(aulaId: string) {
@@ -271,7 +293,6 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp 
     const isLoading   = carregandoReservas === aula.id;
     const reservas    = reservasPorAula[aula.id] ?? [];
     const vagasLivres = aula.lotacao_maxima - aula.reservas_confirmadas;
-    const semReservas = aula.reservas_confirmadas === 0;
 
     return (
       <div className="border-t border-gray-50 first:border-t-0">
@@ -304,6 +325,18 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp 
               <Users size={11} />
               {aula.reservas_confirmadas}
             </button>
+
+            {/* Editar horário */}
+            {aula.status === "agendada" && (
+              <button
+                type="button"
+                onClick={() => editandoAula === aula.id ? setEditandoAula(null) : iniciarEdicaoAula(aula)}
+                title="Editar horário"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                <Pencil size={12} />
+              </button>
+            )}
 
             {/* Concluir / Cancelar / Reabrir */}
             {aula.status === "agendada" && (
@@ -344,23 +377,49 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp 
               </button>
             )}
 
-            {/* Excluir — só sem reservas */}
-            {semReservas && (
-              <button
-                type="button"
-                onClick={() => handleExcluirAula(aula.id)}
-                disabled={excluindoAula === aula.id}
-                title="Excluir aula"
-                className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
-              >
-                {excluindoAula === aula.id
-                  ? <Loader2 size={12} className="animate-spin" />
-                  : <Trash2 size={12} />
-                }
-              </button>
-            )}
+            {/* Excluir */}
+            <button
+              type="button"
+              onClick={() => handleExcluirAula(aula)}
+              disabled={excluindoAula === aula.id}
+              title="Excluir aula"
+              className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              {excluindoAula === aula.id
+                ? <Loader2 size={12} className="animate-spin" />
+                : <Trash2 size={12} />
+              }
+            </button>
           </div>
         </div>
+
+        {/* Editar horário inline */}
+        {editandoAula === aula.id && (
+          <div className="bg-blue-50 border-t border-blue-100 px-4 py-3 flex items-center gap-3 flex-wrap">
+            <label className="text-xs font-medium text-gray-600">Horário:</label>
+            <input
+              type="time"
+              value={editHorario}
+              onChange={(e) => setEditHorario(e.target.value)}
+              className="text-sm border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-gb-blue/30"
+            />
+            <button
+              type="button"
+              onClick={() => handleSalvarEdicaoAula(aula.id)}
+              disabled={salvandoAula}
+              className="text-xs font-medium text-white bg-gb-blue px-3 py-1.5 rounded-lg disabled:opacity-50 hover:bg-gb-blue-dark transition-colors"
+            >
+              {salvandoAula ? "Salvando..." : "Salvar"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditandoAula(null)}
+              className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
 
         {/* Reservas expandidas */}
         {isExpanded && (

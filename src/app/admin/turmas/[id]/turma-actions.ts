@@ -121,20 +121,25 @@ export async function atualizarStatusAula(
   return { ok: true };
 }
 
+export async function atualizarAula(
+  aulaId: string,
+  turmaId: string,
+  dados: { horario?: string; data?: string; lotacao_maxima?: number },
+): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+  const admin = createAdminClient();
+  const { error } = await admin.from("aulas").update(dados).eq("id", aulaId);
+  if (error) return { ok: false, erro: error.message };
+  revalidatePath(`/admin/turmas/${turmaId}`);
+  return { ok: true };
+}
+
 export async function excluirAula(aulaId: string, turmaId: string): Promise<ActionResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
   const admin = createAdminClient();
-
-  const { count } = await admin
-    .from("reservas")
-    .select("id", { count: "exact", head: true })
-    .eq("aula_id", aulaId);
-
-  if ((count ?? 0) > 0) {
-    return { ok: false, erro: "Aula com reservas não pode ser excluída. Use 'Cancelar' para desativá-la." };
-  }
-
+  await admin.from("reservas").delete().eq("aula_id", aulaId);
   const { error } = await admin.from("aulas").delete().eq("id", aulaId);
   if (error) return { ok: false, erro: error.message };
   revalidatePath(`/admin/turmas/${turmaId}`);
