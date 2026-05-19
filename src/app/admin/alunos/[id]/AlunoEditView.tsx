@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Check, Loader2, User, CalendarDays, CreditCard,
-  Plus, RotateCcw, Award, Trash2, Camera, Users, Pencil, X,
+  Plus, RotateCcw, Award, Trash2, Camera, Users, Pencil, X, Star, ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
@@ -37,6 +37,7 @@ import { registrarGraduacao, excluirGraduacao } from "./graduacao-actions";
 import { uploadFotoAluno } from "./foto-actions";
 import { atualizarResponsavel } from "./dependentes-actions";
 import type { ProfileSimples } from "./page";
+import type { ElegibilidadeResult } from "@/lib/graduacao-rules";
 
 async function comprimirParaWebP(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -99,6 +100,7 @@ interface Props {
   presencas: PresencaItem[];
   mensalidades: Mensalidade[];
   graduacoes: HistoricoGraduacao[];
+  elegibilidade: ElegibilidadeResult | null;
   responsavel: ProfileSimples | null;
   dependentesDoAluno: ProfileSimples[];
   alunosComLogin: ProfileSimples[];
@@ -110,6 +112,7 @@ export function AlunoEditView({
   presencas: presencasProp,
   mensalidades: mensalidadesProp,
   graduacoes: graduacoesProp,
+  elegibilidade,
   responsavel: responsavelProp,
   dependentesDoAluno,
   alunosComLogin,
@@ -760,6 +763,73 @@ export function AlunoEditView({
             </Button>
           )}
         </div>
+
+        {/* ── Elegibilidade ── */}
+        {elegibilidade && elegibilidade.proximaPromocao && (
+          <div className={`rounded-2xl border p-4 ${
+            elegibilidade.elegivel
+              ? "bg-emerald-50 border-emerald-200"
+              : "bg-white border-gray-100"
+          }`}>
+            <div className="flex items-center gap-2 mb-3">
+              <Star size={14} className={elegibilidade.elegivel ? "text-emerald-500" : "text-gray-400"} />
+              <span className={`text-sm font-semibold ${elegibilidade.elegivel ? "text-emerald-700" : "text-gray-600"}`}>
+                {elegibilidade.elegivel ? "Apto a Graduar" : "Progresso para graduação"}
+              </span>
+              {elegibilidade.elegivel && (
+                <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                  <ChevronRight size={11} />
+                  {labelCorFaixa(elegibilidade.proximaPromocao.faixa)}
+                  {elegibilidade.proximaPromocao.graus > 0 ? ` ${elegibilidade.proximaPromocao.graus}º grau` : ""}
+                </span>
+              )}
+            </div>
+
+            {/* Barra de semanas qualificadas */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Semanas qualificadas (≥2 presenças/semana)</span>
+                <span className="font-semibold tabular-nums">
+                  {elegibilidade.semanasQualificadas} / {elegibilidade.semanasNecessarias}
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${elegibilidade.elegivel ? "bg-emerald-500" : "bg-gb-blue"}`}
+                  style={{ width: `${Math.min(100, elegibilidade.semanasNecessarias > 0 ? (elegibilidade.semanasQualificadas / elegibilidade.semanasNecessarias) * 100 : 0)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Bloqueadores (se não elegível) */}
+            {!elegibilidade.elegivel && (
+              <div className="mt-3 space-y-1">
+                {elegibilidade.semanasQualificadas < elegibilidade.semanasNecessarias && (
+                  <p className="text-xs text-amber-600">
+                    • Faltam {elegibilidade.semanasNecessarias - elegibilidade.semanasQualificadas} semanas qualificadas
+                  </p>
+                )}
+                {elegibilidade.mesesFaixaRestantes > 0 && (
+                  <p className="text-xs text-amber-600">
+                    • Tempo mínimo de faixa: faltam {elegibilidade.mesesFaixaRestantes} mês{elegibilidade.mesesFaixaRestantes > 1 ? "es" : ""}
+                  </p>
+                )}
+                {elegibilidade.idadeInsuficiente && (
+                  <p className="text-xs text-red-600">
+                    • Idade insuficiente para {labelCorFaixa(elegibilidade.proximaPromocao.faixa)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {!elegibilidade.elegivel && (
+              <p className="text-xs text-gray-400 mt-2">
+                Próxima promoção: {labelCorFaixa(elegibilidade.proximaPromocao.faixa)}
+                {elegibilidade.proximaPromocao.graus > 0 ? ` ${elegibilidade.proximaPromocao.graus}º grau` : ""}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* ── Formulário de nova graduação ── */}
         {mostraFormGrad && (

@@ -1,11 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Users, CalendarCheck, TrendingUp, AlertTriangle, ChevronRight, UserX, Award,
+  Users, CalendarCheck, TrendingUp, AlertTriangle, ChevronRight, UserX, Award, Star,
 } from "lucide-react";
 import Link from "next/link";
 import { FaixaBJJ } from "@/components/FaixaBJJ";
-import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
+import type { CorFaixa, CategoriaFaixa, HistoricoGraduacao } from "@/lib/types";
+import { calcularElegibilidade } from "@/lib/graduacao-rules";
 import { PresencasChart } from "./PresencasChart";
 import type { ChartDataPoint } from "./PresencasChart";
 
@@ -34,6 +35,17 @@ interface SumidoAluno {
   categoria: CategoriaFaixa;
   ultimaPresenca: string | null;
   diasAusente: number;
+}
+
+interface AptosGraduarAluno {
+  id: string;
+  nome_completo: string;
+  faixa: CorFaixa;
+  graus: number;
+  categoria: CategoriaFaixa;
+  proximaPromocao: { faixa: CorFaixa; graus: number };
+  semanasQualificadas: number;
+  semanasNecessarias: number;
 }
 
 function formatDate(dateStr: string): string {
@@ -67,7 +79,7 @@ async function getDashboardData(isAdmin: boolean) {
   // ── Batch 1: parallel queries ──────────────────────────────────────────────
   const [profilesRes, presencasCountRes, atrasadasRes, recentPresencasRes, chartRes, venceBreveRes, graduacoesRes] = await Promise.all([
     admin.from("profiles")
-      .select("id, status, nome_completo, faixa, graus, categoria, created_at")
+      .select("id, status, nome_completo, faixa, graus, categoria, data_nascimento, created_at")
       .eq("perfil", "aluno"),
     admin.from("presencas")
       .select("*", { count: "exact", head: true })
@@ -185,20 +197,38 @@ async function getDashboardData(isAdmin: boolean) {
   const trintaAtrasStr = `${trintaAtras.getFullYear()}-${String(trintaAtras.getMonth() + 1).padStart(2, "0")}-${String(trintaAtras.getDate()).padStart(2, "0")}`;
 
   let sumiram: SumidoAluno[] = [];
+  let aptosGraduar: AptosGraduarAluno[] = [];
 
   if (activeIds.length > 0) {
-    const { data: presencasAtivos } = await admin
-      .from("presencas")
-      .select("aluno_id, dia_registro")
-      .in("aluno_id", activeIds)
-      .order("dia_registro", { ascending: false });
+    const [{ data: presencasAtivos }, { data: historicoAtivos }] = await Promise.all([
+      admin.from("presencas")
+        .select("aluno_id, dia_registro")
+        .in("aluno_id", activeIds)
+        .order("dia_registro", { ascending: false }),
+      admin.from("historico_graduacoes")
+        .select("id, aluno_id, faixa_nova, faixa_anterior, graus_nova, graus_anterior, data_graduacao, graduado_por, observacoes, created_at")
+        .in("aluno_id", activeIds)
+        .order("data_graduacao", { ascending: false }),
+    ]);
 
     const lastPresencaMap: Record<string, string> = {};
     const treinouRecenteSet = new Set<string>();
+    const diasByAluno: Record<string, string[]> = {};
 
     for (const p of presencasAtivos ?? []) {
-      if (!lastPresencaMap[p.aluno_id]) lastPresencaMap[p.aluno_id] = p.dia_registro;
-      if (p.dia_registro >= trintaAtrasStr) treinouRecenteSet.add(p.aluno_id);
+      const aid = p.aluno_id as string;
+      const dia = p.dia_registro as string;
+      if (!lastPresencaMap[aid]) lastPresencaMap[aid] = dia;
+      if (dia >= trintaAtrasStr) treinouRecenteSet.add(aid);
+      if (!diasByAluno[aid]) diasByAluno[aid] = [];
+      diasByAluno[aid].push(dia);
+    }
+
+    const historicoByAluno: Record<string, HistoricoGraduacao[]> = {};
+    for (const h of historicoAtivos ?? []) {
+      const aid = h.aluno_id as string;
+      if (!historicoByAluno[aid]) historicoByAluno[aid] = [];
+      historicoByAluno[aid].push(h as HistoricoGraduacao);
     }
 
     sumiram = activosProfiles
@@ -220,6 +250,36 @@ async function getDashboardData(isAdmin: boolean) {
         };
       })
       .sort((a, b) => b.diasAusente - a.diasAusente);
+
+    // ── Aptos a graduar ──────────────────────────────────────────────────────
+    for (const a of activosProfiles) {
+      if (!a.faixa) continue;
+      const dias = diasByAluno[a.id as string] ?? [];
+      const hist = historicoByAluno[a.id as string] ?? [];
+      const eleg = calcularElegibilidade(
+        {
+          faixa:           a.faixa as CorFaixa,
+          graus:           (a.graus as number) ?? 0,
+          categoria:       ((a.categoria as string) ?? "adulto") as CategoriaFaixa,
+          data_nascimento: (a.data_nascimento as string | null) ?? null,
+          created_at:      a.created_at as string,
+        },
+        dias,
+        hist,
+      );
+      if (eleg.elegivel && eleg.proximaPromocao) {
+        aptosGraduar.push({
+          id:               a.id as string,
+          nome_completo:    a.nome_completo as string,
+          faixa:            a.faixa as CorFaixa,
+          graus:            (a.graus as number) ?? 0,
+          categoria:        ((a.categoria as string) ?? "adulto") as CategoriaFaixa,
+          proximaPromocao:  eleg.proximaPromocao,
+          semanasQualificadas: eleg.semanasQualificadas,
+          semanasNecessarias:  eleg.semanasNecessarias,
+        });
+      }
+    }
   }
 
   return {
@@ -227,6 +287,7 @@ async function getDashboardData(isAdmin: boolean) {
     presencasMes, frequenciaMedia, alunosAtrasados,
     recentWithProfile,
     sumiram,
+    aptosGraduar,
     ultimasGraduacoes,
     semanalData,
     mensalData,
@@ -249,6 +310,7 @@ export default async function AdminDashboardPage() {
     presencasMes, frequenciaMedia, alunosAtrasados,
     recentWithProfile,
     sumiram,
+    aptosGraduar,
     ultimasGraduacoes,
     semanalData,
     mensalData,
@@ -402,6 +464,58 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* ── Aptos a Graduar ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <Star size={16} className="text-emerald-500" />
+            <h2 className="text-sm font-bold text-gray-700">Aptos a Graduar</h2>
+            {aptosGraduar.length > 0 && (
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                {aptosGraduar.length}
+              </span>
+            )}
+          </div>
+          <span className="text-xs text-gray-400">presenças e tempo de faixa verificados</span>
+        </div>
+
+        {aptosGraduar.length === 0 ? (
+          <div className="px-6 py-10 text-center">
+            <p className="text-sm text-gray-400">Nenhum aluno apto a graduar de momento.</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-50">
+            {aptosGraduar.map((a) => (
+              <li key={a.id}>
+                <Link
+                  href={`/admin/alunos/${a.id}`}
+                  className="flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50 transition-colors"
+                >
+                  {/* Faixa actual */}
+                  <div className="w-14 shrink-0 flex items-center justify-center">
+                    <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="sm" />
+                  </div>
+
+                  {/* Nome + semanas */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{a.nome_completo}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {a.semanasQualificadas} semanas qualificadas
+                    </p>
+                  </div>
+
+                  {/* Próxima promoção */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <ChevronRight size={14} className="text-gray-300" />
+                    <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="sm" />
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {/* ── Gráfico de presenças ── */}
       <div className="mb-6">

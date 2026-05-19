@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile, Mensalidade, HistoricoGraduacao } from "@/lib/types";
 import type { PresencaItem } from "@/components/PresencasCalendario";
+import { calcularElegibilidade, type ElegibilidadeResult } from "@/lib/graduacao-rules";
 import { AlunoEditView } from "./AlunoEditView";
 
 interface Props { params: Promise<{ id: string }>; }
@@ -56,6 +57,13 @@ export default async function AlunoDetailPage({ params }: Props) {
 
   if (!aluno) notFound();
 
+  const alunoProfile = aluno as Profile;
+  const presencasDias = (presencas ?? []).map((p) => (p as PresencaItem).registrado_em.split("T")[0]);
+  const historicoGrad = (graduacoes ?? []) as HistoricoGraduacao[];
+  const elegibilidade: ElegibilidadeResult | null = alunoProfile.faixa
+    ? calcularElegibilidade(alunoProfile, presencasDias, historicoGrad)
+    : null;
+
   const todosProfiles = (alunosComLoginRows ?? []) as ProfileSimples[];
 
   const responsavelId = responsavelRow?.responsavel_id ?? null;
@@ -72,10 +80,11 @@ export default async function AlunoDetailPage({ params }: Props) {
 
   return (
     <AlunoEditView
-      aluno={aluno as Profile}
+      aluno={alunoProfile}
       presencas={(presencas ?? []) as PresencaItem[]}
       mensalidades={(mensalidades ?? []) as Mensalidade[]}
-      graduacoes={(graduacoes ?? []) as HistoricoGraduacao[]}
+      graduacoes={historicoGrad}
+      elegibilidade={elegibilidade}
       responsavel={responsavelProfile}
       dependentesDoAluno={dependentesProfiles}
       alunosComLogin={todosProfiles}
