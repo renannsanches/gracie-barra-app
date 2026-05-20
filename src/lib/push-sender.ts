@@ -105,7 +105,7 @@ export async function sendPushAviso() {
     .from("profiles")
     .select("id")
     .eq("status", "ativo")
-    .in("perfil", ["aluno", "responsavel"]);
+    .in("perfil", ["aluno", "responsavel", "professor"]);
 
   if (!profiles || profiles.length === 0) return;
 
