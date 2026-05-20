@@ -211,7 +211,7 @@ Tablet lê QR
   → @zxing/browser (dynamic import, ssr:false)
   → Server Action: registrar_presenca_por_token(token)
     → RPC verifica: token válido? não expirado?
-    → RPC verifica: mensalidade em dia? (bloqueia se vencida há >X dias)
+    → RPC verifica: mensalidade em dia? (bloqueia se vencida há >10 dias)
     → RPC verifica: reserva confirmada para hoje? (bloqueia se não reservou)
     → RPC verifica: cooldown 30min? (bloqueia re-entrada)
     → Insere em presencas (índice único por aluno+data)
@@ -288,7 +288,8 @@ sem_login: boolean        // true para dependentes (filhos sem conta de auth)
 | RPC | O que faz |
 |-----|-----------|
 | `gerar_qr_token()` | Cria token UUID válido 60s na tabela `qr_tokens` |
-| `registrar_presenca_por_token(p_token)` | Valida token, verifica financeiro + reserva + cooldown, insere em `presencas` |
+| `registrar_presenca_por_token(p_token)` | Valida token, verifica financeiro (>10 dias atraso) + reserva + cooldown, insere em `presencas` |
+| `verificar_bloqueio_financeiro(p_aluno_id)` | Retorna `true` se mensalidade mais recente vencida há >10 dias; `false` se sem mensalidade ou atraso ≤10 dias |
 | `limpar_tokens_expirados()` | Remove tokens expirados (manutenção periódica) |
 
 ### Storage (Supabase)
@@ -427,6 +428,9 @@ gb: {
 | — | Histórico filtro pessoa | Alunos filtram histórico de presenças por pessoa (self ou dependentes) |
 | — | Monitorização erros | Sentry (`@sentry/nextjs`) integrado, mapeamento de source maps em Vercel |
 | 16 | **Notificações push + WhatsApp** | Web Push via `web-push` + VAPID keys; tabelas `push_subscriptions` e `notificacoes_graduacao_enviadas`; Vercel Cron 09:00 mensalidades+graduações, 08:00 responsáveis; push de aviso fire-and-forget em `avisos-actions.ts`; botão WhatsApp em `/perfil` quando mensalidade atrasada |
+| — | **Bloqueio financeiro 10 dias** | RPC `verificar_bloqueio_financeiro()` usada em QR token, presença manual no tablet e reserva de aula; regra: sem mensalidade = permite, atraso ≤10 dias = permite, atraso >10 dias = bloqueia; `AulasView` mostra botão desabilitado com aviso âmbar; labels "Em atraso" uniformizados |
+| — | **Card aptos a graduar em /perfil** | Admin e professor vêem card com lista de alunos aptos a graduar directamente no `/perfil` (mesmo card que existe no dashboard admin) |
+| — | **Email na ficha do aluno** | Campo email read-only na secção "Dados do aluno" em `/admin/alunos/[id]`; fetch via `supabaseAdmin.auth.admin.getUserById()`; oculto para dependentes (`sem_login=true`) |
 
 ### ❌ Por implementar
 
@@ -445,10 +449,10 @@ O produto evolui em 3 horizontes. Cada horizonte só começa depois do anterior 
 Consolidar o produto para a academia actual antes de qualquer expansão.
 
 **Pendente:**
-- Fase 10: Relatórios (Excel + PDF) — pedido imediato da gestão
+- ✅ Fase 10: Relatórios (Excel + PDF) — implementado
 - ✅ Testes E2E nos fluxos críticos (QR, cadastro, marcação de pago) — implementado
 - ✅ Logging com Sentry (free tier) — implementado (falta configurar DSN em Vercel)
-- Notificações push (Fase 16)
+- ✅ Notificações push (Fase 16) — implementado (falta configurar tabelas Supabase + env vars Vercel manualmente)
 - UI Polishing (Fase 15)
 
 ### Horizonte 2 — Rede Gracie Barra *(multi-tenant, mesma marca)*

@@ -3,6 +3,7 @@
 import { useState, useMemo, useTransition } from "react";
 import { marcarPago, desmarcarPago } from "./actions";
 import type { Mensalidade, StatusMensalidade } from "@/lib/types";
+import { matchesSearch } from "@/lib/search-utils";
 
 type MensalidadeComAluno = Mensalidade & {
   profiles: { nome_completo: string } | null;
@@ -49,7 +50,7 @@ export function FinanceiroView({ mensalidades }: Props) {
   const filtered = useMemo(() => {
     return mensalidades.filter((m) => {
       const nome = m.profiles?.nome_completo ?? "";
-      if (busca && !nome.toLowerCase().includes(busca.toLowerCase())) return false;
+      if (busca && !matchesSearch(nome, busca)) return false;
       if (filtroAno && !m.mes_referencia.startsWith(filtroAno)) return false;
       if (filtroMes && m.mes_referencia.slice(5, 7) !== filtroMes) return false;
       if (statusFiltro && m.status !== statusFiltro) return false;

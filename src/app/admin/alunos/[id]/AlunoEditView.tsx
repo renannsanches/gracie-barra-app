@@ -461,6 +461,8 @@ export function AlunoEditView({
       if (!row.mesReferencia) { setLoteErro("Mês obrigatório em todas as linhas."); return; }
       updates.push({ id: row.id, valor, data_vencimento: row.dataVencimento, mes_referencia: `${row.mesReferencia}-01` });
     }
+    const mesesUnicos = new Set(updates.map((u) => u.mes_referencia));
+    if (mesesUnicos.size !== updates.length) { setLoteErro("Meses duplicados no lote. Cada mês deve ser único."); return; }
     setAcaoLote(true);
     try {
       const result = await serverEditarMensalidadesEmLote(aluno.id, updates);
