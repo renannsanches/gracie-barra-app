@@ -5,6 +5,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
+  customWorkerSrc: "worker",
   fallbacks: {
     document: "/offline",
   },

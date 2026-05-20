@@ -409,28 +409,30 @@ gb: {
 | 3 | Fluxo QR completo | Geração, leitura, polling, confirmação, bloqueio financeiro |
 | 4 | Perfil do aluno | Upload de foto, edição de dados, calendário de presenças |
 | 5 | Painel admin | CRUD de alunos, filtros, busca, visualizar presenças |
-| 6 | Gestão financeira | Mensalidades, status automático, marcar pago/pendente, edição inline, eliminar |
-| 7 | Turmas e reservas | CRUD turmas, geração de aulas, reservar/cancelar, bloqueio por reserva no QR |
-| 8 | Graduações | Registo de promoções, timeline visual, faixas adulto + infantil |
+| 6 | Gestão financeira | Mensalidades, status automático, marcar pago/pendente, edição inline, eliminar, editar mês de referência em lote |
+| 7 | Turmas e reservas | CRUD turmas, editar horário, excluir aula com reservas, geração de aulas, reservar/cancelar, bloqueio por reserva no QR |
+| 8 | Graduações | Registo de promoções, timeline visual, faixas adulto + infantil, elegibilidade automática por requisitos |
 | 9 | Dashboard admin | KPIs, gráfico presenças (recharts), alunos ausentes, últimas graduações |
+| 10 | Relatórios | Excel/CSV de presenças e financeiro, PDF com logo Gracie Barra, página admin `/admin/relatorios` |
 | 11 | Avisos | CRUD admin, publicar/fixar, badge de não lidos |
 | 12 | Galeria de fotos | Álbuns, upload múltiplo, lightbox com teclado |
 | 13 | Dependentes | 3 tipos de cadastro, QR multi-aluno, pai vê filhos |
 | 14 | PWA | Manifest, service worker, splash screens iOS, install prompt, offline |
-| — | Tablet melhorado | Câmera frontal/traseira toggle, presença manual sem QR |
+| — | Tablet melhorado | Câmera frontal/traseira toggle, presença manual sem QR, batch manual entry |
 | — | Importação histórica | Admin selecciona dias em calendário para importar presenças antigas |
 | — | Frequência semanal | Painel de semanas com 0/1/2/3+ treinos no perfil admin do aluno |
 | — | Categoria adulto_infantil | Alunos que treinam nos dois grupos vêem turmas de ambas as categorias |
 | — | Email de contrato | Enviado automaticamente no cadastro (fire-and-forget) |
 | — | Auth guard nas actions | `requireAdmin()` / `requireTablet()` em todas as Server Actions |
+| — | Histórico filtro pessoa | Alunos filtram histórico de presenças por pessoa (self ou dependentes) |
+| — | Monitorização erros | Sentry (`@sentry/nextjs`) integrado, mapeamento de source maps em Vercel |
+| 16 | **Notificações push + WhatsApp** | Web Push via `web-push` + VAPID keys; tabelas `push_subscriptions` e `notificacoes_graduacao_enviadas`; Vercel Cron 09:00 mensalidades+graduações, 08:00 responsáveis; push de aviso fire-and-forget em `avisos-actions.ts`; botão WhatsApp em `/perfil` quando mensalidade atrasada |
 
 ### ❌ Por implementar
 
 | Fase | Funcionalidade | Prioridade |
 |------|---------------|------------|
-| 10 | **Relatórios** — Excel/CSV de presenças e financeiro, PDF com logo | Próxima |
 | 15 | **UI/UX Polishing** — toast system, modais, skeletons, micro-interacções | — |
-| 16 | **Notificações push** — Web Push + Edge Functions + cron (mensalidades, avisos, graduações) | — |
 | 17 | **Gamificação** — ranking de presenças, streaks, badges | — |
 
 ---

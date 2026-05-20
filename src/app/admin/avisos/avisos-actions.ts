@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/types";
+import { sendPushAviso } from "@/lib/push-sender";
 
 export async function criarAviso(
   titulo: string,
@@ -20,6 +21,7 @@ export async function criarAviso(
     .insert({ titulo, conteudo, fixado, publicado, autor_id: auth.userId });
   if (error) return { ok: false, erro: error.message };
   revalidatePath("/admin/avisos");
+  if (publicado) sendPushAviso().catch(() => {});
   return { ok: true };
 }
 
@@ -39,6 +41,7 @@ export async function editarAviso(
     .eq("id", id);
   if (error) return { ok: false, erro: error.message };
   revalidatePath("/admin/avisos");
+  if (publicado) sendPushAviso().catch(() => {});
   return { ok: true };
 }
 
@@ -69,5 +72,6 @@ export async function togglePublicado(id: string, publicado: boolean): Promise<A
   const { error } = await admin.from("avisos").update({ publicado }).eq("id", id);
   if (error) return { ok: false, erro: error.message };
   revalidatePath("/admin/avisos");
+  if (publicado) sendPushAviso().catch(() => {});
   return { ok: true };
 }
