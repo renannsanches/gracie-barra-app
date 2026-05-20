@@ -121,7 +121,8 @@ export default async function PerfilPage() {
       const [{ data: presencasAtivos }, { data: historicoAtivos }] = await Promise.all([
         admin.from("presencas")
           .select("aluno_id, dia_registro")
-          .in("aluno_id", activeIds),
+          .in("aluno_id", activeIds)
+          .order("dia_registro", { ascending: false }),
         admin.from("historico_graduacoes")
           .select("id, aluno_id, faixa_nova, faixa_anterior, graus_nova, graus_anterior, data_graduacao, graduado_por, observacoes, created_at")
           .in("aluno_id", activeIds)

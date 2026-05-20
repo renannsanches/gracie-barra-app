@@ -490,10 +490,10 @@ export default async function AdminDashboardPage() {
               <li key={a.id}>
                 <Link
                   href={`/admin/alunos/${a.id}`}
-                  className="flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-3 px-4 md:px-6 py-3.5 hover:bg-gray-50 transition-colors"
                 >
                   {/* Faixa actual */}
-                  <div className="w-14 shrink-0 flex items-center justify-center">
+                  <div className="w-12 shrink-0 flex items-center justify-center overflow-hidden">
                     <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="sm" />
                   </div>
 
@@ -506,9 +506,11 @@ export default async function AdminDashboardPage() {
                   </div>
 
                   {/* Próxima promoção */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <ChevronRight size={14} className="text-gray-300" />
-                    <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="sm" />
+                    <div className="w-16 overflow-hidden flex items-center">
+                      <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="sm" />
+                    </div>
                   </div>
                 </Link>
               </li>

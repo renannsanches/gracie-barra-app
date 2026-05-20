@@ -645,28 +645,20 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                 <p className="text-sm text-gray-400">Nenhum aluno apto a graduar de momento.</p>
               </div>
             ) : (
-              <ul className="divide-y divide-gray-50">
-                {aptosGraduar.map((a) => (
-                  <li key={a.id}>
-                    <Link
-                      href={`/admin/alunos/${a.id}`}
-                      className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="w-14 shrink-0 flex items-center justify-center">
-                        <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="sm" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 truncate">{a.nome_completo}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{a.semanasQualificadas} semanas qualificadas</p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <ChevronRight size={14} className="text-gray-300" />
-                        <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="sm" />
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <div className="px-5 py-4 flex items-center justify-between gap-3">
+                <p className="text-sm text-gray-600 leading-snug">
+                  <span className="font-semibold text-gray-900">{aptosGraduar.length}</span>
+                  {" "}
+                  {aptosGraduar.length === 1 ? "aluno apto" : "alunos aptos"} a graduação
+                </p>
+                <Link
+                  href="/admin"
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c8102e] text-white text-xs font-semibold hover:bg-[#a50d25] active:scale-[0.97] transition-all"
+                >
+                  Ver no Dashboard
+                  <ChevronRight size={13} />
+                </Link>
+              </div>
             )}
           </div>
         )}
