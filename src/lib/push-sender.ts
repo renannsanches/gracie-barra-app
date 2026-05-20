@@ -19,7 +19,7 @@ async function sendToSubscriptions(
   subs: PushSubscriptionRow[],
   payload: { title: string; body: string; url: string },
 ) {
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     subs.map((sub) =>
       webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
@@ -27,6 +27,13 @@ async function sendToSubscriptions(
       )
     )
   );
+  results.forEach((r, i) => {
+    if (r.status === "rejected") {
+      console.error(`[push] sub[${i}] failed:`, r.reason);
+    } else {
+      console.log(`[push] sub[${i}] sent, status:`, r.value.statusCode);
+    }
+  });
 }
 
 async function getSubscriptions(userIds: string[]): Promise<PushSubscriptionRow[]> {
