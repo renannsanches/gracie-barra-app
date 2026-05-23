@@ -57,12 +57,12 @@ export default async function PerfilPage() {
       .from("presencas")
       .select("id", { count: "exact", head: true })
       .eq("aluno_id", user.id)
-      .gte("data_presenca", inicioMes),
+      .gte("dia_registro", inicioMes),
     supabase
       .from("presencas")
-      .select("data_presenca")
+      .select("dia_registro")
       .eq("aluno_id", user.id)
-      .order("data_presenca", { ascending: false })
+      .order("dia_registro", { ascending: false })
       .limit(1),
     supabase
       .from("avisos")
@@ -77,7 +77,7 @@ export default async function PerfilPage() {
   const p = profile as Profile;
   const totalAulas = (p?.aulas_manual ?? 0) + (presencasCount ?? 0);
   const aulasMes = presencasMesCount ?? 0;
-  const ultimoTreino = (ultimaPresenca?.[0] as { data_presenca: string } | undefined)?.data_presenca ?? null;
+  const ultimoTreino = (ultimaPresenca?.[0] as { dia_registro: string } | undefined)?.dia_registro ?? null;
   const avisosTimestamps = (avisosData ?? []).map((a) => a.created_at as string);
 
   const dependentesBase: DependentePerfil[] = (dependentesData ?? [])
