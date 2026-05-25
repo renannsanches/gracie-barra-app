@@ -211,7 +211,7 @@ Tablet lê QR
   → @zxing/browser (dynamic import, ssr:false)
   → Server Action: registrar_presenca_por_token(token)
     → RPC verifica: token válido? não expirado?
-    → RPC verifica: mensalidade em dia? (bloqueia se vencida há >X dias)
+    → RPC verifica: mensalidade em dia? (bloqueia se em atraso há ≥10 dias)
     → RPC verifica: reserva confirmada para hoje? (bloqueia se não reservou)
     → RPC verifica: cooldown 30min? (bloqueia re-entrada)
     → Insere em presencas (índice único por aluno+data)
@@ -289,6 +289,7 @@ sem_login: boolean        // true para dependentes (filhos sem conta de auth)
 |-----|-----------|
 | `gerar_qr_token()` | Cria token UUID válido 60s na tabela `qr_tokens` |
 | `registrar_presenca_por_token(p_token)` | Valida token, verifica financeiro + reserva + cooldown, insere em `presencas` |
+| `verificar_bloqueio_financeiro(p_aluno_id)` | Helper que retorna `true` se aluno tem mensalidade em atraso há ≥10 dias; usado em `reservar` e `registrarPresencaManual` |
 | `limpar_tokens_expirados()` | Remove tokens expirados (manutenção periódica) |
 
 ### Storage (Supabase)
@@ -382,6 +383,8 @@ gb: {
 | Perfil incompleto bypassa onboarding | Usar `user_metadata.onboarding` (não query ao DB — zero round-trips) |
 | Enum `responsavel` em falta no DB | Adicionar ao enum Postgres antes de usar no código |
 | Índice único em `aulas` incompleto | Incluir `horario` — mesmo dia com horas diferentes gerava conflito |
+| Hydration mismatch em `/presencas` | Server (UTC) e client (Europe/Lisbon) podem estar em meses diferentes; calcular `initialMes`/`initialAno` no Server Component e passar como props ao `PresencasCalendario` |
+| Server Actions sem try/catch causam botões travados | Envolver handlers em try/catch com reset de loading em `finally` — erros de rede/5xx devem mostrar mensagem inline, não exceção não tratada |
 
 ---
 
@@ -427,6 +430,10 @@ gb: {
 | — | Histórico filtro pessoa | Alunos filtram histórico de presenças por pessoa (self ou dependentes) |
 | — | Monitorização erros | Sentry (`@sentry/nextjs`) integrado, mapeamento de source maps em Vercel |
 | 16 | **Notificações push + WhatsApp** | Web Push via `web-push` + VAPID keys; tabelas `push_subscriptions` e `notificacoes_graduacao_enviadas`; Vercel Cron 09:00 mensalidades+graduações, 08:00 responsáveis; push de aviso fire-and-forget em `avisos-actions.ts`; botão WhatsApp em `/perfil` quando mensalidade atrasada |
+| — | **Bloqueio financeiro de reservas/presenças** | Aluno com mensalidade em atraso ≥10 dias não pode reservar aulas nem registar presença (QR ou manual); AulasView mostra botão desabilitado com aviso âmbar; RPC `verificar_bloqueio_financeiro` centraliza a regra; regra: sem mensalidade = permitir; em atraso <10 dias = permitir |
+| — | **Email do aluno na ficha admin** | Campo email read-only em `/admin/alunos/[id]`, obtido via `admin.getUserById`; oculto para dependentes (`sem_login=true`) que não têm conta Auth |
+| — | **Card "aptos a graduar" em `/perfil`** | Admin e professor vêem em `/perfil` a lista de alunos elegíveis para promoção de faixa |
+| — | **Robustez de Server Actions** | try/catch em todos os handlers de `AlunoEditView` — erros de rede/5xx mostrados inline; loading reset em `finally` para evitar botões travados (fixes GRACIE-BARRA-APP-2) |
 
 ### ❌ Por implementar
 
@@ -448,7 +455,7 @@ Consolidar o produto para a academia actual antes de qualquer expansão.
 - Fase 10: Relatórios (Excel + PDF) — pedido imediato da gestão
 - ✅ Testes E2E nos fluxos críticos (QR, cadastro, marcação de pago) — implementado
 - ✅ Logging com Sentry (free tier) — implementado (falta configurar DSN em Vercel)
-- Notificações push (Fase 16)
+- ✅ Notificações push (Fase 16) — implementado
 - UI Polishing (Fase 15)
 
 ### Horizonte 2 — Rede Gracie Barra *(multi-tenant, mesma marca)*
