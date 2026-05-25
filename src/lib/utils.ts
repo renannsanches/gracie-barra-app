@@ -43,15 +43,21 @@ export function formatarTelefonePT(valor: string): string {
   return mascararTelefonePT(valor)
 }
 
+const MESES_PT = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
+
 export function formatarData(data: string | Date | null | undefined): string {
   if (!data) return '—'
-  return new Date(data).toLocaleDateString('pt-PT')
+  const d = new Date(data)
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const year = d.getUTCFullYear()
+  return `${day}/${month}/${year}`
 }
 
 export function formatarMes(ano: number, mes: number): string {
-  return new Date(ano, mes - 1).toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })
+  return `${MESES_PT[mes - 1]} de ${ano}`
 }
 
 export function formatarMoeda(valor: number): string {
-  return valor.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })
+  return `${valor.toFixed(2).replace('.', ',')} €`
 }

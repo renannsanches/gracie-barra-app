@@ -136,6 +136,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
   const uploadingDepIdRef = useRef<string | null>(null);
 
   const [unreadAvisos, setUnreadAvisos] = useState(0);
+  const [idadeStr, setIdadeStr] = useState('');
   const [saindo, setSaindo] = useState(false);
   const [dependenteSelecionado, setDependenteSelecionado] = useState<DependentePerfil | null>(null);
   const [uploadingDepId, setUploadingDepId] = useState<string | null>(null);
@@ -147,6 +148,10 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
   const [dadosOpen, setDadosOpen] = useState(false);
   const [mensalidadesOpen, setMensalidadesOpen] = useState(true);
   const [dependentesOpen, setDependentesOpen] = useState(true);
+
+  useEffect(() => {
+    setIdadeStr(calcularIdade(profile?.data_nascimento ?? null));
+  }, [profile?.data_nascimento]);
 
   useEffect(() => {
     const lastSeen = localStorage.getItem("avisos_last_seen");
@@ -800,7 +805,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   <InfoRow
                     icon={<Calendar size={16} />}
                     label="Data de nascimento"
-                    value={formatarData(profile.data_nascimento) + calcularIdade(profile.data_nascimento)}
+                    value={formatarData(profile.data_nascimento) + idadeStr}
                   />
                 )}
               </>
