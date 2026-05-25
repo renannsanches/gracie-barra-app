@@ -6,6 +6,7 @@ import { Search, UserPlus, ChevronRight, User, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { labelCorFaixa } from "@/lib/utils";
+import { matchesSearch } from "@/lib/search-utils";
 import type { Profile, CorFaixa, StatusAluno, CategoriaFaixa } from "@/lib/types";
 
 const FAIXA_BG: Record<CorFaixa, string> = {
@@ -84,9 +85,8 @@ export function AlunosView({ alunos, responsaveisMap }: Props) {
   }
 
   const filtrados = useMemo(() => {
-    const q = busca.toLowerCase().trim();
     return lista.filter((a) => {
-      if (q && !a.nome_completo.toLowerCase().includes(q)) return false;
+      if (busca && !matchesSearch(a.nome_completo, busca)) return false;
       if (tabAtiva === "ativos") {
         if (a.status !== "ativo") return false;
       } else {

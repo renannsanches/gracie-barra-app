@@ -12,6 +12,7 @@ import {
   type AlunoOpcao,
   type AulaOpcao,
 } from "./tablet-actions";
+import { matchesSearch } from "@/lib/search-utils";
 
 type Estado = "camera" | "processando" | "sucesso" | "erro" | "manual";
 
@@ -222,7 +223,7 @@ export default function TabletScanner() {
   }, [processarToken, cameraFrontal]);
 
   const alunosFiltrados = alunos.filter((a) =>
-    a.nome_completo.toLowerCase().includes(filtroNome.toLowerCase())
+    matchesSearch(a.nome_completo, filtroNome)
   );
 
   return (

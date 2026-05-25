@@ -254,6 +254,23 @@ export async function editarMensalidadesEmLote(
   if (!auth.ok) return auth;
   const admin = createAdminClient();
 
+  const mesesUnicos = new Set(updates.map((u) => u.mes_referencia));
+  if (mesesUnicos.size !== updates.length) return { ok: false, erro: "Meses duplicados no lote." };
+
+  const ids = updates.map((u) => u.id);
+  const { data: existentes } = await admin
+    .from("mensalidades")
+    .select("id, mes_referencia")
+    .eq("aluno_id", alunoId)
+    .not("id", "in", `(${ids.join(",")})`);
+
+  const mesesExistentes = new Set(existentes?.map((e) => e.mes_referencia) ?? []);
+  for (const u of updates) {
+    if (mesesExistentes.has(u.mes_referencia)) {
+      return { ok: false, erro: `Já existe mensalidade para ${u.mes_referencia.slice(0, 7)}.` };
+    }
+  }
+
   for (const u of updates) {
     const { error } = await admin
       .from("mensalidades")
