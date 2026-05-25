@@ -20,7 +20,7 @@ export function EsqueciSenhaForm() {
     setCarregando(true);
     try {
       const supabase = createClient();
-      const redirectTo = `${window.location.origin}/auth/callback?next=/nova-senha`;
+      const redirectTo = `${window.location.origin}/nova-senha`;
       const { error } = await supabase.auth.resetPasswordForEmail(
         email.trim().toLowerCase(),
         { redirectTo },

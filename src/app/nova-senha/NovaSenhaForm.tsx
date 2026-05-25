@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Lock, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createClient } from "@/lib/supabase/client";
 import { atualizarSenha } from "./nova-senha-actions";
 
-export function NovaSenhaForm() {
+export function NovaSenhaForm({ code }: { code?: string }) {
   const router = useRouter();
   const [senha, setSenha] = useState("");
   const [confirmar, setConfirmar] = useState("");
@@ -17,6 +19,17 @@ export function NovaSenhaForm() {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState(false);
+  const [trocando, setTrocando] = useState(!!code);
+  const [linkExpirado, setLinkExpirado] = useState(false);
+
+  useEffect(() => {
+    if (!code) return;
+    const supabase = createClient();
+    supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+      if (error) setLinkExpirado(true);
+      setTrocando(false);
+    });
+  }, [code]);
 
   const senhaOk = senha.length >= 6;
   const confirmacaoOk = senha === confirmar;
@@ -37,6 +50,34 @@ export function NovaSenhaForm() {
     } finally {
       setCarregando(false);
     }
+  }
+
+  if (trocando) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="animate-spin text-gray-400" size={32} />
+      </div>
+    );
+  }
+
+  if (linkExpirado) {
+    return (
+      <div className="text-center space-y-4">
+        <div className="flex justify-center">
+          <AlertCircle className="text-red-500" size={48} />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900">Link expirado</h2>
+        <p className="text-gray-500 text-sm">
+          Este link de recuperação já não é válido. Solicita um novo.
+        </p>
+        <Link
+          href="/esqueci-senha"
+          className="inline-block mt-2 text-sm text-gb-blue font-semibold hover:underline"
+        >
+          Pedir novo link
+        </Link>
+      </div>
+    );
   }
 
   if (sucesso) {

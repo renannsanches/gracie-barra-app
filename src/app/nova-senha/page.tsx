@@ -1,6 +1,12 @@
 import { NovaSenhaForm } from "./NovaSenhaForm";
 
-export default function NovaSenhaPage() {
+export default async function NovaSenhaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ code?: string }>;
+}) {
+  const { code } = await searchParams;
+
   return (
     <div className="min-h-screen flex flex-col">
       <div className="bg-gb-black py-10 px-6 flex flex-col items-center">
@@ -16,7 +22,7 @@ export default function NovaSenhaPage() {
         <div className="w-full max-w-sm">
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Nova senha</h2>
           <p className="text-gray-500 text-sm mb-8">Define uma nova senha para a tua conta.</p>
-          <NovaSenhaForm />
+          <NovaSenhaForm code={code} />
         </div>
       </div>
     </div>
