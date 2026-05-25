@@ -26,8 +26,20 @@ export function NovaSenhaForm({ code }: { code?: string }) {
     if (!code) return;
     const supabase = createClient();
     supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-      if (error) setLinkExpirado(true);
-      setTrocando(false);
+      if (!error) {
+        setTrocando(false);
+        return;
+      }
+      // createBrowserClient may have auto-exchanged the code already;
+      // check for an existing session before declaring the link expired.
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          setTrocando(false);
+        } else {
+          setLinkExpirado(true);
+          setTrocando(false);
+        }
+      });
     });
   }, [code]);
 
