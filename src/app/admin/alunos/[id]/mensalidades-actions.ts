@@ -108,14 +108,14 @@ export async function gerarProximoMes(alunoId: string): Promise<GerarResult> {
   const proximoMes  = mes === 12 ? 1 : mes + 1;
   const mesRef      = `${proximoAno}-${String(proximoMes).padStart(2, "0")}-01`;
 
-  const { data: existe } = await admin
+  const { data: existe, error: errExiste } = await admin
     .from("mensalidades")
     .select("id")
     .eq("aluno_id", alunoId)
     .eq("mes_referencia", mesRef)
     .maybeSingle();
 
-  if (existe) return { ok: false, erro: "Mensalidade para esse mês já existe." };
+  if (existe || errExiste) return { ok: false, erro: "Mensalidade para esse mês já existe." };
 
   const diaVenc       = Number(ultima.data_vencimento.split("-")[2]);
   const ultimoDiaMes  = new Date(proximoAno, proximoMes, 0).getDate();
@@ -134,6 +134,7 @@ export async function gerarProximoMes(alunoId: string): Promise<GerarResult> {
     .select()
     .single();
 
+  if (error?.code === "23505") return { ok: false, erro: "Mensalidade para esse mês já existe." };
   if (error || !nova) return { ok: false, erro: error?.message ?? "Erro ao inserir." };
 
   revalidatePath(`/admin/alunos/${alunoId}`);
