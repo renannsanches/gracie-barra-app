@@ -64,9 +64,27 @@ export async function sendPushMensalidade() {
 
   if (!rows || rows.length === 0) return;
 
+  // dependentes (sem_login) não têm push subscription própria — notificar o responsável
+  const allAlunoIds = [...new Set(rows.map((r) => r.aluno_id))];
+  const { data: semLoginProfiles } = await admin
+    .from("profiles")
+    .select("id")
+    .in("id", allAlunoIds)
+    .eq("sem_login", true);
+
+  const idMap: Record<string, string> = {};
+  if (semLoginProfiles?.length) {
+    const { data: deps } = await admin
+      .from("dependentes")
+      .select("dependente_id, responsavel_id")
+      .in("dependente_id", semLoginProfiles.map((p) => p.id));
+    for (const d of deps ?? []) idMap[d.dependente_id] = d.responsavel_id;
+  }
+
   const byDate: Record<string, string[]> = { [todayStr]: [], [minus2]: [], [minus5]: [] };
   for (const r of rows) {
-    if (byDate[r.data_vencimento]) byDate[r.data_vencimento].push(r.aluno_id);
+    const resolvedId = idMap[r.aluno_id] ?? r.aluno_id;
+    if (byDate[r.data_vencimento]) byDate[r.data_vencimento].push(resolvedId);
   }
 
   const messages: Record<string, { title: string; body: string }> = {
