@@ -2,11 +2,17 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Users, Check, X, Clock } from "lucide-react";
+import { ArrowLeft, Loader2, Users, Check, X, Clock, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { StatusAula, StatusReserva, CategoriaFaixa } from "@/lib/types";
 import { reservar, cancelarMinhaReserva } from "./aulas-actions";
 import { getTurmaTag } from "@/lib/turma-tags";
+
+export interface ReservanteDaAula {
+  id: string;
+  nome_completo: string;
+  foto_url: string | null;
+}
 
 export interface AulaParaAluno {
   id: string;
@@ -23,11 +29,124 @@ export interface DependenteOpcao {
   id: string;
   nome_completo: string;
   categoria: CategoriaFaixa;
+  foto_url: string | null;
 }
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const DIAS_COMPLETO = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+const CORES_AVATAR = [
+  "bg-red-400", "bg-blue-400", "bg-green-500", "bg-yellow-400",
+  "bg-purple-400", "bg-pink-400", "bg-indigo-400", "bg-teal-400",
+  "bg-orange-400", "bg-cyan-500",
+];
+
+function avatarCor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  return CORES_AVATAR[Math.abs(hash) % CORES_AVATAR.length];
+}
+
+function iniciais(nome: string): string {
+  const partes = nome.trim().split(" ");
+  if (partes.length === 1) return partes[0][0]?.toUpperCase() ?? "?";
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+interface AvatarProps {
+  reservante: ReservanteDaAula;
+  size: "sm" | "md";
+  highlight?: boolean;
+}
+
+function Avatar({ reservante, size, highlight }: AvatarProps) {
+  const dim = size === "sm" ? "w-7 h-7 text-[10px]" : "w-8 h-8 text-xs";
+  const ring = highlight ? "ring-2 ring-gb-blue ring-offset-1" : "";
+
+  if (reservante.foto_url) {
+    return (
+      <img
+        src={reservante.foto_url}
+        alt={reservante.nome_completo}
+        className={cn("rounded-full object-cover shrink-0 border-2 border-white", dim, ring)}
+      />
+    );
+  }
+  return (
+    <div
+      className={cn(
+        "rounded-full flex items-center justify-center shrink-0 border-2 border-white font-bold text-white",
+        dim,
+        ring,
+        avatarCor(reservante.id),
+      )}
+    >
+      {iniciais(reservante.nome_completo)}
+    </div>
+  );
+}
+
+interface QuemReservouProps {
+  reservantes: ReservanteDaAula[];
+  aulaId: string;
+  expandidoId: string | null;
+  setExpandidoId: (id: string | null) => void;
+  userId: string;
+}
+
+function QuemReservou({ reservantes, aulaId, expandidoId, setExpandidoId, userId }: QuemReservouProps) {
+  if (reservantes.length === 0) return null;
+
+  const aberto = expandidoId === aulaId;
+  const visiveis = reservantes.slice(0, 5);
+  const extras = reservantes.length - 5;
+
+  return (
+    <div className="mt-2 pt-2 border-t border-gray-100">
+      <button
+        type="button"
+        onClick={() => setExpandidoId(aberto ? null : aulaId)}
+        className="flex items-center gap-2 w-full text-left"
+      >
+        <div className="flex -space-x-2">
+          {visiveis.map((r) => (
+            <Avatar key={r.id} reservante={r} size="sm" highlight={r.id === userId} />
+          ))}
+        </div>
+        {extras > 0 && (
+          <span className="text-xs text-gray-500 font-medium">+{extras}</span>
+        )}
+        <span className="text-xs text-gray-400 ml-auto flex items-center gap-0.5">
+          {aberto ? "Fechar" : "Ver quem vai"}
+          <ChevronDown
+            size={12}
+            className={cn("transition-transform duration-200", aberto && "rotate-180")}
+          />
+        </span>
+      </button>
+
+      {aberto && (
+        <div className="mt-2 space-y-2">
+          {reservantes.map((r) => (
+            <div key={r.id} className="flex items-center gap-2.5">
+              <Avatar reservante={r} size="md" highlight={r.id === userId} />
+              <span className="text-xs text-gray-700 font-medium">
+                {r.nome_completo.split(" ")[0]}
+                {r.nome_completo.split(" ").length > 1 && (
+                  <span className="text-gray-400 font-normal"> {r.nome_completo.split(" ").slice(1).join(" ")}</span>
+                )}
+                {r.id === userId && (
+                  <span className="text-gb-blue font-semibold ml-1">(tu)</span>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function parseDateLocal(data: string) {
   const [y, m, d] = data.split("-").map(Number);
@@ -43,21 +162,42 @@ interface Props {
   reservasPorAluno: Record<string, Record<string, { id: string; status: StatusReserva }>>;
   categoriaAluno: CategoriaFaixa;
   userId: string;
+  nomeCompleto: string;
+  fotoUrl: string | null;
   dependentes: DependenteOpcao[];
   bloqueadosPorFinanceiro: string[];
+  reservantesPorAula: Record<string, ReservanteDaAula[]>;
 }
 
-export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, categoriaAluno, userId, dependentes, bloqueadosPorFinanceiro }: Props) {
+export function AulasView({
+  aulas: aulasProp,
+  reservasPorAluno: reservasProp,
+  categoriaAluno,
+  userId,
+  nomeCompleto,
+  fotoUrl,
+  dependentes,
+  bloqueadosPorFinanceiro,
+  reservantesPorAula: reservantesProp,
+}: Props) {
   const router = useRouter();
   const [aulas, setAulas] = useState(aulasProp);
   const [reservasPorAluno, setReservasPorAluno] = useState(reservasProp);
+  const [reservantesPorAula, setReservantesPorAula] = useState(reservantesProp);
   const [selecionadoId, setSelecionadoId] = useState(userId);
   const [acao, setAcao] = useState<string | null>(null);
   const [erro, setErro] = useState("");
+  const [expandidoId, setExpandidoId] = useState<string | null>(null);
 
   const selecionadoCategoria: CategoriaFaixa = selecionadoId === userId
     ? categoriaAluno
     : (dependentes.find((d) => d.id === selecionadoId)?.categoria ?? categoriaAluno);
+
+  function getSelecionadoInfo(): { nome_completo: string; foto_url: string | null } {
+    if (selecionadoId === userId) return { nome_completo: nomeCompleto, foto_url: fotoUrl };
+    const dep = dependentes.find((d) => d.id === selecionadoId);
+    return { nome_completo: dep?.nome_completo ?? "", foto_url: dep?.foto_url ?? null };
+  }
 
   const dias = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -110,6 +250,7 @@ export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, ca
     if (!result.ok) {
       setErro(result.erro ?? "Erro ao reservar.");
     } else {
+      const { nome_completo, foto_url } = getSelecionadoInfo();
       setAulas((prev) =>
         prev.map((a) =>
           a.id === aulaId ? { ...a, reservas_confirmadas: a.reservas_confirmadas + 1 } : a,
@@ -121,6 +262,13 @@ export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, ca
           ...(prev[selecionadoId] ?? {}),
           [aulaId]: { id: result.reservaId!, status: "confirmada" },
         },
+      }));
+      setReservantesPorAula((prev) => ({
+        ...prev,
+        [aulaId]: [
+          ...(prev[aulaId] ?? []),
+          { id: selecionadoId, nome_completo, foto_url },
+        ],
       }));
     }
     setAcao(null);
@@ -144,6 +292,10 @@ export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, ca
         delete novo[aulaId];
         return { ...prev, [selecionadoId]: novo };
       });
+      setReservantesPorAula((prev) => ({
+        ...prev,
+        [aulaId]: (prev[aulaId] ?? []).filter((r) => r.id !== selecionadoId),
+      }));
     }
     setAcao(null);
   }
@@ -277,6 +429,7 @@ export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, ca
             const lotado          = !reservada && aula.reservas_confirmadas >= aula.lotacao_maxima;
             const isLoadingAula   = acao === aula.id;
             const isLoadingCancel = acao === (minhaReservaId ?? "");
+            const reservantes     = reservantesPorAula[aula.id] ?? [];
 
             return (
               <div
@@ -359,6 +512,14 @@ export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, ca
                     )}
                   </div>
                 </div>
+
+                <QuemReservou
+                  reservantes={reservantes}
+                  aulaId={aula.id}
+                  expandidoId={expandidoId}
+                  setExpandidoId={setExpandidoId}
+                  userId={userId}
+                />
 
                 <div className="mt-3 flex gap-2">
                   {!reservada && !lotado && (
