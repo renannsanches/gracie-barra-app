@@ -66,8 +66,10 @@ export default async function PerfilPage() {
       .limit(1),
     supabase
       .from("avisos")
-      .select("created_at")
-      .eq("publicado", true),
+      .select("id, titulo, created_at")
+      .eq("publicado", true)
+      .order("created_at", { ascending: false })
+      .limit(10),
     supabase
       .from("dependentes")
       .select("dependente:profiles!dependentes_dependente_id_fkey(id, nome_completo, foto_url, faixa, graus, categoria)")
@@ -78,7 +80,11 @@ export default async function PerfilPage() {
   const totalAulas = (p?.aulas_manual ?? 0) + (presencasCount ?? 0);
   const aulasMes = presencasMesCount ?? 0;
   const ultimoTreino = (ultimaPresenca?.[0] as { data_presenca: string } | undefined)?.data_presenca ?? null;
-  const avisosTimestamps = (avisosData ?? []).map((a) => a.created_at as string);
+  const avisosNotif = (avisosData ?? []).map((a) => ({
+    id: a.id as string,
+    titulo: a.titulo as string,
+    created_at: a.created_at as string,
+  }));
 
   const dependentesBase: DependentePerfil[] = (dependentesData ?? [])
     .map((d) => d.dependente as unknown as Omit<DependentePerfil, "mensalidades">)
@@ -180,7 +186,7 @@ export default async function PerfilPage() {
       totalAulas={totalAulas}
       aulasMes={aulasMes}
       ultimoTreino={ultimoTreino}
-      avisosTimestamps={avisosTimestamps}
+      avisosNotif={avisosNotif}
       dependentes={dependentes}
       aptosGraduar={aptosGraduar}
     />

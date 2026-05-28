@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { mascararTelefonePT, formatarTelefonePT, formatarMoeda, formatarMes, formatarData, labelCorFaixa } from "@/lib/utils";
 import type { Profile, Mensalidade, StatusMensalidade, HistoricoGraduacao, DependentePerfil, CorFaixa, CategoriaFaixa } from "@/lib/types";
 import { DependenteModal } from "./DependenteModal";
+import { NotificacoesModal } from "./NotificacoesModal";
 import { atualizarFotoDependente } from "./dependente-foto-actions";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 
@@ -124,18 +125,19 @@ interface PerfilViewProps {
   totalAulas: number;
   aulasMes: number;
   ultimoTreino: string | null;
-  avisosTimestamps: string[];
+  avisosNotif: { id: string; titulo: string; created_at: string }[];
   dependentes: DependentePerfil[];
   aptosGraduar: AptosGraduarAluno[];
 }
 
-export function PerfilView({ profile: profileProp, email, mensalidades, historicoGraduacoes, totalAulas, aulasMes, ultimoTreino, avisosTimestamps, dependentes, aptosGraduar }: PerfilViewProps) {
+export function PerfilView({ profile: profileProp, email, mensalidades, historicoGraduacoes, totalAulas, aulasMes, ultimoTreino, avisosNotif, dependentes, aptosGraduar }: PerfilViewProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const depFileInputRef = useRef<HTMLInputElement>(null);
   const uploadingDepIdRef = useRef<string | null>(null);
 
-  const [unreadAvisos, setUnreadAvisos] = useState(0);
+  const [hasUnread, setHasUnread] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [idadeStr, setIdadeStr] = useState('');
   const [saindo, setSaindo] = useState(false);
   const [dependenteSelecionado, setDependenteSelecionado] = useState<DependentePerfil | null>(null);
@@ -156,12 +158,20 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
   }, [profile?.data_nascimento]);
 
   useEffect(() => {
-    const lastSeen = localStorage.getItem("avisos_last_seen");
-    const count = lastSeen
-      ? avisosTimestamps.filter((t) => new Date(t) > new Date(lastSeen)).length
-      : avisosTimestamps.length;
-    setUnreadAvisos(count);
-  }, [avisosTimestamps]);
+    const lastSeen = localStorage.getItem("notificacoes_last_seen");
+    if (!lastSeen) {
+      const hasMensalidadeAtrasada = mensalidades.some((m) => m.status !== "pago");
+      const hasAvisos = avisosNotif.length > 0;
+      setHasUnread(hasMensalidadeAtrasada || hasAvisos);
+      return;
+    }
+    const lastSeenDate = new Date(lastSeen);
+    const novoAviso = avisosNotif.some((a) => new Date(a.created_at) > lastSeenDate);
+    const novasMensalidades = mensalidades.some(
+      (m) => m.status !== "pago" && new Date(m.data_vencimento + "T09:00:00") > lastSeenDate
+    );
+    setHasUnread(novoAviso || novasMensalidades);
+  }, [avisosNotif, mensalidades]);
 
   const [fotoUrl, setFotoUrl] = useState(profileProp?.foto_url ?? null);
   const [uploading, setUploading] = useState(false);
@@ -390,15 +400,13 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => router.push("/avisos")}
+              onClick={() => { setNotifOpen(true); setHasUnread(false); }}
               className="relative w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"
               aria-label="Notificações"
             >
               <Bell size={18} className="text-white" />
-              {unreadAvisos > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
-                  {unreadAvisos > 9 ? "9+" : unreadAvisos}
-                </span>
+              {hasUnread && (
+                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-red-500 border-2 border-[#1a1a1a]" />
               )}
             </button>
             <button
@@ -513,16 +521,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
           />
           <ActionCard
             onClick={() => router.push("/avisos")}
-            icon={
-              <div className="relative">
-                <Megaphone size={20} className="text-gray-500" />
-                {unreadAvisos > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
-                    {unreadAvisos > 9 ? "9+" : unreadAvisos}
-                  </span>
-                )}
-              </div>
-            }
+            icon={<Megaphone size={20} className="text-gray-500" />}
             label="Avisos"
           />
           <ActionCard
@@ -956,6 +955,14 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
         <DependenteModal
           dependente={dependentesState.find((d) => d.id === dependenteSelecionado.id) ?? dependenteSelecionado}
           onClose={() => setDependenteSelecionado(null)}
+        />
+      )}
+
+      {notifOpen && (
+        <NotificacoesModal
+          mensalidades={mensalidades}
+          avisos={avisosNotif}
+          onClose={() => setNotifOpen(false)}
         />
       )}
     </div>
