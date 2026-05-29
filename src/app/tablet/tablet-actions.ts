@@ -38,7 +38,7 @@ export async function buscarAulasDisponiveis(): Promise<AulaOpcao[]> {
   const hoje = new Date().toISOString().split("T")[0];
   const { data } = await admin
     .from("aulas")
-    .select("id, horario, turma:turmas(nome)")
+    .select("id, horario, turma:turmas(nome, ativa)")
     .eq("data", hoje)
     .eq("status", "agendada")
     .order("horario");
@@ -46,10 +46,14 @@ export async function buscarAulasDisponiveis(): Promise<AulaOpcao[]> {
   const agora = new Date();
   const horaAtual = agora.getHours() * 60 + agora.getMinutes();
 
-  return ((data ?? []) as unknown as AulaOpcao[]).filter((a) => {
-    const [h, m] = a.horario.split(":").map(Number);
-    return Math.abs(h * 60 + m - horaAtual) <= 120;
-  });
+  type AulaRaw = { id: string; horario: string; turma: { nome: string; ativa: boolean } | null };
+  return ((data ?? []) as unknown as AulaRaw[])
+    .filter((a) => {
+      if (!a.turma?.ativa) return false;
+      const [h, m] = a.horario.split(":").map(Number);
+      return Math.abs(h * 60 + m - horaAtual) <= 120;
+    })
+    .map((a) => ({ id: a.id, horario: a.horario, turma: a.turma ? { nome: a.turma.nome } : null }));
 }
 
 interface PresencaManualResult {
