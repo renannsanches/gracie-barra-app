@@ -34,6 +34,10 @@ const SIZE_H: Record<string, number> = {
   lg: 72,
 };
 
+const SIZE_W: Record<string, number> = {
+  xs: 56,
+};
+
 function beltLabel(cor: string): string {
   return cor.split("_").map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("-");
 }
@@ -42,7 +46,7 @@ interface FaixaBJJProps {
   faixa: CorFaixa;
   graus?: number;
   categoria: CategoriaFaixa;
-  tamanho?: "sm" | "md" | "lg";
+  tamanho?: "xs" | "sm" | "md" | "lg";
   showLabel?: boolean;
   className?: string;
 }
@@ -69,6 +73,9 @@ export function FaixaBJJ({
   const filename = graus > 0 ? `${nome}-${graus}g.webp` : `${nome}.webp`;
   const src = `${basePath}${filename}`;
   const h = SIZE_H[tamanho] ?? 40;
+  const imgStyle = tamanho === "xs"
+    ? { width: SIZE_W.xs, height: "auto" as const }
+    : { height: h, width: "auto" as const };
 
   return (
     <div className={cn("inline-flex flex-col items-center", className)}>
@@ -78,7 +85,7 @@ export function FaixaBJJ({
         width={420}
         height={84}
         unoptimized
-        style={{ height: h, width: "auto" }}
+        style={imgStyle}
         className="object-contain"
       />
       {showLabel && (

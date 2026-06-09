@@ -496,13 +496,13 @@ export default async function AdminDashboardPage() {
                   className="flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50 transition-colors"
                 >
                   {/* Faixa actual */}
-                  <div className="w-14 shrink-0 flex items-center justify-center">
-                    <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="sm" />
+                  <div className="shrink-0 flex items-center justify-center">
+                    <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="xs" />
                   </div>
 
                   {/* Nome + semanas */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{a.nome_completo}</p>
+                    <p className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug">{a.nome_completo}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {a.semanasQualificadas} semanas qualificadas
                     </p>
@@ -511,7 +511,7 @@ export default async function AdminDashboardPage() {
                   {/* Próxima promoção */}
                   <div className="flex items-center gap-2 shrink-0">
                     <ChevronRight size={14} className="text-gray-300" />
-                    <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="sm" />
+                    <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="xs" />
                   </div>
                 </Link>
               </li>
