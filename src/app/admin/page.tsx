@@ -5,8 +5,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { FaixaBJJ } from "@/components/FaixaBJJ";
-import type { CorFaixa, CategoriaFaixa, HistoricoGraduacao } from "@/lib/types";
-import { calcularElegibilidade } from "@/lib/graduacao-rules";
+import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
+import { getAptosGraduar, type AptosGraduarAluno } from "@/lib/aptos-graduar";
 import { PresencasChart } from "./PresencasChart";
 import type { ChartDataPoint } from "./PresencasChart";
 
@@ -35,17 +35,6 @@ interface SumidoAluno {
   categoria: CategoriaFaixa;
   ultimaPresenca: string | null;
   diasAusente: number;
-}
-
-interface AptosGraduarAluno {
-  id: string;
-  nome_completo: string;
-  faixa: CorFaixa;
-  graus: number;
-  categoria: CategoriaFaixa;
-  proximaPromocao: { faixa: CorFaixa; graus: number };
-  semanasQualificadas: number;
-  semanasNecessarias: number;
 }
 
 function formatDate(dateStr: string): string {
@@ -203,35 +192,19 @@ async function getDashboardData(isAdmin: boolean) {
   let aptosGraduar: AptosGraduarAluno[] = [];
 
   if (activeIds.length > 0) {
-    const [{ data: presencasAtivos }, { data: historicoAtivos }] = await Promise.all([
-      admin.from("presencas")
-        .select("aluno_id, dia_registro")
-        .in("aluno_id", activeIds)
-        .order("dia_registro", { ascending: false }),
-      admin.from("historico_graduacoes")
-        .select("id, aluno_id, faixa_nova, faixa_anterior, graus_nova, graus_anterior, data_graduacao, graduado_por, observacoes, created_at")
-        .in("aluno_id", activeIds)
-        .order("data_graduacao", { ascending: false }),
-    ]);
+    const { data: presencasAtivos } = await admin.from("presencas")
+      .select("aluno_id, dia_registro")
+      .in("aluno_id", activeIds)
+      .order("dia_registro", { ascending: false });
 
     const lastPresencaMap: Record<string, string> = {};
     const treinouRecenteSet = new Set<string>();
-    const diasByAluno: Record<string, string[]> = {};
 
     for (const p of presencasAtivos ?? []) {
       const aid = p.aluno_id as string;
       const dia = p.dia_registro as string;
       if (!lastPresencaMap[aid]) lastPresencaMap[aid] = dia;
       if (dia >= trintaAtrasStr) treinouRecenteSet.add(aid);
-      if (!diasByAluno[aid]) diasByAluno[aid] = [];
-      diasByAluno[aid].push(dia);
-    }
-
-    const historicoByAluno: Record<string, HistoricoGraduacao[]> = {};
-    for (const h of historicoAtivos ?? []) {
-      const aid = h.aluno_id as string;
-      if (!historicoByAluno[aid]) historicoByAluno[aid] = [];
-      historicoByAluno[aid].push(h as HistoricoGraduacao);
     }
 
     sumiram = activosProfiles
@@ -254,36 +227,10 @@ async function getDashboardData(isAdmin: boolean) {
       })
       .sort((a, b) => b.diasAusente - a.diasAusente);
 
-    // ── Aptos a graduar ──────────────────────────────────────────────────────
-    for (const a of activosProfiles) {
-      if (!a.faixa) continue;
-      const dias = diasByAluno[a.id as string] ?? [];
-      const hist = historicoByAluno[a.id as string] ?? [];
-      const eleg = calcularElegibilidade(
-        {
-          faixa:           a.faixa as CorFaixa,
-          graus:           (a.graus as number) ?? 0,
-          categoria:       ((a.categoria as string) ?? "adulto") as CategoriaFaixa,
-          data_nascimento: (a.data_nascimento as string | null) ?? null,
-          created_at:      a.created_at as string,
-        },
-        dias,
-        hist,
-      );
-      if (eleg.elegivel && eleg.proximaPromocao) {
-        aptosGraduar.push({
-          id:               a.id as string,
-          nome_completo:    a.nome_completo as string,
-          faixa:            a.faixa as CorFaixa,
-          graus:            (a.graus as number) ?? 0,
-          categoria:        ((a.categoria as string) ?? "adulto") as CategoriaFaixa,
-          proximaPromocao:  eleg.proximaPromocao,
-          semanasQualificadas: eleg.semanasQualificadas,
-          semanasNecessarias:  eleg.semanasNecessarias,
-        });
-      }
-    }
   }
+
+  // ── Aptos a graduar (lista completa, paginada além do limite de 1000 linhas) ─
+  aptosGraduar = await getAptosGraduar(admin);
 
   return {
     ativos, inativos, trancados,
@@ -496,13 +443,13 @@ export default async function AdminDashboardPage() {
                   className="flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50 transition-colors"
                 >
                   {/* Faixa actual */}
-                  <div className="w-14 shrink-0 flex items-center justify-center">
-                    <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="sm" />
+                  <div className="shrink-0 flex items-center justify-center">
+                    <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="xs" />
                   </div>
 
                   {/* Nome + semanas */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{a.nome_completo}</p>
+                    <p className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug">{a.nome_completo}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {a.semanasQualificadas} semanas qualificadas
                     </p>
@@ -511,7 +458,7 @@ export default async function AdminDashboardPage() {
                   {/* Próxima promoção */}
                   <div className="flex items-center gap-2 shrink-0">
                     <ChevronRight size={14} className="text-gray-300" />
-                    <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="sm" />
+                    <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="xs" />
                   </div>
                 </Link>
               </li>

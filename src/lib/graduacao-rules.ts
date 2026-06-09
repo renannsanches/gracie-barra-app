@@ -87,7 +87,46 @@ function getMondayKey(dia: string): string {
   const diff = dow === 0 ? -6 : 1 - dow;
   const mon = new Date(d);
   mon.setDate(d.getDate() + diff);
-  return `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, "0")}-${String(mon.getDate()).padStart(2, "0")}`;
+  return fmtDate(mon);
+}
+
+function fmtDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function addMonths(dateStr: string, months: number): string {
+  const d = new Date(dateStr + "T12:00:00");
+  d.setMonth(d.getMonth() + months);
+  return fmtDate(d);
+}
+
+function addYears(dateStr: string, years: number): string {
+  const d = new Date(dateStr + "T12:00:00");
+  d.setFullYear(d.getFullYear() + years);
+  return fmtDate(d);
+}
+
+/** Data (domingo) em que a Nª semana qualificada foi atingida, a partir de fromDate. Null se ainda não atingida. */
+function getDataCumprimentoSemanas(dias: string[], fromDate: string, semanasNecessarias: number): string | null {
+  if (semanasNecessarias === 0) return fromDate;
+
+  const weekMap = new Map<string, number>();
+  for (const dia of dias) {
+    if (dia < fromDate) continue;
+    const key = getMondayKey(dia);
+    weekMap.set(key, (weekMap.get(key) ?? 0) + 1);
+  }
+
+  const qualifyingMondays = [...weekMap.entries()]
+    .filter(([, count]) => count >= 2)
+    .map(([monday]) => monday)
+    .sort();
+
+  if (qualifyingMondays.length < semanasNecessarias) return null;
+
+  const monday = new Date(qualifyingMondays[semanasNecessarias - 1] + "T12:00:00");
+  monday.setDate(monday.getDate() + 6); // domingo da semana
+  return fmtDate(monday);
 }
 
 // ── Funções públicas ──────────────────────────────────────────────────────────
@@ -184,6 +223,8 @@ export interface ElegibilidadeResult {
   /** 0 = mínimo de faixa já atingido */
   mesesFaixaRestantes: number;
   idadeInsuficiente: boolean;
+  /** Data (YYYY-MM-DD) desde quando o aluno está apto. Null se não elegível. */
+  dataElegibilidade: string | null;
 }
 
 /**
@@ -204,6 +245,7 @@ export function calcularElegibilidade(
     semanasNecessarias: 0,
     mesesFaixaRestantes: 0,
     idadeInsuficiente: false,
+    dataElegibilidade: null,
   };
 
   if (!faixa) return noResult;
@@ -218,6 +260,7 @@ export function calcularElegibilidade(
 
   // Verificar tempo mínimo de faixa (só relevante quando vai mudar de faixa)
   let mesesFaixaRestantes = 0;
+  let dataBelt: string | null = null;
   const mudaFaixa = proximaPromocao.faixa !== faixa;
   if (mudaFaixa) {
     const beltStart = getBeltStartDate(historico, faixa, created_at);
@@ -225,10 +268,12 @@ export function calcularElegibilidade(
     const mesesNaFaixa = diffMonths(beltStartDate, hoje);
     const minMeses = getMinBeltMonths(faixa, categoria);
     mesesFaixaRestantes = Math.max(0, minMeses - mesesNaFaixa);
+    dataBelt = addMonths(beltStart, minMeses);
   }
 
   // Verificar idade mínima para faixa alvo
   let idadeInsuficiente = false;
+  let dataIdade: string | null = null;
   if (mudaFaixa) {
     const cat = resolveCategoria(faixa, categoria);
     const idadeMin = cat === "adulto"
@@ -237,6 +282,7 @@ export function calcularElegibilidade(
     if (idadeMin > 0 && data_nascimento) {
       const idade = idadeEm(data_nascimento, hoje);
       idadeInsuficiente = idade < idadeMin;
+      dataIdade = addYears(data_nascimento, idadeMin);
     }
   }
 
@@ -245,6 +291,15 @@ export function calcularElegibilidade(
     mesesFaixaRestantes === 0 &&
     !idadeInsuficiente;
 
+  let dataElegibilidade: string | null = null;
+  if (elegivel) {
+    const dataSemanas = getDataCumprimentoSemanas(diasPresenca, refDate, semanasNecessarias);
+    dataElegibilidade = [dataSemanas, dataBelt, dataIdade]
+      .filter((d): d is string => !!d)
+      .sort()
+      .pop() ?? null;
+  }
+
   return {
     elegivel,
     proximaPromocao,
@@ -252,5 +307,6 @@ export function calcularElegibilidade(
     semanasNecessarias,
     mesesFaixaRestantes,
     idadeInsuficiente,
+    dataElegibilidade,
   };
 }
