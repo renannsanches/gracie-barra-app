@@ -7,6 +7,7 @@ import Link from "next/link";
 import { FaixaBJJ } from "@/components/FaixaBJJ";
 import type { CorFaixa, CategoriaFaixa, HistoricoGraduacao } from "@/lib/types";
 import { calcularElegibilidade } from "@/lib/graduacao-rules";
+import { fetchAllPresencasDias } from "@/lib/fetch-all-presencas";
 import { PresencasChart } from "./PresencasChart";
 import type { ChartDataPoint } from "./PresencasChart";
 
@@ -203,11 +204,8 @@ async function getDashboardData(isAdmin: boolean) {
   let aptosGraduar: AptosGraduarAluno[] = [];
 
   if (activeIds.length > 0) {
-    const [{ data: presencasAtivos }, { data: historicoAtivos }] = await Promise.all([
-      admin.from("presencas")
-        .select("aluno_id, dia_registro")
-        .in("aluno_id", activeIds)
-        .order("dia_registro", { ascending: false }),
+    const [presencasAtivos, { data: historicoAtivos }] = await Promise.all([
+      fetchAllPresencasDias(admin, activeIds),
       admin.from("historico_graduacoes")
         .select("id, aluno_id, faixa_nova, faixa_anterior, graus_nova, graus_anterior, data_graduacao, graduado_por, observacoes, created_at")
         .in("aluno_id", activeIds)
@@ -218,9 +216,9 @@ async function getDashboardData(isAdmin: boolean) {
     const treinouRecenteSet = new Set<string>();
     const diasByAluno: Record<string, string[]> = {};
 
-    for (const p of presencasAtivos ?? []) {
-      const aid = p.aluno_id as string;
-      const dia = p.dia_registro as string;
+    for (const p of presencasAtivos) {
+      const aid = p.aluno_id;
+      const dia = p.dia_registro;
       if (!lastPresencaMap[aid]) lastPresencaMap[aid] = dia;
       if (dia >= trintaAtrasStr) treinouRecenteSet.add(aid);
       if (!diasByAluno[aid]) diasByAluno[aid] = [];
@@ -283,6 +281,11 @@ async function getDashboardData(isAdmin: boolean) {
         });
       }
     }
+
+    aptosGraduar.sort((a, b) =>
+      (b.semanasQualificadas - b.semanasNecessarias) -
+      (a.semanasQualificadas - a.semanasNecessarias)
+    );
   }
 
   return {
@@ -493,11 +496,11 @@ export default async function AdminDashboardPage() {
               <li key={a.id}>
                 <Link
                   href={`/admin/alunos/${a.id}`}
-                  className="flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-3 px-6 py-3.5 hover:bg-gray-50 transition-colors"
                 >
                   {/* Faixa actual */}
-                  <div className="w-14 shrink-0 flex items-center justify-center">
-                    <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="sm" />
+                  <div className="shrink-0 flex items-center justify-center">
+                    <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="xs" />
                   </div>
 
                   {/* Nome + semanas */}
@@ -509,9 +512,9 @@ export default async function AdminDashboardPage() {
                   </div>
 
                   {/* Próxima promoção */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <ChevronRight size={14} className="text-gray-300" />
-                    <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="sm" />
+                    <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="xs" />
                   </div>
                 </Link>
               </li>
