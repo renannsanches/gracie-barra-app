@@ -32,3 +32,27 @@ export function isBloqueadoFinanceiramente(
     (m) => m.status !== "pago" && m.data_vencimento <= limiteStr,
   );
 }
+
+/**
+ * Dias de atraso de uma mensalidade. 0 se paga ou ainda dentro do prazo.
+ */
+export function getDiasAtraso(
+  m: Pick<Mensalidade, "status" | "data_vencimento">,
+  today: Date = new Date(),
+): number {
+  if (m.status === "pago") return 0;
+  const venc = new Date(m.data_vencimento + "T00:00:00");
+  const diff = Math.floor((today.getTime() - venc.getTime()) / 86_400_000);
+  return Math.max(0, diff);
+}
+
+/**
+ * Maior atraso (em dias) entre um conjunto de mensalidades.
+ */
+export function getMaiorAtraso(
+  mensalidades: Pick<Mensalidade, "status" | "data_vencimento">[],
+  today: Date = new Date(),
+): number {
+  if (mensalidades.length === 0) return 0;
+  return Math.max(0, ...mensalidades.map((m) => getDiasAtraso(m, today)));
+}
