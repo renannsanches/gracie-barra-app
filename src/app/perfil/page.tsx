@@ -57,12 +57,12 @@ export default async function PerfilPage() {
       .from("presencas")
       .select("id", { count: "exact", head: true })
       .eq("aluno_id", user.id)
-      .gte("data_presenca", inicioMes),
+      .gte("dia_registro", inicioMes),
     supabase
       .from("presencas")
-      .select("data_presenca")
+      .select("registrado_em")
       .eq("aluno_id", user.id)
-      .order("data_presenca", { ascending: false })
+      .order("registrado_em", { ascending: false })
       .limit(1),
     supabase
       .from("avisos")
@@ -79,7 +79,7 @@ export default async function PerfilPage() {
   const p = profile as Profile;
   const totalAulas = (p?.aulas_manual ?? 0) + (presencasCount ?? 0);
   const aulasMes = presencasMesCount ?? 0;
-  const ultimoTreino = (ultimaPresenca?.[0] as { data_presenca: string } | undefined)?.data_presenca ?? null;
+  const ultimoTreino = (ultimaPresenca?.[0] as { registrado_em: string } | undefined)?.registrado_em ?? null;
   const avisosNotif = (avisosData ?? []).map((a) => ({
     id: a.id as string,
     titulo: a.titulo as string,
