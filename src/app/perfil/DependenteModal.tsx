@@ -5,6 +5,7 @@ import { X, Award, CalendarDays, CreditCard } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
 import { formatarData, formatarMoeda, formatarMes, labelCorFaixa } from "@/lib/utils";
+import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type { DependentePerfil, HistoricoGraduacao, Mensalidade, StatusMensalidade } from "@/lib/types";
 
 const MENS_BG: Record<StatusMensalidade, string> = {
@@ -22,7 +23,7 @@ const MENS_TEXT: Record<StatusMensalidade, string> = {
 const MENS_STATUS_LABEL: Record<StatusMensalidade, string> = {
   pago:     "Pago",
   pendente: "Pendente",
-  atrasado: "Atrasado",
+  atrasado: "Vencida",
 };
 
 interface Props {
@@ -164,10 +165,12 @@ export function DependenteModal({ dependente, onClose }: Props) {
                     <h3 className="font-bold text-gray-900 text-sm">Mensalidades</h3>
                   </div>
                   <div className="space-y-2">
-                    {mensalidades.map((m) => (
+                    {mensalidades.map((m) => {
+                      const ef = getEffectiveStatus(m);
+                      return (
                       <div
                         key={m.id}
-                        className={`flex items-center justify-between rounded-xl border px-3 py-2.5 ${MENS_BG[m.status]}`}
+                        className={`flex items-center justify-between rounded-xl border px-3 py-2.5 ${MENS_BG[ef]}`}
                       >
                         <div>
                           <p className="text-[13px] font-semibold text-gray-800">{formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}</p>
@@ -178,12 +181,13 @@ export function DependenteModal({ dependente, onClose }: Props) {
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-[13px] font-bold text-gray-800">{formatarMoeda(m.valor)}</p>
-                          <p className={`text-[11px] font-medium mt-0.5 ${MENS_TEXT[m.status]}`}>
-                            {MENS_STATUS_LABEL[m.status]}
+                          <p className={`text-[11px] font-medium mt-0.5 ${MENS_TEXT[ef]}`}>
+                            {MENS_STATUS_LABEL[ef]}
                           </p>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

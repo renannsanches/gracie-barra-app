@@ -21,7 +21,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, erro: "Sem permissão" }, { status: 403 });
   }
 
-  const { userId } = await req.json() as { userId: string };
+  let userId: string;
+  try {
+    ({ userId } = await req.json() as { userId: string });
+  } catch {
+    return NextResponse.json({ ok: false, erro: "Body inválido" }, { status: 400 });
+  }
   if (!userId) {
     return NextResponse.json({ ok: false, erro: "userId obrigatório" }, { status: 400 });
   }

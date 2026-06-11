@@ -35,13 +35,21 @@ export async function editarAviso(
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
   const admin = createAdminClient();
+
+  const { data: atual } = await admin
+    .from("avisos")
+    .select("publicado")
+    .eq("id", id)
+    .single();
+
   const { error } = await admin
     .from("avisos")
     .update({ titulo, conteudo, fixado, publicado })
     .eq("id", id);
   if (error) return { ok: false, erro: error.message };
   revalidatePath("/admin/avisos");
-  if (publicado) sendPushAviso().catch(() => {});
+  // Only push if just transitioning from draft → published
+  if (publicado && atual?.publicado === false) sendPushAviso().catch(() => {});
   return { ok: true };
 }
 

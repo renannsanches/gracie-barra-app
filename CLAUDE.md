@@ -118,6 +118,8 @@ PLAYWRIGHT_ADMIN_PASSWORD=<strong-random>
 
 **Sentry em Vercel:** adicionar `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, e `SENTRY_AUTH_TOKEN` no dashboard do Vercel (Settings → Environment Variables) para produção + preview.
 
+**Cron jobs (Vercel):** adicionar `CRON_SECRET=<secret-aleatorio>` nas env vars do Vercel. O `/api/push/send` valida este token no header `Authorization: Bearer …` para aceitar chamadas dos crons configurados em `vercel.json`.
+
 ---
 
 ## 5. Mapa de rotas
@@ -128,7 +130,7 @@ PLAYWRIGHT_ADMIN_PASSWORD=<strong-random>
 /cadastro               → onboarding multi-step (3 tipos de perfil)
 /esqueci-senha          → pedido de reset de password
 /nova-senha             → formulário de nova password
-/perfil                 → home do aluno: faixa, mensalidade, dependentes, acções rápidas
+/perfil                 → home do aluno: faixa, mensalidade, dependentes, acções rápidas; admin/professor vêem card de alunos aptos a graduar
 /presenca               → gera QR Code (self ou dependentes); polling até confirmação
 /presencas              → histórico de presenças com calendário visual e filtro por mês
 /aulas                  → vista semanal de aulas disponíveis; reservar/cancelar
@@ -150,6 +152,7 @@ PLAYWRIGHT_ADMIN_PASSWORD=<strong-random>
 /admin/turmas/[id]      → editar turma + gerir aulas + ver reservas + marcar presenças
 /admin/financeiro       → tabela de mensalidades com filtros (mês, status, aluno)
 /admin/avisos           → CRUD de avisos (criar, editar, fixar, publicar/arquivar)
+/admin/relatorios       → exportar Excel/CSV e PDF de presenças e financeiro
 /admin/albuns           → gestão de álbuns de fotos
 /admin/albuns/[id]/fotos → upload e gestão de fotos de um álbum
 ```
@@ -171,10 +174,15 @@ PLAYWRIGHT_ADMIN_PASSWORD=<strong-random>
 ### 6.2 Autenticação e guardas de rota
 
 **Middleware** (`src/middleware.ts` → `src/lib/supabase/middleware.ts`):
-- Paths públicos: `/login`, `/cadastro`, `/esqueci-senha`, `/nova-senha`, `/auth/callback`, `/tablet/login`
+- Paths públicos: `/login`, `/cadastro`, `/esqueci-senha`, `/nova-senha`, `/auth/callback`, `/tablet/login`, `/api/push/send`
 - Não autenticado + path protegido → `/login` (ou `/tablet/login` se path começa com `/tablet`)
 - Autenticado com `user_metadata.onboarding = true` → forçado para `/cadastro` até completar
 - Autenticado + path de auth → `/perfil`
+
+**Auth callback** (`src/app/auth/callback/route.ts`): suporta dois fluxos distintos:
+- `?code=...` — PKCE (login social, magic link)
+- `?token_hash=...&type=recovery` — OTP recovery (reset de password via `resetPasswordForEmail`) → redireciona para `/nova-senha`
+- O `resetPasswordForEmail` usa o fluxo OTP, não PKCE — ambos têm de ser tratados no callback ou o link de reset quebra.
 
 **Auth guard nas Server Actions** (`src/lib/auth-guard.ts`):
 - `requireAdmin()` — verifica sessão + `perfil === "admin" | "professor"`; retorna `{ ok: false, erro }` se falhar
@@ -211,7 +219,7 @@ Tablet lê QR
   → @zxing/browser (dynamic import, ssr:false)
   → Server Action: registrar_presenca_por_token(token)
     → RPC verifica: token válido? não expirado?
-    → RPC verifica: mensalidade em dia? (bloqueia se vencida há >X dias)
+    → RPC verifica: bloqueio financeiro? (helper verificar_bloqueio_financeiro — bloqueia se atrasado ≥10 dias)
     → RPC verifica: reserva confirmada para hoje? (bloqueia se não reservou)
     → RPC verifica: cooldown 30min? (bloqueia re-entrada)
     → Insere em presencas (índice único por aluno+data)
@@ -222,7 +230,11 @@ Aluno recebe confirmação via polling
   → ecrã verde com check
 ```
 
-Fluxo manual no tablet (sem QR): pesquisa aluno por nome → selecciona aula disponível (hoje ±2h) → mesmas verificações de cooldown.
+**Regra de bloqueio financeiro:** sem mensalidade = permitir; atrasado <10 dias = permitir; atrasado ≥10 dias = bloquear. Aplica-se a QR, presença manual no tablet e reservas de aulas.
+
+Fluxo manual no tablet (sem QR): pesquisa aluno por nome → selecciona aula disponível (hoje ±2h) → mesmas verificações (financeiro + cooldown).
+
+**Reservas (`/aulas`):** o componente `AulasView` busca lista de alunos bloqueados financeiramente e desabilita o botão de reserva com aviso âmbar.
 
 ### 6.5 Cadastro — fluxo multi-step e 3 tipos de perfil
 
@@ -289,6 +301,7 @@ sem_login: boolean        // true para dependentes (filhos sem conta de auth)
 |-----|-----------|
 | `gerar_qr_token()` | Cria token UUID válido 60s na tabela `qr_tokens` |
 | `registrar_presenca_por_token(p_token)` | Valida token, verifica financeiro + reserva + cooldown, insere em `presencas` |
+| `verificar_bloqueio_financeiro(p_aluno_id)` | Helper que retorna `true` se aluno tem mensalidade atrasada ≥10 dias; usado em QR, presença manual e reservas |
 | `limpar_tokens_expirados()` | Remove tokens expirados (manutenção periódica) |
 
 ### Storage (Supabase)
@@ -382,6 +395,10 @@ gb: {
 | Perfil incompleto bypassa onboarding | Usar `user_metadata.onboarding` (não query ao DB — zero round-trips) |
 | Enum `responsavel` em falta no DB | Adicionar ao enum Postgres antes de usar no código |
 | Índice único em `aulas` incompleto | Incluir `horario` — mesmo dia com horas diferentes gerava conflito |
+| Link de reset de password vai para `/login?erro=confirmacao` | `resetPasswordForEmail` usa fluxo OTP (`token_hash+type=recovery`), não PKCE — o callback tem de tratar ambos os casos com `verifyOtp` |
+| Push de mensalidade não chega a dependentes | Dependentes (`sem_login=true`) não têm push subscription própria — buscar na tabela `dependentes` e substituir pelos IDs dos responsáveis antes de consultar `push_subscriptions` |
+| `/api/push/send` bloqueada pelo middleware | Adicionar à lista de paths públicos — é chamada pelo Vercel Cron sem sessão de utilizador |
+| `proxy.ts` não suportado no Vercel | Usar `middleware.ts` — o Vercel não reconhece `proxy.ts` como middleware Next.js |
 
 ---
 
@@ -427,6 +444,11 @@ gb: {
 | — | Histórico filtro pessoa | Alunos filtram histórico de presenças por pessoa (self ou dependentes) |
 | — | Monitorização erros | Sentry (`@sentry/nextjs`) integrado, mapeamento de source maps em Vercel |
 | 16 | **Notificações push + WhatsApp** | Web Push via `web-push` + VAPID keys; tabelas `push_subscriptions` e `notificacoes_graduacao_enviadas`; Vercel Cron 09:00 mensalidades+graduações, 08:00 responsáveis; push de aviso fire-and-forget em `avisos-actions.ts`; botão WhatsApp em `/perfil` quando mensalidade atrasada |
+| — | **Bloqueio financeiro em reservas** | Mensalidade atrasada ≥10 dias bloqueia QR, presença manual e reservas de aulas; helper RPC `verificar_bloqueio_financeiro`; `AulasView` mostra botão desabilitado com aviso âmbar |
+| — | **Card "aptos a graduar" em /perfil** | Admin e professor vêem na sua página `/perfil` um card com alunos que cumprem requisitos de graduação |
+| — | **Email no card do aluno** | `AlunoEditView` mostra campo email (read-only) buscado via `admin.getUserById`; ocultado para dependentes (`sem_login=true`) |
+| — | **Push para dependentes via responsável** | `push-sender` faz lookup em `dependentes` para substituir IDs de dependentes pelos dos responsáveis antes de buscar subscriptions |
+| — | **Push de avisos inclui professores** | Notificações de avisos publicados enviadas a alunos E professores |
 
 ### ❌ Por implementar
 
@@ -445,11 +467,11 @@ O produto evolui em 3 horizontes. Cada horizonte só começa depois do anterior 
 Consolidar o produto para a academia actual antes de qualquer expansão.
 
 **Pendente:**
-- Fase 10: Relatórios (Excel + PDF) — pedido imediato da gestão
+- ✅ Fase 10: Relatórios (Excel + PDF) — implementado
 - ✅ Testes E2E nos fluxos críticos (QR, cadastro, marcação de pago) — implementado
 - ✅ Logging com Sentry (free tier) — implementado (falta configurar DSN em Vercel)
-- Notificações push (Fase 16)
-- UI Polishing (Fase 15)
+- ✅ Notificações push (Fase 16) — implementado; fixes de professores e dependentes aplicados
+- UI Polishing (Fase 15) — por implementar
 
 ### Horizonte 2 — Rede Gracie Barra *(multi-tenant, mesma marca)*
 Expandir para outras unidades da Gracie Barra, cada uma com a sua configuração local.

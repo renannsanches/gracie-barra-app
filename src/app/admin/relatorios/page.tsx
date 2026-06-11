@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { RelatoriosView } from "./RelatoriosView";
-import { getTurmasParaRelatorio } from "./actions";
+import { getTurmasParaRelatorio, getCategoriasParaRelatorio } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,10 @@ export default async function RelatoriosPage() {
 
   if (profile?.perfil !== "admin") redirect("/admin");
 
-  const turmas = await getTurmasParaRelatorio();
+  const [turmas, categorias] = await Promise.all([
+    getTurmasParaRelatorio(),
+    getCategoriasParaRelatorio(),
+  ]);
 
-  return <RelatoriosView turmas={turmas} />;
+  return <RelatoriosView turmas={turmas} categorias={categorias} />;
 }

@@ -84,7 +84,7 @@ export default async function AulasPage() {
       .from("mensalidades")
       .select("aluno_id")
       .in("aluno_id", todosIds)
-      .eq("status", "atrasado")
+      .neq("status", "pago")
       .lte("data_vencimento", dezDiasAtras.toISOString().split("T")[0]),
   ]);
 

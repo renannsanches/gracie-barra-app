@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
+import { revalidatePath } from "next/cache";
 import type { CorFaixa, CategoriaFaixa, HistoricoGraduacao } from "@/lib/types";
 
 export async function registrarGraduacao(
@@ -42,11 +43,13 @@ export async function registrarGraduacao(
     .single();
 
   if (error) return { ok: false, erro: error.message };
+  revalidatePath(`/admin/alunos/${alunoId}`);
   return { ok: true, graduacao: data as HistoricoGraduacao };
 }
 
 export async function excluirGraduacao(
   id: string,
+  alunoId: string,
 ): Promise<{ ok: boolean; erro?: string }> {
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
@@ -57,5 +60,6 @@ export async function excluirGraduacao(
     .eq("id", id);
 
   if (error) return { ok: false, erro: error.message };
+  revalidatePath(`/admin/alunos/${alunoId}`);
   return { ok: true };
 }

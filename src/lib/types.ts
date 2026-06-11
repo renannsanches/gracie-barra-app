@@ -136,6 +136,68 @@ export interface Foto {
   created_at: string;
 }
 
+// ─── Financeiro: lançamentos avulsos ─────────────────────────────────
+export interface AlunoCombo {
+  id: string;
+  nome_completo: string;
+  foto_url: string | null;
+}
+export type TipoCategoriaFinanceira = "despesa" | "receita";
+export type TipoFornecedor          = "fornecedor" | "cliente" | "funcionario" | "outro";
+export type TipoLancamento          = "pagar" | "receber";
+export type StatusLancamento        = "pendente" | "pago" | "atrasado" | "cancelado";
+
+export interface CategoriaFinanceira {
+  id: string;
+  nome: string;
+  tipo: TipoCategoriaFinanceira;
+  parent_id: string | null;
+  ativa: boolean;
+  criado_em: string;
+}
+
+export interface FormaPagamento {
+  id: string;
+  nome: string;
+  ativa: boolean;
+  ordem: number;
+  criado_em: string;
+}
+
+export interface Fornecedor {
+  id: string;
+  nome: string;
+  tipo: TipoFornecedor;
+  nif: string | null;
+  email: string | null;
+  telefone: string | null;
+  notas: string | null;
+  ativo: boolean;
+  criado_em: string;
+}
+
+export interface LancamentoFinanceiro {
+  id: string;
+  tipo: TipoLancamento;
+  descricao: string;
+  fornecedor_id: string | null;
+  categoria_id: string | null;
+  data_vencimento: string;
+  valor: number;
+  status: StatusLancamento;
+  data_pagamento: string | null;
+  forma_pagamento_id: string | null;
+  comprovativo_url: string | null;
+  notas: string | null;
+  grupo_id: string | null;
+  parcela_numero: number | null;
+  parcela_total: number | null;
+  aluno_id: string | null;
+  criado_em: string;
+  atualizado_em: string;
+  criado_por: string | null;
+}
+
 export interface HistoricoGraduacao {
   id: string;
   aluno_id: string;

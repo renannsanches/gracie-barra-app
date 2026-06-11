@@ -16,6 +16,7 @@ import { PresencasCalendario } from "@/components/PresencasCalendario";
 import {
   mascararTelefonePT, formatarData, formatarMoeda, formatarMes, labelCorFaixa,
 } from "@/lib/utils";
+import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type {
   Profile, CorFaixa, StatusAluno, CategoriaFaixa, PerfilUsuario,
   Mensalidade, StatusMensalidade, HistoricoGraduacao,
@@ -89,7 +90,7 @@ const STATUS_MENS_CLASS: Record<StatusMensalidade, string> = {
   atrasado: "bg-red-100 text-red-700",
 };
 const STATUS_MENS_LABEL: Record<StatusMensalidade, string> = {
-  pago: "Pago", pendente: "Pendente", atrasado: "Em atraso",
+  pago: "Pago", pendente: "Pendente", atrasado: "Vencida",
 };
 
 const hoje = new Date().toISOString().split("T")[0];
@@ -331,7 +332,7 @@ export function AlunoEditView({
   async function handleExcluirGraduacao(id: string) {
     if (!confirm("Eliminar esta graduação do histórico?")) return;
     try {
-      const result = await excluirGraduacao(id);
+      const result = await excluirGraduacao(id, aluno.id);
       if (result.ok) setGraduacoes((prev) => prev.filter((g) => g.id !== id));
     } catch {
       // silently ignore network errors — user can retry
@@ -1037,7 +1038,7 @@ export function AlunoEditView({
                     <button
                       type="button"
                       onClick={() => handleExcluirGraduacao(g.id)}
-                      className="text-gray-300 hover:text-red-500 transition-colors"
+                      className="text-red-500 hover:text-red-700 transition-colors"
                       title="Eliminar graduação"
                     >
                       <Trash2 size={14} />
@@ -1240,9 +1241,11 @@ export function AlunoEditView({
                           ) : (m.valor != null ? formatarMoeda(m.valor) : "—")}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_MENS_CLASS[m.status]}`}>
-                            {STATUS_MENS_LABEL[m.status]}
+                          {(() => { const ef = getEffectiveStatus(m); return (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_MENS_CLASS[ef]}`}>
+                            {STATUS_MENS_LABEL[ef]}
                           </span>
+                          ); })()}
                         </td>
                         <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{m.data_pagamento ? formatarData(m.data_pagamento) : "—"}</td>
                         <td className="px-4 py-3">

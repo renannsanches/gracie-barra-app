@@ -77,6 +77,8 @@ export async function gerarAulas(turmaId: string, semanas: number): Promise<Gera
 }
 
 export async function buscarAulasComContagem(turmaId: string): Promise<AulaComContagem[]> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return [];
   const admin = createAdminClient();
   const { data: aulas } = await admin
     .from("aulas")

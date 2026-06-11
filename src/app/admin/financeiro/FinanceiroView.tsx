@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition } from "react";
 import { marcarPago, desmarcarPago } from "./actions";
+import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type { Mensalidade, StatusMensalidade } from "@/lib/types";
 
 type MensalidadeComAluno = Mensalidade & {
@@ -14,7 +15,7 @@ interface Props {
 
 function statusBadge(s: StatusMensalidade) {
   if (s === "pago") return { label: "Pago", cls: "bg-green-100 text-green-700" };
-  if (s === "atrasado") return { label: "Em atraso", cls: "bg-red-100 text-red-700" };
+  if (s === "atrasado") return { label: "Vencida", cls: "bg-red-100 text-red-700" };
   return { label: "Pendente", cls: "bg-yellow-100 text-yellow-700" };
 }
 
@@ -33,16 +34,25 @@ function formatData(d: string | null) {
 const inputClass =
   "h-9 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gb-blue/30 focus:border-gb-blue";
 
+const hoje = new Date();
+const MES_ATUAL = String(hoje.getMonth() + 1).padStart(2, "0");
+const ANO_ATUAL = String(hoje.getFullYear());
+
 export function FinanceiroView({ mensalidades }: Props) {
   const [busca, setBusca] = useState("");
-  const [filtroMes, setFiltroMes] = useState("");
-  const [filtroAno, setFiltroAno] = useState("");
+  const [filtroMes, setFiltroMes] = useState(MES_ATUAL);
+  const [filtroAno, setFiltroAno] = useState(ANO_ATUAL);
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
   const [statusFiltro, setStatusFiltro] = useState<"" | StatusMensalidade>("");
   const [pending, startTransition] = useTransition();
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
+  const temPeriodo = !!(dataInicio || dataFim);
+
   const anos = useMemo(() => {
     const set = new Set(mensalidades.map((m) => m.mes_referencia.slice(0, 4)));
+    set.add(ANO_ATUAL);
     return Array.from(set).sort((a, b) => b.localeCompare(a));
   }, [mensalidades]);
 
@@ -50,12 +60,17 @@ export function FinanceiroView({ mensalidades }: Props) {
     return mensalidades.filter((m) => {
       const nome = m.profiles?.nome_completo ?? "";
       if (busca && !nome.toLowerCase().includes(busca.toLowerCase())) return false;
-      if (filtroAno && !m.mes_referencia.startsWith(filtroAno)) return false;
-      if (filtroMes && m.mes_referencia.slice(5, 7) !== filtroMes) return false;
-      if (statusFiltro && m.status !== statusFiltro) return false;
+      if (statusFiltro && getEffectiveStatus(m) !== statusFiltro) return false;
+      if (temPeriodo) {
+        if (dataInicio && m.data_vencimento < dataInicio) return false;
+        if (dataFim && m.data_vencimento > dataFim) return false;
+      } else {
+        if (filtroAno && !m.mes_referencia.startsWith(filtroAno)) return false;
+        if (filtroMes && m.mes_referencia.slice(5, 7) !== filtroMes) return false;
+      }
       return true;
     });
-  }, [mensalidades, busca, filtroAno, filtroMes, statusFiltro]);
+  }, [mensalidades, busca, filtroAno, filtroMes, statusFiltro, dataInicio, dataFim, temPeriodo]);
 
   const totalPago = filtered.filter((m) => m.status === "pago").reduce((s, m) => s + m.valor, 0);
   const totalPendente = filtered.filter((m) => m.status !== "pago").reduce((s, m) => s + m.valor, 0);
@@ -78,12 +93,25 @@ export function FinanceiroView({ mensalidades }: Props) {
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Financeiro</h1>
-        <p className="text-sm text-gray-500">{mensalidades.length} mensalidades no total</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Financeiro</h1>
+          <p className="text-sm text-gray-500">{mensalidades.length} mensalidades no total</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 font-medium">
+            {filtered.length} registo{filtered.length !== 1 ? "s" : ""}
+          </span>
+          <span className="px-3 py-1.5 rounded-full bg-green-50 text-green-700 font-medium border border-green-100">
+            Pago: {totalPago.toLocaleString("pt-BR", { style: "currency", currency: "EUR" })}
+          </span>
+          <span className="px-3 py-1.5 rounded-full bg-yellow-50 text-yellow-700 font-medium border border-yellow-100">
+            Pendente/Atrasado: {totalPendente.toLocaleString("pt-BR", { style: "currency", currency: "EUR" })}
+          </span>
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         <input
           type="text"
           placeholder="Buscar aluno..."
@@ -95,7 +123,8 @@ export function FinanceiroView({ mensalidades }: Props) {
           title="Filtrar por mês"
           value={filtroMes}
           onChange={(e) => setFiltroMes(e.target.value)}
-          className={inputClass}
+          disabled={temPeriodo}
+          className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           <option value="">Todos os meses</option>
           <option value="01">Janeiro</option>
@@ -115,7 +144,8 @@ export function FinanceiroView({ mensalidades }: Props) {
           title="Filtrar por ano"
           value={filtroAno}
           onChange={(e) => setFiltroAno(e.target.value)}
-          className={inputClass}
+          disabled={temPeriodo}
+          className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           <option value="">Todos os anos</option>
           {anos.map((a) => (
@@ -133,6 +163,35 @@ export function FinanceiroView({ mensalidades }: Props) {
           <option value="pago">Pago</option>
           <option value="atrasado">Atrasado</option>
         </select>
+        <div className="flex items-center gap-1">
+          <label className="text-xs text-gray-500" htmlFor="data-inicio">De</label>
+          <input
+            id="data-inicio"
+            type="date"
+            title="Período: data inicial (vencimento)"
+            value={dataInicio}
+            onChange={(e) => setDataInicio(e.target.value)}
+            className={inputClass}
+          />
+          <label className="text-xs text-gray-500" htmlFor="data-fim">Até</label>
+          <input
+            id="data-fim"
+            type="date"
+            title="Período: data final (vencimento)"
+            value={dataFim}
+            onChange={(e) => setDataFim(e.target.value)}
+            className={inputClass}
+          />
+          {temPeriodo && (
+            <button
+              type="button"
+              onClick={() => { setDataInicio(""); setDataFim(""); }}
+              className="text-xs px-2 py-1 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              Limpar
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -158,7 +217,7 @@ export function FinanceiroView({ mensalidades }: Props) {
                 </tr>
               )}
               {filtered.map((m) => {
-                const { label, cls } = statusBadge(m.status);
+                const { label, cls } = statusBadge(getEffectiveStatus(m));
                 const isLoading = loadingId === m.id;
                 return (
                   <tr key={m.id} data-mensalidade-id={m.id} className="hover:bg-gray-50 transition-colors">

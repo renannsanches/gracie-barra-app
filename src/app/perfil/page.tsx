@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { calcularElegibilidade } from "@/lib/graduacao-rules";
+import { fetchAllPresencasDias } from "@/lib/fetch-all-presencas";
 import type { Profile, Mensalidade, HistoricoGraduacao, DependentePerfil, CorFaixa, CategoriaFaixa } from "@/lib/types";
 import { PerfilView } from "./PerfilView";
 
@@ -57,12 +58,12 @@ export default async function PerfilPage() {
       .from("presencas")
       .select("id", { count: "exact", head: true })
       .eq("aluno_id", user.id)
-      .gte("data_presenca", inicioMes),
+      .gte("dia_registro", inicioMes),
     supabase
       .from("presencas")
-      .select("data_presenca")
+      .select("registrado_em")
       .eq("aluno_id", user.id)
-      .order("data_presenca", { ascending: false })
+      .order("registrado_em", { ascending: false })
       .limit(1),
     supabase
       .from("avisos")
@@ -79,7 +80,7 @@ export default async function PerfilPage() {
   const p = profile as Profile;
   const totalAulas = (p?.aulas_manual ?? 0) + (presencasCount ?? 0);
   const aulasMes = presencasMesCount ?? 0;
-  const ultimoTreino = (ultimaPresenca?.[0] as { data_presenca: string } | undefined)?.data_presenca ?? null;
+  const ultimoTreino = (ultimaPresenca?.[0] as { registrado_em: string } | undefined)?.registrado_em ?? null;
   const avisosNotif = (avisosData ?? []).map((a) => ({
     id: a.id as string,
     titulo: a.titulo as string,
@@ -124,10 +125,8 @@ export default async function PerfilPage() {
     const activeIds = (alunosAtivos ?? []).map((a) => a.id as string);
 
     if (activeIds.length > 0) {
-      const [{ data: presencasAtivos }, { data: historicoAtivos }] = await Promise.all([
-        admin.from("presencas")
-          .select("aluno_id, dia_registro")
-          .in("aluno_id", activeIds),
+      const [presencasAtivos, { data: historicoAtivos }] = await Promise.all([
+        fetchAllPresencasDias(admin, activeIds),
         admin.from("historico_graduacoes")
           .select("id, aluno_id, faixa_nova, faixa_anterior, graus_nova, graus_anterior, data_graduacao, graduado_por, observacoes, created_at")
           .in("aluno_id", activeIds)
@@ -135,10 +134,10 @@ export default async function PerfilPage() {
       ]);
 
       const diasByAluno: Record<string, string[]> = {};
-      for (const pr of presencasAtivos ?? []) {
-        const aid = pr.aluno_id as string;
+      for (const pr of presencasAtivos) {
+        const aid = pr.aluno_id;
         if (!diasByAluno[aid]) diasByAluno[aid] = [];
-        diasByAluno[aid].push(pr.dia_registro as string);
+        diasByAluno[aid].push(pr.dia_registro);
       }
 
       const historicoByAluno: Record<string, HistoricoGraduacao[]> = {};
@@ -174,6 +173,11 @@ export default async function PerfilPage() {
           });
         }
       }
+
+      aptosGraduar.sort((a, b) =>
+        (b.semanasQualificadas - b.semanasNecessarias) -
+        (a.semanasQualificadas - a.semanasNecessarias)
+      );
     }
   }
 

@@ -41,10 +41,21 @@ export async function desmarcarPago(mensalidadeId: string, alunoId: string): Pro
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
   const admin = createAdminClient();
+  const hoje = new Date().toISOString().split("T")[0];
+
+  const { data: m, error: errBusca } = await admin
+    .from("mensalidades")
+    .select("data_vencimento")
+    .eq("id", mensalidadeId)
+    .single();
+
+  if (errBusca || !m) return { ok: false, erro: errBusca?.message ?? "Mensalidade não encontrada." };
+
+  const novoStatus = m.data_vencimento < hoje ? "atrasado" : "pendente";
 
   const { error } = await admin
     .from("mensalidades")
-    .update({ status: "pendente", data_pagamento: null })
+    .update({ status: novoStatus, data_pagamento: null })
     .eq("id", mensalidadeId);
 
   if (error) return { ok: false, erro: error.message };

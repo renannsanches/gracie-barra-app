@@ -49,23 +49,101 @@ function addDays(date: Date, days: number): Date {
   return d;
 }
 
+type TipoNotifMens =
+  | "vence_amanha"
+  | "vence_hoje"
+  | "atraso_3d"
+  | "atraso_7d"
+  | "atraso_bloqueio";
+
+const MENSAGENS_MENS: Record<TipoNotifMens, { title: string; body: string }> = {
+  vence_amanha: {
+    title: "Mensalidade vence amanhã",
+    body: "A tua mensalidade vence amanhã. Não te esqueças de regularizar.",
+  },
+  vence_hoje: {
+    title: "Mensalidade vence hoje",
+    body: "A tua mensalidade vence hoje. Fala com a Simone para regularizar.",
+  },
+  atraso_3d: {
+    title: "Mensalidade em atraso",
+    body: "A tua mensalidade está vencida há 3 dias. Contacta a academia.",
+  },
+  atraso_7d: {
+    title: "⚠️ Mensalidade em atraso",
+    body: "A tua mensalidade está vencida há mais de 1 semana. Regulariza para evitar bloqueio.",
+  },
+  atraso_bloqueio: {
+    title: "🚫 Acesso pode ser bloqueado",
+    body: "Mensalidade vencida há ≥10 dias. O acesso ao QR e às reservas pode ser bloqueado. Fala com a Simone.",
+  },
+};
+
+/**
+ * Classifica uma mensalidade em qual tipo de notificação deve receber HOJE.
+ * Usa ranges (não pontos exatos) para tolerar cron a falhar um dia.
+ * O dedup table garante que cada (mensalidade, tipo) só envia uma vez.
+ */
+function classificarMensalidade(
+  vencimento: string,
+  todayStr: string,
+  amanhaStr: string,
+): TipoNotifMens | null {
+  if (vencimento === amanhaStr) return "vence_amanha";
+  if (vencimento === todayStr) return "vence_hoje";
+  // só vencidas (vencimento < hoje) entram nas tiers de atraso
+  if (vencimento >= todayStr) return null;
+  const diff = Math.floor(
+    (new Date(todayStr).getTime() - new Date(vencimento).getTime()) / 86400000,
+  );
+  if (diff >= 10) return "atraso_bloqueio";
+  if (diff >= 7)  return "atraso_7d";
+  if (diff >= 3)  return "atraso_3d";
+  return null;
+}
+
 export async function sendPushMensalidade() {
   const admin = createAdminClient();
   const today = new Date();
   const todayStr = toDateStr(today);
-  const minus2 = toDateStr(addDays(today, -2));
-  const minus5 = toDateStr(addDays(today, -5));
+  const amanhaStr = toDateStr(addDays(today, 1));
+  const limiteSuperior = amanhaStr;            // até amanhã (lembrete)
+  const limiteInferior = toDateStr(addDays(today, -60)); // ignora mensalidades muito antigas
 
   const { data: rows } = await admin
     .from("mensalidades")
-    .select("aluno_id, data_vencimento, status")
+    .select("id, aluno_id, data_vencimento, status")
     .neq("status", "pago")
-    .in("data_vencimento", [todayStr, minus2, minus5]);
+    .gte("data_vencimento", limiteInferior)
+    .lte("data_vencimento", limiteSuperior);
 
   if (!rows || rows.length === 0) return;
 
-  // dependentes (sem_login) não têm push subscription própria — notificar o responsável
-  const allAlunoIds = [...new Set(rows.map((r) => r.aluno_id))];
+  // classifica cada mensalidade
+  type Pending = { mensalidadeId: string; alunoId: string; tipo: TipoNotifMens };
+  const pendings: Pending[] = [];
+  for (const r of rows) {
+    const tipo = classificarMensalidade(r.data_vencimento, todayStr, amanhaStr);
+    if (!tipo) continue;
+    pendings.push({ mensalidadeId: r.id, alunoId: r.aluno_id, tipo });
+  }
+  if (pendings.length === 0) return;
+
+  // dedup: remove (mensalidade, tipo) já enviados
+  const { data: jaEnviados } = await admin
+    .from("notificacoes_mensalidade_enviadas")
+    .select("mensalidade_id, tipo")
+    .in("mensalidade_id", pendings.map((p) => p.mensalidadeId));
+  const enviadosSet = new Set(
+    (jaEnviados ?? []).map((e) => `${e.mensalidade_id}::${e.tipo}`),
+  );
+  const aEnviar = pendings.filter(
+    (p) => !enviadosSet.has(`${p.mensalidadeId}::${p.tipo}`),
+  );
+  if (aEnviar.length === 0) return;
+
+  // dependentes (sem_login) → notificar o responsável
+  const allAlunoIds = [...new Set(aEnviar.map((p) => p.alunoId))];
   const { data: semLoginProfiles } = await admin
     .from("profiles")
     .select("id")
@@ -81,33 +159,32 @@ export async function sendPushMensalidade() {
     for (const d of deps ?? []) idMap[d.dependente_id] = d.responsavel_id;
   }
 
-  const byDate: Record<string, string[]> = { [todayStr]: [], [minus2]: [], [minus5]: [] };
-  for (const r of rows) {
-    const resolvedId = idMap[r.aluno_id] ?? r.aluno_id;
-    if (byDate[r.data_vencimento]) byDate[r.data_vencimento].push(resolvedId);
-  }
-
-  const messages: Record<string, { title: string; body: string }> = {
-    [todayStr]: {
-      title: "Mensalidade a vencer",
-      body: "A tua mensalidade vence hoje. Fala com a Simone para regularizar.",
-    },
-    [minus2]: {
-      title: "Mensalidade em atraso",
-      body: "A tua mensalidade está em atraso há 2 dias. Contacta a academia.",
-    },
-    [minus5]: {
-      title: "⚠️ Mensalidade em atraso",
-      body: "A tua mensalidade está em atraso há 5 dias. O acesso pode ser bloqueado. Fala com a Simone.",
-    },
+  // agrupa por tipo → conjunto de userIds resolvidos
+  const porTipo: Record<TipoNotifMens, Set<string>> = {
+    vence_amanha:    new Set(),
+    vence_hoje:      new Set(),
+    atraso_3d:       new Set(),
+    atraso_7d:       new Set(),
+    atraso_bloqueio: new Set(),
   };
-
-  for (const [dateStr, userIds] of Object.entries(byDate)) {
-    if (userIds.length === 0) continue;
-    const subs = await getSubscriptions(userIds);
-    if (subs.length === 0) continue;
-    await sendToSubscriptions(subs, { ...messages[dateStr], url: "/perfil" });
+  for (const p of aEnviar) {
+    porTipo[p.tipo].add(idMap[p.alunoId] ?? p.alunoId);
   }
+
+  // envia + marca dedup
+  for (const [tipo, userIds] of Object.entries(porTipo) as [TipoNotifMens, Set<string>][]) {
+    if (userIds.size === 0) continue;
+    const subs = await getSubscriptions([...userIds]);
+    if (subs.length === 0) continue;
+    await sendToSubscriptions(subs, { ...MENSAGENS_MENS[tipo], url: "/perfil" });
+  }
+
+  // marca todos como enviados (mesmo se push não chegou — evita re-tentativa diária)
+  await admin
+    .from("notificacoes_mensalidade_enviadas")
+    .insert(
+      aEnviar.map((p) => ({ mensalidade_id: p.mensalidadeId, tipo: p.tipo })),
+    );
 }
 
 export async function sendPushAviso() {
@@ -187,7 +264,7 @@ export async function sendPushGraduacao() {
   for (const aluno of alunos) {
     const { data: presencas } = await admin
       .from("presencas")
-      .select("data")
+      .select("dia_registro")
       .eq("aluno_id", aluno.id);
 
     const { data: historico } = await admin
@@ -198,7 +275,7 @@ export async function sendPushGraduacao() {
 
     const resultado = calcularElegibilidade(
       aluno as Parameters<typeof calcularElegibilidade>[0],
-      (presencas ?? []).map((p) => p.data),
+      (presencas ?? []).map((p) => p.dia_registro),
       historico ?? [],
     );
 

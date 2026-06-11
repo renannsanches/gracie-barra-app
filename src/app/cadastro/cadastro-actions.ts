@@ -25,7 +25,7 @@ function calcularIdade(dataNasc: string | null): number {
 
 function proximoDia5DoMes(offsetMeses: number): Date {
   const hoje = new Date();
-  const d = new Date(hoje.getFullYear(), hoje.getMonth() + 1 + offsetMeses, 5);
+  const d = new Date(hoje.getFullYear(), hoje.getMonth() + offsetMeses, 5);
   const dow = d.getDay(); // 0=Dom, 6=Sab
   if (dow === 6) d.setDate(7); // Sáb → seg
   if (dow === 0) d.setDate(6); // Dom → seg
@@ -33,7 +33,9 @@ function proximoDia5DoMes(offsetMeses: number): Date {
 }
 
 function gerarDatas6Meses(): Date[] {
-  return Array.from({ length: 6 }, (_, i) => proximoDia5DoMes(i));
+  // Dias 1-10: começa no mês atual. Dias 11+: começa no mês seguinte (admin regista o atual manualmente).
+  const offsetBase = new Date().getDate() <= 10 ? 0 : 1;
+  return Array.from({ length: 6 }, (_, i) => proximoDia5DoMes(offsetBase + i));
 }
 
 async function gerarMensalidades(alunoId: string, valor: number) {

@@ -3,7 +3,7 @@ import { transporter } from './mailer'
 const PDF_URL =
   'https://fjqiyilzxxyoyposqsfz.supabase.co/storage/v1/object/public/Contrato/CONTRATO%20DE%20PRESTACAO%20DE%20SERVICOS%20DESPORTIVOS%20GRACIE%20BARRA%20VILA%20NOVA%20DE%20FAMALICAO.pdf'
 
-const EMAIL_HTML = `<div style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
+function buildEmailHtml(nome: string): string { return `<div style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
     <tr>
       <td align="center">
@@ -16,7 +16,7 @@ const EMAIL_HTML = `<div style="margin:0;padding:0;background:#f4f4f5;font-famil
           <tr>
             <td style="padding:40px 35px;color:#111827;">
               <h1 style="margin:0 0 20px;font-size:26px;line-height:1.3;">O teu contrato está pronto ✅</h1>
-              <p style="font-size:16px;line-height:1.7;margin:0 0 20px;">Olá, bem-vindo(a) à <strong>Gracie Barra Famalicão</strong>!</p>
+              <p style="font-size:16px;line-height:1.7;margin:0 0 20px;">Olá, <strong>${nome}</strong>, bem-vindo(a) à <strong>Gracie Barra Famalicão</strong>!</p>
               <p style="font-size:16px;line-height:1.7;margin:0 0 25px;">O teu registo na nossa aplicação foi concluído com sucesso. Para formalizar a tua matrícula, precisamos que entregues o contrato assinado. Encontras o documento em anexo neste e-mail.</p>
               <p style="font-size:15px;font-weight:bold;margin:0 0 8px;color:#111827;">Passo 1 — Descarrega o contrato</p>
               <p style="font-size:15px;line-height:1.7;margin:0 0 25px;color:#374151;">Abre o ficheiro em anexo e guarda-o no teu dispositivo.</p>
@@ -47,7 +47,7 @@ const EMAIL_HTML = `<div style="margin:0;padding:0;background:#f4f4f5;font-famil
       </td>
     </tr>
   </table>
-</div>`
+</div>`; }
 
 export async function sendContractEmail(email: string, nome: string): Promise<void> {
   try {
@@ -60,7 +60,7 @@ export async function sendContractEmail(email: string, nome: string): Promise<vo
       from: '"Gracie Barra Famalicão" <graciebarrafamalicao@gmail.com>',
       to: email,
       subject: 'Bem-vindo(a) à Gracie Barra Famalicão — Contrato de Prestação de Serviços',
-      html: EMAIL_HTML,
+      html: buildEmailHtml(nome),
       attachments: [
         {
           filename: 'Contrato-GracieBarra-Famalicao.pdf',

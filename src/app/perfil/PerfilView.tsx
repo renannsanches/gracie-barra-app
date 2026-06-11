@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { mascararTelefonePT, formatarTelefonePT, formatarMoeda, formatarMes, formatarData, labelCorFaixa } from "@/lib/utils";
+import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type { Profile, Mensalidade, StatusMensalidade, HistoricoGraduacao, DependentePerfil, CorFaixa, CategoriaFaixa } from "@/lib/types";
 import { DependenteModal } from "./DependenteModal";
 import { NotificacoesModal } from "./NotificacoesModal";
@@ -655,18 +656,18 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   <li key={a.id}>
                     <Link
                       href={`/admin/alunos/${a.id}`}
-                      className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors"
+                      className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors"
                     >
-                      <div className="w-14 shrink-0 flex items-center justify-center">
-                        <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="sm" />
+                      <div className="shrink-0 flex items-center justify-center">
+                        <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="xs" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-800 truncate">{a.nome_completo}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{a.semanasQualificadas} semanas qualificadas</p>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <ChevronRight size={14} className="text-gray-300" />
-                        <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="sm" />
+                        <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="xs" />
                       </div>
                     </Link>
                   </li>
@@ -822,7 +823,9 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
             title="Mensalidades"
           >
             <div className="space-y-2">
-              {mensalidades.map((m) => (
+              {mensalidades.map((m) => {
+                const ef = getEffectiveStatus(m);
+                return (
                 <div
                   key={m.id}
                   className="flex items-center justify-between gap-3 py-2.5 border-b border-gray-100 last:border-0"
@@ -834,24 +837,25 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   <div className="text-right shrink-0">
                     <p className="text-[14px] font-medium text-gray-900">{m.valor != null ? formatarMoeda(m.valor) : "—"}</p>
                     <span className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded-full mt-1 ${
-                      m.status === "pago"
+                      ef === "pago"
                         ? "bg-emerald-500/15 text-emerald-600"
-                        : m.status === "atrasado"
+                        : ef === "atrasado"
                         ? "bg-red-500/15 text-red-600"
                         : "bg-amber-500/15 text-amber-600"
                     }`}>
-                      {m.status === "pago"
+                      {ef === "pago"
                         ? `Pago${m.data_pagamento ? ` em ${formatarData(m.data_pagamento)}` : ""}`
-                        : m.status === "atrasado"
-                        ? "Em atraso"
+                        : ef === "atrasado"
+                        ? "Vencida"
                         : "Pendente"
                       }
                     </span>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
-            {mensalidades.some((m) => m.status === "atrasado") && (
+            {mensalidades.some((m) => getEffectiveStatus(m) === "atrasado") && (
               <a
                 href="https://wa.me/14076941856"
                 target="_blank"
@@ -884,6 +888,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   .join("")
                   .toUpperCase();
                 const ultimaMens = dep.mensalidades[0];
+                const ultimaMensEf = ultimaMens ? getEffectiveStatus(ultimaMens) : null;
                 const mensStatusColor: Record<StatusMensalidade, string> = {
                   pago:     "text-green-600 bg-green-50",
                   pendente: "text-amber-600 bg-amber-50",
@@ -892,7 +897,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                 const mensStatusLabel: Record<StatusMensalidade, string> = {
                   pago:     "Em dia",
                   pendente: "Pendente",
-                  atrasado: "Em atraso",
+                  atrasado: "Vencida",
                 };
                 const isUploadingThis = uploadingDepId === dep.id;
                 return (
@@ -932,9 +937,9 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                             {labelCorFaixa(dep.faixa)} · {dep.graus} grau{dep.graus !== 1 ? "s" : ""} · <span className="capitalize">{dep.categoria}</span>
                           </p>
                         )}
-                        {ultimaMens && (
-                          <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full ${mensStatusColor[ultimaMens.status]}`}>
-                            {mensStatusLabel[ultimaMens.status]}
+                        {ultimaMens && ultimaMensEf && (
+                          <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full ${mensStatusColor[ultimaMensEf]}`}>
+                            {mensStatusLabel[ultimaMensEf]}
                           </span>
                         )}
                       </div>

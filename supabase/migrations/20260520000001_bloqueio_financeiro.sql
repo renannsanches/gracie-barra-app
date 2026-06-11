@@ -1,4 +1,6 @@
--- Helper: retorna true se o aluno tem mensalidade atrasada há mais de 10 dias.
+-- Helper: retorna true se o aluno tem mensalidade não-paga vencida há ≥10 dias.
+-- Não depende do enum status='atrasado' (que não é flipped automaticamente).
+-- Desbloqueia automaticamente quando a mensalidade é marcada como pago.
 -- Sem mensalidades → retorna false (permitir).
 CREATE OR REPLACE FUNCTION verificar_bloqueio_financeiro(p_aluno_id uuid)
 RETURNS boolean
@@ -6,7 +8,7 @@ LANGUAGE sql STABLE SECURITY DEFINER AS $$
   SELECT EXISTS (
     SELECT 1 FROM mensalidades
     WHERE aluno_id = p_aluno_id
-      AND status = 'atrasado'
+      AND status <> 'pago'
       AND data_vencimento <= CURRENT_DATE - INTERVAL '10 days'
   );
 $$;

@@ -20,7 +20,7 @@ async function estaBloqueadoFinanceiramente(
     .from("mensalidades")
     .select("id")
     .eq("aluno_id", alunoId)
-    .eq("status", "atrasado")
+    .neq("status", "pago")
     .lte("data_vencimento", dez.toISOString().split("T")[0])
     .limit(1);
   return (data?.length ?? 0) > 0;

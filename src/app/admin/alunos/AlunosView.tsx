@@ -258,7 +258,7 @@ export function AlunosView({ alunos, responsaveisMap }: Props) {
                     onClick={(e) => handleExcluir(e, a)}
                     disabled={excluindoId === a.id}
                     title="Excluir aluno"
-                    className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
+                    className="p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors disabled:opacity-40"
                   >
                     <Trash2 size={15} />
                   </button>

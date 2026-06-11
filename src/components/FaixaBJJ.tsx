@@ -29,6 +29,7 @@ const INFANTIL_MAP: Partial<Record<CorFaixa, string>> = {
 };
 
 const SIZE_H: Record<string, number> = {
+  xs: 24,
   sm: 48,
   md: 60,
   lg: 72,
@@ -42,7 +43,7 @@ interface FaixaBJJProps {
   faixa: CorFaixa;
   graus?: number;
   categoria: CategoriaFaixa;
-  tamanho?: "sm" | "md" | "lg";
+  tamanho?: "xs" | "sm" | "md" | "lg";
   showLabel?: boolean;
   className?: string;
 }

@@ -5,11 +5,13 @@ import { FileSpreadsheet, FileText, Loader2, Download } from "lucide-react";
 import {
   getRelatorioFinanceiro,
   getRelatorioPresencas,
+  getRelatorioLancamentos,
   MensalidadeRelatorio,
   PresencaRelatorio,
+  LancamentoRelatorio,
 } from "./actions";
 
-type Tab = "financeiro" | "presencas";
+type Tab = "financeiro" | "presencas" | "lancamentos";
 
 const STATUS_OPTS = [
   { value: "todos",    label: "Todos os status" },
@@ -259,12 +261,127 @@ async function exportPresencasPDF(dados: PresencaRelatorio[], inicio: string, fi
   doc.save(`presencas-${inicio}_${fim}.pdf`);
 }
 
+async function exportLancamentosExcel(dados: LancamentoRelatorio[], inicio: string, fim: string) {
+  const { utils, writeFile } = await import("xlsx");
+
+  const rows = dados.map((r) => ({
+    "Tipo": r.tipo === "pagar" ? "A pagar" : "A receber",
+    "Descrição": r.descricao,
+    "Fornecedor/Cliente": r.fornecedor_nome,
+    "Categoria pai": r.categoria_pai_nome,
+    "Categoria": r.categoria_nome,
+    "Vencimento": formatDate(r.data_vencimento),
+    "Valor (€)": r.valor,
+    "Status": statusLabel(r.status),
+    "Data Pagamento": r.data_pagamento ? formatDate(r.data_pagamento) : "—",
+    "Forma": r.forma_pagamento_nome,
+  }));
+
+  const totReceitas = dados.filter((r) => r.tipo === "receber" && r.status === "pago").reduce((s, r) => s + r.valor, 0);
+  const totDespesas = dados.filter((r) => r.tipo === "pagar"   && r.status === "pago").reduce((s, r) => s + r.valor, 0);
+
+  rows.push({} as any);
+  rows.push({ "Tipo": "TOTAL RECEITAS (pagas)",  "Descrição": "", "Fornecedor/Cliente": "", "Categoria pai": "", "Categoria": "", "Vencimento": "", "Valor (€)": totReceitas,  "Status": "", "Data Pagamento": "", "Forma": "" });
+  rows.push({ "Tipo": "TOTAL DESPESAS (pagas)",  "Descrição": "", "Fornecedor/Cliente": "", "Categoria pai": "", "Categoria": "", "Vencimento": "", "Valor (€)": totDespesas,  "Status": "", "Data Pagamento": "", "Forma": "" });
+  rows.push({ "Tipo": "SALDO REALIZADO",         "Descrição": "", "Fornecedor/Cliente": "", "Categoria pai": "", "Categoria": "", "Vencimento": "", "Valor (€)": totReceitas - totDespesas, "Status": "", "Data Pagamento": "", "Forma": "" });
+
+  const ws = utils.json_to_sheet(rows);
+  const wb = utils.book_new();
+  utils.book_append_sheet(wb, ws, "Lançamentos");
+  writeFile(wb, `lancamentos-${inicio}_${fim}.xlsx`);
+}
+
+async function exportFluxoCaixaPDF(dados: LancamentoRelatorio[], inicio: string, fim: string) {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+
+  const doc = new jsPDF({ orientation: "portrait" });
+  const logoB64 = await fetchLogoBase64();
+
+  let y = 14;
+  if (logoB64) {
+    doc.addImage(logoB64, "WEBP", 14, y, 18, 18);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("GRACIE BARRA FAMALICÃO", 36, y + 7);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Fluxo de Caixa — ${formatDate(inicio)} a ${formatDate(fim)}`, 36, y + 14);
+    doc.text(`Gerado em ${formatDate(hoje())}`, 36, y + 20);
+  } else {
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("GRACIE BARRA FAMALICÃO — Fluxo de Caixa", 14, y);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Período: ${formatDate(inicio)} a ${formatDate(fim)} · Gerado em ${formatDate(hoje())}`, 14, y + 7);
+  }
+
+  // Agrupar por categoria pai
+  type Grupo = { receitas: number; despesas: number };
+  const porPai: Record<string, Grupo> = {};
+  for (const r of dados) {
+    if (r.status !== "pago") continue;
+    const key = r.categoria_pai_nome || "—";
+    if (!porPai[key]) porPai[key] = { receitas: 0, despesas: 0 };
+    if (r.tipo === "receber") porPai[key].receitas += r.valor;
+    else                       porPai[key].despesas += r.valor;
+  }
+
+  const rows = Object.entries(porPai).map(([pai, g]) => [
+    pai,
+    formatEuro(g.receitas),
+    formatEuro(g.despesas),
+    formatEuro(g.receitas - g.despesas),
+  ]);
+
+  const totRec = Object.values(porPai).reduce((s, g) => s + g.receitas, 0);
+  const totDes = Object.values(porPai).reduce((s, g) => s + g.despesas, 0);
+
+  autoTable(doc, {
+    startY: 40,
+    head: [["Categoria", "Receitas", "Despesas", "Saldo"]],
+    body: rows,
+    foot: [["Total", formatEuro(totRec), formatEuro(totDes), formatEuro(totRec - totDes)]],
+    headStyles: { fillColor: [204, 0, 0] },
+    footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold" },
+    styles: { fontSize: 10 },
+  });
+
+  // Listagem detalhada na página seguinte
+  doc.addPage();
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Detalhe dos lançamentos pagos", 14, 16);
+  autoTable(doc, {
+    startY: 22,
+    head: [["Data Pag.", "Tipo", "Descrição", "Categoria", "Valor"]],
+    body: dados.filter((r) => r.status === "pago").map((r) => [
+      r.data_pagamento ? formatDate(r.data_pagamento) : "—",
+      r.tipo === "pagar" ? "Pagar" : "Receber",
+      r.descricao,
+      r.categoria_nome,
+      formatEuro(r.valor),
+    ]),
+    headStyles: { fillColor: [204, 0, 0] },
+    styles: { fontSize: 8 },
+  });
+
+  doc.save(`fluxo-caixa-${inicio}_${fim}.pdf`);
+}
+
 const selectClass =
   "w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gb-blue/40";
 const inputClass =
   "rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gb-blue/40";
 
-export function RelatoriosView({ turmas }: { turmas: { id: string; nome: string }[] }) {
+export function RelatoriosView({
+  turmas,
+  categorias,
+}: {
+  turmas: { id: string; nome: string }[];
+  categorias: { id: string; nome: string }[];
+}) {
   const [tab, setTab] = useState<Tab>("financeiro");
   const [isPending, startTransition] = useTransition();
   const [erro, setErro] = useState<string | null>(null);
@@ -278,6 +395,12 @@ export function RelatoriosView({ turmas }: { turmas: { id: string; nome: string 
   const [dataFim, setDataFim] = useState(hoje());
   const [turmaId, setTurmaId] = useState("");
 
+  // Lançamentos filters
+  const [lancInicio, setLancInicio] = useState(inicioMes());
+  const [lancFim, setLancFim] = useState(hoje());
+  const [lancTipo, setLancTipo] = useState<"todos" | "pagar" | "receber">("todos");
+  const [lancCategoria, setLancCategoria] = useState("");
+
   function handleExport(format: "xlsx" | "pdf", tipo: Tab) {
     setErro(null);
     startTransition(async () => {
@@ -287,7 +410,7 @@ export function RelatoriosView({ turmas }: { turmas: { id: string; nome: string 
         if (result.dados.length === 0) { setErro("Nenhum registo encontrado para os filtros seleccionados."); return; }
         if (format === "xlsx") await exportFinanceiroExcel(result.dados, mes);
         else await exportFinanceiroPDF(result.dados, mes);
-      } else {
+      } else if (tipo === "presencas") {
         const result = await getRelatorioPresencas({
           data_inicio: dataInicio,
           data_fim: dataFim,
@@ -297,6 +420,17 @@ export function RelatoriosView({ turmas }: { turmas: { id: string; nome: string 
         if (result.dados.length === 0) { setErro("Nenhuma presença encontrada para os filtros seleccionados."); return; }
         if (format === "xlsx") await exportPresencasExcel(result.dados, dataInicio, dataFim);
         else await exportPresencasPDF(result.dados, dataInicio, dataFim);
+      } else {
+        const result = await getRelatorioLancamentos({
+          data_inicio: lancInicio,
+          data_fim: lancFim,
+          tipo: lancTipo,
+          categoria_id: lancCategoria || undefined,
+        });
+        if (!result.ok) { setErro(result.erro); return; }
+        if (result.dados.length === 0) { setErro("Nenhum lançamento encontrado para os filtros seleccionados."); return; }
+        if (format === "xlsx") await exportLancamentosExcel(result.dados, lancInicio, lancFim);
+        else await exportFluxoCaixaPDF(result.dados, lancInicio, lancFim);
       }
     });
   }
@@ -307,7 +441,7 @@ export function RelatoriosView({ turmas }: { turmas: { id: string; nome: string 
 
       {/* Tabs */}
       <div className="flex gap-2 bg-gray-100 rounded-xl p-1 mb-6">
-        {(["financeiro", "presencas"] as Tab[]).map((t) => (
+        {(["financeiro", "lancamentos", "presencas"] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
@@ -316,7 +450,7 @@ export function RelatoriosView({ turmas }: { turmas: { id: string; nome: string 
               tab === t ? "bg-white shadow text-gb-black" : "text-gray-500 hover:text-gb-black"
             }`}
           >
-            {t === "financeiro" ? "Financeiro" : "Presenças"}
+            {t === "financeiro" ? "Mensalidades" : t === "lancamentos" ? "Lançamentos" : "Presenças"}
           </button>
         ))}
       </div>
@@ -370,6 +504,77 @@ export function RelatoriosView({ turmas }: { turmas: { id: string; nome: string 
             >
               {isPending ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
               PDF
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tab === "lancamentos" && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+          <h2 className="font-bold text-gb-black">Lançamentos avulsos</h2>
+          <p className="text-sm text-gray-500">
+            Exporta contas a pagar e receber. PDF gera fluxo de caixa agrupado por categoria pai.
+          </p>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Data início</label>
+              <input
+                type="date"
+                value={lancInicio}
+                onChange={(e) => setLancInicio(e.target.value)}
+                className={inputClass + " w-full"}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Data fim</label>
+              <input
+                type="date"
+                value={lancFim}
+                onChange={(e) => setLancFim(e.target.value)}
+                className={inputClass + " w-full"}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Tipo</label>
+              <select value={lancTipo} onChange={(e) => setLancTipo(e.target.value as "todos" | "pagar" | "receber")} className={selectClass}>
+                <option value="todos">Todos</option>
+                <option value="pagar">A pagar</option>
+                <option value="receber">A receber</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Categoria</label>
+              <select value={lancCategoria} onChange={(e) => setLancCategoria(e.target.value)} className={selectClass}>
+                <option value="">Todas as categorias</option>
+                {categorias.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => handleExport("xlsx", "lancamentos")}
+              disabled={isPending}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            >
+              {isPending ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
+              Excel (.xlsx)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleExport("pdf", "lancamentos")}
+              disabled={isPending}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gb-blue text-white text-sm font-semibold hover:bg-gb-blue-dark transition-colors disabled:opacity-50"
+            >
+              {isPending ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+              PDF Fluxo de Caixa
             </button>
           </div>
         </div>

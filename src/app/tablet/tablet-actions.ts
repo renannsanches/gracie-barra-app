@@ -73,7 +73,7 @@ async function estaBloqueadoFinanceiramente(
     .from("mensalidades")
     .select("id")
     .eq("aluno_id", alunoId)
-    .eq("status", "atrasado")
+    .neq("status", "pago")
     .lte("data_vencimento", dez.toISOString().split("T")[0])
     .limit(1);
   return (data?.length ?? 0) > 0;
@@ -91,7 +91,7 @@ export async function registrarPresencaManual(
     return { ok: false, erro: "Não foi possível registar presença. Falar com Simone." };
   }
 
-  const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const umaHoraAtras = new Date(Date.now() - 30 * 60 * 1000).toISOString();
   const { data: recente } = await admin
     .from("presencas")
     .select("id")
