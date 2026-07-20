@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
+import { getAuthErrorMessage } from "@/lib/auth-error-messages";
 
 export function EsqueciSenhaForm() {
   const [email, setEmail] = useState("");
@@ -28,7 +29,7 @@ export function EsqueciSenhaForm() {
       if (!error) {
         setEnviado(true);
       } else {
-        setErro("Erro ao enviar email. Tenta novamente.");
+        setErro(getAuthErrorMessage(error, "reset-password-request"));
       }
     } finally {
       setCarregando(false);

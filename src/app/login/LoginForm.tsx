@@ -36,6 +36,8 @@ export function LoginForm() {
     } else {
       if (res.tipoErro === "nao_confirmado") {
         setErro("Email ainda não confirmado. Verifica a tua caixa de entrada e confirma o registo.");
+      } else if (res.tipoErro === "rate_limit") {
+        setErro("Demasiadas tentativas. Aguarda alguns minutos e tenta novamente.");
       } else {
         setErro("Email ou senha incorretos.");
       }

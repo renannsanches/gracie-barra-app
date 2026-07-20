@@ -6,6 +6,7 @@ import { Loader2, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { labelCorFaixa } from "@/lib/utils";
 import { verificarEmailExistente, concluirCadastro } from "./cadastro-actions";
+import { getAuthErrorMessage } from "@/lib/auth-error-messages";
 import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
 
 // ─── Palette ────────────────────────────────────────────────
@@ -1851,7 +1852,7 @@ export function CadastroForm() {
         },
       });
       if (error) {
-        setErro("Erro ao enviar código. Tenta novamente.");
+        setErro(getAuthErrorMessage(error, "signup"));
         return;
       }
       if (!data.user || data.user.identities?.length === 0) {
@@ -1877,7 +1878,7 @@ export function CadastroForm() {
         type: "email",
       });
       if (error) {
-        setErro("Código incorreto ou expirado. Tenta novamente.");
+        setErro(getAuthErrorMessage(error, "verify-otp"));
         return;
       }
       setPasso(3);
@@ -1891,7 +1892,11 @@ export function CadastroForm() {
     setLoading(true);
     try {
       const supabase = createClient();
-      await supabase.auth.resend({ type: "signup", email: email.trim().toLowerCase() });
+      const { error } = await supabase.auth.resend({ type: "signup", email: email.trim().toLowerCase() });
+      if (error) {
+        setErro(getAuthErrorMessage(error, "resend-otp"));
+        return;
+      }
       startCountdown();
     } finally {
       setLoading(false);

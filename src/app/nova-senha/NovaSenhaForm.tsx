@@ -32,7 +32,7 @@ export function NovaSenhaForm() {
         setSucesso(true);
         setTimeout(() => router.push("/perfil"), 2500);
       } else {
-        setErro("Erro ao atualizar senha. O link pode ter expirado — solicita um novo.");
+        setErro(res.erro ?? "Erro ao atualizar senha. O link pode ter expirado — solicita um novo.");
       }
     } finally {
       setCarregando(false);
