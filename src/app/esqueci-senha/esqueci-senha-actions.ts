@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAuthErrorMessage } from "@/lib/auth-error-messages";
 import { headers } from "next/headers";
 
 export async function enviarResetSenha(email: string) {
@@ -15,5 +16,6 @@ export async function enviarResetSenha(email: string) {
   const redirectTo = `${origin}/auth/callback?next=/nova-senha`;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-  return { ok: !error };
+  if (!error) return { ok: true };
+  return { ok: false, erro: getAuthErrorMessage(error, "reset-password-request") };
 }

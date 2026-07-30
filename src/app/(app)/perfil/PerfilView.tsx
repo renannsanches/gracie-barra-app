@@ -8,6 +8,7 @@ import {
   Award, QrCode, Camera, Loader2, Check, X, Pencil, CalendarDays, CreditCard, BookOpen, Megaphone, Images, Users, ChevronRight, ChevronDown, Bell, Star,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getAuthErrorMessage } from "@/lib/auth-error-messages";
 import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -308,7 +309,10 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
       const emailNovo = form.novoEmail.trim().toLowerCase();
       if (emailNovo && emailNovo !== email.toLowerCase()) {
         const { error: emailErr } = await supabase.auth.updateUser({ email: emailNovo });
-        if (emailErr) throw emailErr;
+        if (emailErr) {
+          setSalvoErro(getAuthErrorMessage(emailErr, "update-email"));
+          return;
+        }
         setEmailMsgOk(`Email de confirmação enviado para ${emailNovo}. Confirma para concluir a alteração.`);
       }
 
