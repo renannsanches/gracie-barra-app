@@ -239,6 +239,53 @@ export async function sendPushResponsavelAula() {
   });
 }
 
+const MSG_LEMBRETE_VENCIMENTO = {
+  title: "Lembrete 😊",
+  body:
+    "Pessoal, lembramos que o vencimento da mensalidade é todo dia 5 de cada mês.\n\n" +
+    "Pedimos, por gentileza, que procurem respeitar essa data, pois a academia tem compromissos mensais que precisam ser cumpridos durante todo o ano, inclusive nos períodos de férias.\n\n" +
+    "Se você precisar alterar o vencimento para o dia 10, fale comigo diretamente para verificarmos essa possibilidade.\n\n" +
+    "Agradecemos de coração a todos que mantêm suas mensalidades em dia. Essa parceria é fundamental para que possamos manter a qualidade da academia, investir na estrutura e continuar oferecendo o melhor para todos.\n\n" +
+    "Obrigado pela confiança e pelo apoio! 🙏💙",
+};
+
+export async function sendPushLembreteVencimento() {
+  const admin = createAdminClient();
+  const todayStr = toDateStr(new Date());
+
+  const { data: rows } = await admin
+    .from("mensalidades")
+    .select("aluno_id")
+    .neq("status", "pago")
+    .lt("data_vencimento", todayStr);
+
+  if (!rows || rows.length === 0) return;
+
+  const alunoIds = [...new Set(rows.map((r) => r.aluno_id))];
+
+  // dependentes (sem_login) → notificar o responsável
+  const { data: semLoginProfiles } = await admin
+    .from("profiles")
+    .select("id")
+    .in("id", alunoIds)
+    .eq("sem_login", true);
+
+  const idMap: Record<string, string> = {};
+  if (semLoginProfiles?.length) {
+    const { data: deps } = await admin
+      .from("dependentes")
+      .select("dependente_id, responsavel_id")
+      .in("dependente_id", semLoginProfiles.map((p) => p.id));
+    for (const d of deps ?? []) idMap[d.dependente_id] = d.responsavel_id;
+  }
+
+  const userIds = [...new Set(alunoIds.map((id) => idMap[id] ?? id))];
+  const subs = await getSubscriptions(userIds);
+  if (subs.length === 0) return;
+
+  await sendToSubscriptions(subs, { ...MSG_LEMBRETE_VENCIMENTO, url: "/perfil" });
+}
+
 export async function sendPushGraduacao() {
   const admin = createAdminClient();
 
