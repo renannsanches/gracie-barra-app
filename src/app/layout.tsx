@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { ServiceWorkerUpdater } from "@/components/ServiceWorkerUpdater";
+import { DebugConsole } from "@/components/DebugConsole";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 
@@ -100,6 +101,7 @@ export default function RootLayout({
         {children}
         <InstallPrompt />
         <ServiceWorkerUpdater />
+        <DebugConsole />
       </body>
     </html>
   );

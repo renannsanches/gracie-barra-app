@@ -1,0 +1,9 @@
+# O default do Next 16 é "safari 16.4" (baseline widely available), que exclui
+# o iPad da recepção (Safari 15). Com este ficheiro o SWC faz downlevel do
+# código da app para estes targets.
+# Ver: node_modules/next/dist/build/get-supported-browsers.js
+last 2 versions
+safari >= 15
+ios_saf >= 15
+not dead
+not op_mini all

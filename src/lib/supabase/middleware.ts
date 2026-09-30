@@ -43,7 +43,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  const publicPaths = ["/login", "/cadastro", "/tablet/login", "/auth/callback", "/esqueci-senha", "/nova-senha", "/api/push/send", "/aula-experimental"];
+  const publicPaths = ["/login", "/cadastro", "/tablet/login", "/auth/callback", "/esqueci-senha", "/nova-senha", "/api/push/send", "/api/auth/login", "/aula-experimental"];
 
   if (!user && !publicPaths.includes(pathname)) {
     const url = request.nextUrl.clone();

@@ -2,7 +2,21 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TabletLoginForm } from "./TabletLoginForm";
 
-export default async function TabletLoginPage() {
+const MENSAGENS: Record<string, string> = {
+  credenciais: "Email ou senha incorretos.",
+  perfil: "Esta conta não tem permissão de acesso ao tablet.",
+  nao_confirmado: "Email ainda não confirmado.",
+  generico: "Não foi possível entrar. Tenta novamente.",
+};
+
+export default async function TabletLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ erro?: string }>;
+}) {
+  const { erro } = await searchParams;
+  const erroInicial = erro ? MENSAGENS[erro] ?? MENSAGENS.generico : "";
+
   const supabase = await createClient();
 
   const {
@@ -27,7 +41,7 @@ export default async function TabletLoginPage() {
           <h1 className="text-white font-bold text-2xl">Tablet Academia</h1>
           <p className="text-white/50 text-sm mt-1">Entre com a conta do tablet</p>
         </div>
-        <TabletLoginForm />
+        <TabletLoginForm erroInicial={erroInicial} />
       </div>
     </div>
   );

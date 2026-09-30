@@ -2,54 +2,82 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { login } from "./auth-actions";
+import {
+  autenticar,
+  mensagemErroLogin,
+  guardarErroLogin,
+  consumirErroLogin,
+} from "@/lib/login-client";
 
-export function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+/**
+ * O formulário funciona em dois modos, de propósito:
+ *
+ *  - com JavaScript vivo: handleSubmit intercepta, faz fetch e navega;
+ *  - sem JavaScript (ou com o JS a rebentar, como no iPad em Safari 15):
+ *    o <form action="/api/auth/login" method="post"> submete nativamente e o
+ *    Route Handler responde com um redirect.
+ *
+ * Por isso os campos têm `name` e o erro inicial chega por prop do servidor em
+ * vez de `useSearchParams()` — assim a página consegue renderizar o formulário
+ * no HTML do servidor, em vez de depender do cliente para o desenhar.
+ */
+export function LoginForm({ erroInicial = "" }: { erroInicial?: string }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState("");
+  const [erro, setErro] = useState(erroInicial);
 
   useEffect(() => {
-    const erroParam = searchParams.get("erro");
-    if (erroParam === "confirmacao") {
-      setErro("Link inválido ou expirado. Tenta iniciar sessão ou solicita um novo link.");
-    }
-  }, [searchParams]);
+    if (erroInicial) return;
+    // Erro guardado antes de uma navegação/recarregamento anterior
+    const anterior = consumirErroLogin();
+    if (anterior) setErro(anterior);
+  }, [erroInicial]);
 
   async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
     setErro("");
     setCarregando(true);
 
-    const res = await login(email, senha);
+    try {
+      const res = await autenticar(email, senha);
 
-    if (res.ok) {
-      router.push("/perfil");
-    } else {
-      if (res.tipoErro === "nao_confirmado") {
-        setErro("Email ainda não confirmado. Verifica a tua caixa de entrada e confirma o registo.");
-      } else {
-        setErro("Email ou senha incorretos.");
+      if (!res.ok) {
+        setErro(mensagemErroLogin(res.tipoErro));
+        return;
       }
+
+      // Navegação dura: garante que o browser reenvia os cookies recém-criados
+      // antes do middleware decidir. router.push() não servia em Safari antigo.
+      window.location.assign("/perfil");
+    } catch (e) {
+      const mensagem = e instanceof Error ? e.message : "Erro inesperado ao entrar.";
+      setErro(mensagem);
+      guardarErroLogin(mensagem);
+    } finally {
       setCarregando(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form
+      action="/api/auth/login"
+      method="post"
+      onSubmit={handleSubmit}
+      className="space-y-5"
+    >
+      <input type="hidden" name="destino" value="/perfil" />
+
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <div className="relative">
           <Input
             id="email"
+            name="email"
             type="email"
             placeholder="teu@email.com"
             value={email}
@@ -75,6 +103,7 @@ export function LoginForm() {
         <div className="relative">
           <Input
             id="senha"
+            name="senha"
             type="password"
             placeholder="••••••••"
             value={senha}

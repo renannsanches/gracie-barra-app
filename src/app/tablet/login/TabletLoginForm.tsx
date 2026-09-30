@@ -1,20 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import {
+  autenticar,
+  mensagemErroLogin,
+  guardarErroLogin,
+  consumirErroLogin,
+} from "@/lib/login-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function TabletLoginForm() {
-  const router = useRouter();
+export function TabletLoginForm({ erroInicial = "" }: { erroInicial?: string }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState("");
+  const [erro, setErro] = useState(erroInicial);
+
+  useEffect(() => {
+    if (erroInicial) return;
+    const anterior = consumirErroLogin();
+    if (anterior) setErro(anterior);
+  }, [erroInicial]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,44 +31,43 @@ export function TabletLoginForm() {
     setCarregando(true);
 
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: senha,
-      });
+      const res = await autenticar(email.trim(), senha, "tablet");
 
-      if (error || !data.user) {
-        setErro("Email ou senha incorretos.");
+      if (!res.ok) {
+        setErro(mensagemErroLogin(res.tipoErro));
         return;
       }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("perfil")
-        .eq("id", data.user.id)
-        .single();
-
-      if (profile?.perfil !== "tablet") {
-        await supabase.auth.signOut();
-        setErro("Esta conta não tem permissão de acesso ao tablet.");
-        return;
-      }
-
-      router.refresh();
-      router.push("/tablet");
+      // Navegação dura: garante que o browser reenvia os cookies recém-criados
+      // antes do middleware decidir. router.push() não servia em Safari antigo.
+      window.location.assign("/tablet");
+    } catch (e) {
+      const mensagem = e instanceof Error ? e.message : "Erro inesperado ao entrar.";
+      setErro(mensagem);
+      guardarErroLogin(mensagem);
     } finally {
       setCarregando(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form
+      action="/api/auth/login"
+      method="post"
+      onSubmit={handleSubmit}
+      className="space-y-5"
+    >
+      {/* Fallback sem JavaScript: o Route Handler responde com redirect */}
+      <input type="hidden" name="perfilEsperado" value="tablet" />
+      <input type="hidden" name="destino" value="/tablet" />
+
       <div className="space-y-2">
         <Label htmlFor="email" className="text-white/80">
           Email
         </Label>
         <Input
           id="email"
+          name="email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -78,6 +86,7 @@ export function TabletLoginForm() {
         <div className="relative">
           <Input
             id="senha"
+            name="senha"
             type={mostrarSenha ? "text" : "password"}
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
