@@ -1778,7 +1778,6 @@ export function CadastroForm() {
       }
     }
     checkOnboardingState();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleCategoria(cat: CategoriaFaixa) {

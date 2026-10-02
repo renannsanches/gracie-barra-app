@@ -155,7 +155,7 @@ export function FotosView({ album, fotos: initialFotos }: Props) {
         <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
           <ImageIcon size={40} className="text-gray-200 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">Nenhuma foto neste álbum</p>
-          <p className="text-gray-400 text-sm mt-1">Clica em "Adicionar Fotos" para começar</p>
+          <p className="text-gray-400 text-sm mt-1">Clica em &quot;Adicionar Fotos&quot; para começar</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

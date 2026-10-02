@@ -112,7 +112,7 @@ export default async function PerfilPage() {
   }
 
   const isAdminOrProfessor = p?.perfil === "admin" || p?.perfil === "professor";
-  let aptosGraduar: AptosGraduarAluno[] = [];
+  const aptosGraduar: AptosGraduarAluno[] = [];
 
   if (isAdminOrProfessor) {
     const admin = createAdminClient();

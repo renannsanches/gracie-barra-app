@@ -201,7 +201,7 @@ async function getDashboardData(isAdmin: boolean) {
   const trintaAtrasStr = `${trintaAtras.getFullYear()}-${String(trintaAtras.getMonth() + 1).padStart(2, "0")}-${String(trintaAtras.getDate()).padStart(2, "0")}`;
 
   let sumiram: SumidoAluno[] = [];
-  let aptosGraduar: AptosGraduarAluno[] = [];
+  const aptosGraduar: AptosGraduarAluno[] = [];
 
   if (activeIds.length > 0) {
     const [presencasAtivos, { data: historicoAtivos }] = await Promise.all([
