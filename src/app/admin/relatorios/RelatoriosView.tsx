@@ -298,7 +298,7 @@ async function exportFluxoCaixaPDF(dados: LancamentoRelatorio[], inicio: string,
   const doc = new jsPDF({ orientation: "portrait" });
   const logoB64 = await fetchLogoBase64();
 
-  let y = 14;
+  const y = 14;
   if (logoB64) {
     doc.addImage(logoB64, "WEBP", 14, y, 18, 18);
     doc.setFontSize(14);
