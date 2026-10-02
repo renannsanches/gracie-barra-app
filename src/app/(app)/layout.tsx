@@ -1,9 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { MensalidadeVencidaBanner } from "@/components/MensalidadeVencidaBanner";
+import { MensalidadeAtrasoModal } from "@/components/MensalidadeAtrasoModal";
 import { getDiasAtraso, getMaiorAtraso } from "@/lib/mensalidade-status";
 import type { Mensalidade } from "@/lib/types";
 
 const THRESHOLD_DIAS = 5;
+const MODAL_THRESHOLD_DIAS = 2;
 
 type MensalidadeRow = Pick<Mensalidade, "status" | "data_vencimento">;
 
@@ -84,9 +86,18 @@ export default async function AppLayout({
     banner = <MensalidadeVencidaBanner texto={texto} />;
   }
 
+  let modal: React.ReactNode = null;
+  if (dias >= MODAL_THRESHOLD_DIAS) {
+    const mensagem = usarSelf
+      ? "Olá, a sua mensalidade encontra-se em atraso. Caso precise de ajuda, contacte a Simone."
+      : `Olá, a mensalidade de ${depMaior.nome} encontra-se em atraso. Caso precise de ajuda, contacte a Simone.`;
+    modal = <MensalidadeAtrasoModal mensagem={mensagem} />;
+  }
+
   return (
     <>
       {banner}
+      {modal}
       {children}
     </>
   );
