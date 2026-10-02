@@ -31,10 +31,19 @@
 
 ## 2. Comandos
 
+### Repositório e deploy
+
+| Repositório | Ramo | Papel |
+|-------------|------|-------|
+| **`renannsanches/gracie-barra-app`** | `master` | **Produção** — Vercel faz deploy automático (`gracie-barra-app.vercel.app`) |
+| `gb-famalicao/gb-famalicao-app` | `main` | Cópia — **não fazer push aqui** (Claude não tem acesso de escrita, dá 403) |
+
+Fluxo: ramo novo → PR para `master` em `renannsanches/gracie-barra-app` → preview Vercel verde → merge.
+
 ```bash
 npm run dev      # servidor local em http://localhost:3000
-npm run build    # build de produção (verifica tipos TypeScript e lint)
-npm run lint     # ESLint
+npm run build    # build de produção (verifica tipos TypeScript; o Next 16 já não corre lint)
+npm run lint     # ESLint 9 (eslint.config.mjs) — 0 erros; avisos de código legado
 
 # Testes E2E (requer servidor a correr: npm run dev ou npm run start)
 npm run test:e2e          # correr todos os testes E2E
@@ -348,6 +357,8 @@ ActionResult = { ok: boolean; erro?: string }  // retorno padrão de Server Acti
 | `AvisosMarkRead` | Marca avisos como lidos via localStorage |
 | `InstallPrompt` | Banner PWA de instalação (respeita `pwa-install-dismissed` no localStorage) |
 | `ServiceWorkerUpdater` | Recarrega página quando novo SW disponível (desactivado em dev) |
+| `MensalidadeVencidaBanner` | Banner âmbar fixo no topo quando mensalidade (própria ou de dependente) está atrasada ≥5 dias |
+| `MensalidadeAtrasoModal` | Modal central 1x/dia (localStorage) quando atraso ≥2 dias; botão "Falar com Simone" abre WhatsApp com mensagem pré-preenchida |
 
 ---
 
@@ -411,6 +422,7 @@ gb: {
 | Uploads de Storage não atómicos | Ficheiros órfãos se DB falhar a seguir | Média |
 | Race condition na capacidade de aulas | Exceder lotação com utilizadores simultâneos | Baixa (academia pequena) |
 | Componentes com 1000+ linhas | `AlunoEditView.tsx`, `CadastroForm.tsx` — difíceis de manter | Baixa |
+| ~54 avisos de lint em código legado | `no-explicit-any`, `set-state-in-effect` e `purity` rebaixadas a aviso em `eslint.config.mjs` — voltar a erro depois de corrigidas | Baixa |
 | `window.confirm()` e banners inline | UX inconsistente (a resolver Fase 15) | Baixa |
 
 ---
@@ -449,6 +461,7 @@ gb: {
 | — | **Email no card do aluno** | `AlunoEditView` mostra campo email (read-only) buscado via `admin.getUserById`; ocultado para dependentes (`sem_login=true`) |
 | — | **Push para dependentes via responsável** | `push-sender` faz lookup em `dependentes` para substituir IDs de dependentes pelos dos responsáveis antes de buscar subscriptions |
 | — | **Push de avisos inclui professores** | Notificações de avisos publicados enviadas a alunos E professores |
+| — | **Modal de mensalidade em atraso** | Atraso ≥2 dias (próprio ou de dependente) → modal 1x/dia no layout `(app)` com WhatsApp da Simone; some quando a mensalidade é paga |
 
 ### ❌ Por implementar
 
