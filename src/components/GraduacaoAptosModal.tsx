@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Award, X } from "lucide-react";
 
-const STORAGE_KEY = "graduacao-modal-ultima-semana";
+// v2: texto alterado — força todos a verem a nova versão uma vez
+const STORAGE_KEY = "graduacao-modal-ultima-semana-v2";
 
 // Segunda-feira da semana actual (data local, YYYY-MM-DD)
 function segundaDaSemana(): string {
@@ -76,10 +77,18 @@ export function GraduacaoAptosModal() {
         >
           Alunos aptos a graduar
         </h2>
-        <p className="mt-2 text-center text-[14px] leading-snug text-gray-600">
-          Olá, professor. Existem alunos que atingiram os requisitos de tempo e
-          estão aptos a graduar. Não se esqueça de conferir.
-        </p>
+        <div className="mt-2 space-y-3 text-center text-[14px] leading-snug text-gray-600">
+          <p>Olá, professor.</p>
+          <p>
+            Existem alunos que atingiram os requisitos de tempo e estão aptos a
+            graduar. Não se esqueça de conferir.
+          </p>
+          <p>
+            Alunos que já foram graduados precisam ter sua graduação registrada
+            na aplicação para uma contagem correta do período até a próxima
+            graduação.
+          </p>
+        </div>
 
         <button
           type="button"
