@@ -5,6 +5,7 @@ import { calcularElegibilidade } from "@/lib/graduacao-rules";
 import { fetchAllPresencasDias } from "@/lib/fetch-all-presencas";
 import type { Profile, Mensalidade, HistoricoGraduacao, DependentePerfil, CorFaixa, CategoriaFaixa } from "@/lib/types";
 import { PerfilView } from "./PerfilView";
+import { GraduacaoAptosModal } from "@/components/GraduacaoAptosModal";
 
 interface AptosGraduarAluno {
   id: string;
@@ -182,17 +183,20 @@ export default async function PerfilPage() {
   }
 
   return (
-    <PerfilView
-      profile={p}
-      email={user.email ?? ""}
-      mensalidades={(mensalidades ?? []) as Mensalidade[]}
-      historicoGraduacoes={(graduacoes ?? []) as HistoricoGraduacao[]}
-      totalAulas={totalAulas}
-      aulasMes={aulasMes}
-      ultimoTreino={ultimoTreino}
-      avisosNotif={avisosNotif}
-      dependentes={dependentes}
-      aptosGraduar={aptosGraduar}
-    />
+    <>
+      {isAdminOrProfessor && aptosGraduar.length > 0 && <GraduacaoAptosModal />}
+      <PerfilView
+        profile={p}
+        email={user.email ?? ""}
+        mensalidades={(mensalidades ?? []) as Mensalidade[]}
+        historicoGraduacoes={(graduacoes ?? []) as HistoricoGraduacao[]}
+        totalAulas={totalAulas}
+        aulasMes={aulasMes}
+        ultimoTreino={ultimoTreino}
+        avisosNotif={avisosNotif}
+        dependentes={dependentes}
+        aptosGraduar={aptosGraduar}
+      />
+    </>
   );
 }

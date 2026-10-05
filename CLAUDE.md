@@ -359,6 +359,7 @@ ActionResult = { ok: boolean; erro?: string }  // retorno padrão de Server Acti
 | `ServiceWorkerUpdater` | Recarrega página quando novo SW disponível (desactivado em dev) |
 | `MensalidadeVencidaBanner` | Banner âmbar fixo no topo quando mensalidade (própria ou de dependente) está atrasada ≥5 dias |
 | `MensalidadeAtrasoModal` | Modal central 1x/dia (localStorage) quando atraso ≥2 dias; botão "Falar com Simone" abre WhatsApp com mensagem pré-preenchida |
+| `GraduacaoAptosModal` | Modal semanal (1º acesso a partir de segunda, localStorage) para admin/professor quando há ≥1 aluno apto a graduar; renderizado em `/perfil` |
 
 ---
 
@@ -462,6 +463,7 @@ gb: {
 | — | **Push para dependentes via responsável** | `push-sender` faz lookup em `dependentes` para substituir IDs de dependentes pelos dos responsáveis antes de buscar subscriptions |
 | — | **Push de avisos inclui professores** | Notificações de avisos publicados enviadas a alunos E professores |
 | — | **Modal de mensalidade em atraso** | Atraso ≥2 dias (próprio ou de dependente) → modal 1x/dia no layout `(app)` com WhatsApp da Simone; some quando a mensalidade é paga |
+| — | **Modal semanal de aptos a graduar** | Admin/professor vêem em `/perfil`, 1x por semana, aviso de que há alunos aptos (só se houver ≥1) |
 
 ### ❌ Por implementar
 
