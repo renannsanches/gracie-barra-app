@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rotulosModalidades } from "@/lib/modalidades";
 import type { StatusAula, StatusReserva, CategoriaFaixa } from "@/lib/types";
 import { AulasView, type AulaParaAluno, type DependenteOpcao, type ReservanteDaAula } from "./AulasView";
 
@@ -96,7 +97,8 @@ export default async function AulasPage() {
     (modalidadesPorPessoa[i.aluno_id] ??= []).push(i.modalidade_id);
   }
   const listaModalidades = (modalidadesRes.data ?? []) as { id: string; nome: string; padrao: boolean }[];
-  const nomesModalidade = Object.fromEntries(listaModalidades.map((m) => [m.id, m.nome]));
+  // "Jiu-Jitsu · Colégio" quando a modalidade é de outro local
+  const nomesModalidade = Object.fromEntries(await rotulosModalidades(admin));
   const modalidadePadraoId = listaModalidades.find((m) => m.padrao)?.id ?? null;
 
   const bloqueadosPorFinanceiro = [

@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NovaTurmaForm } from "./NovaTurmaForm";
-import { listarModalidades } from "@/lib/modalidades";
+import { listarModalidadesRotuladas } from "@/lib/modalidades";
 
 export default async function NovaTurmaPage() {
   const admin = createAdminClient();
@@ -11,7 +11,7 @@ export default async function NovaTurmaPage() {
       .select("id, nome_completo")
       .in("perfil", ["professor", "admin"])
       .order("nome_completo"),
-    listarModalidades(admin),
+    listarModalidadesRotuladas(admin),
   ]);
 
   return (

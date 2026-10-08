@@ -1,7 +1,6 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { grupoPadraoId } from "@/lib/grupos";
 import { modalidadePadrao, valorSugerido } from "@/lib/modalidades";
 import { createClient } from "@/lib/supabase/server";
 import type { CorFaixa, CategoriaFaixa, ItemMensalidade, Modalidade } from "@/lib/types";
@@ -83,7 +82,7 @@ async function inscreverEGerarMensalidades(
     { onConflict: "aluno_id,modalidade_id", ignoreDuplicates: true },
   );
   if (error) throw new Error(`Erro ao inscrever na modalidade: ${error.message}`);
-  await gerarMensalidades(alunoId, valor, [{ modalidade_id: padrao.id, nome: padrao.nome, valor }]);
+  await gerarMensalidades(alunoId, valor, [{ modalidade_id: padrao.id, nome: padrao.nome, valor, tipo: "modalidade" }]);
 }
 
 export async function concluirCadastro(params: {
@@ -113,8 +112,7 @@ export async function concluirCadastro(params: {
     const user = data.user;
 
     const admin = createAdminClient();
-    // Registos feitos pela app entram no grupo padrão (ex.: Academia)
-    const grupoId = await grupoPadraoId(admin);
+    // Registos feitos pela app entram na modalidade padrão (ex.: Jiu-Jitsu na Academia)
     const modalidade = await modalidadePadrao(admin);
 
     // 1. Update responsável/adulto profile
@@ -132,7 +130,6 @@ export async function concluirCadastro(params: {
       profileUpdate.faixa = params.faixaAdulto;
       profileUpdate.graus = params.grausAdulto;
       profileUpdate.categoria = params.categoriaAdulto;
-      profileUpdate.grupo_id = grupoId;
     }
 
     const { error: respErr } = await admin
@@ -164,7 +161,6 @@ export async function concluirCadastro(params: {
           perfil: "aluno",
           status: "ativo",
           sem_login: true,
-          grupo_id: grupoId,
         });
 
         if (depProfileErr) return { ok: false, erro: `Erro ao criar perfil do dependente: ${depProfileErr.message}` };

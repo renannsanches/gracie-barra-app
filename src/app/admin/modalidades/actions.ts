@@ -11,6 +11,10 @@ export interface DadosModalidade {
   nome: string;
   valor: number;
   valorInfantil: number | null;
+  /** Local onde é dada (grupo) */
+  grupoId: string;
+  /** Quem também treina noutro local recebe este valor como desconto */
+  descontaNoutroLocal: boolean;
 }
 
 function validar(d: DadosModalidade): string | null {
@@ -21,11 +25,12 @@ function validar(d: DadosModalidade): string | null {
   if (d.valorInfantil !== null && (!Number.isFinite(d.valorInfantil) || d.valorInfantil < 0)) {
     return "Valor para menores de 16 inválido.";
   }
+  if (!d.grupoId) return "Escolhe o local da modalidade.";
   return null;
 }
 
 function erroDb(error: { code?: string; message: string }): string {
-  if (error.code === "23505") return "Já existe uma modalidade com esse nome.";
+  if (error.code === "23505") return "Já existe uma modalidade com esse nome neste local.";
   return error.message;
 }
 
@@ -33,6 +38,7 @@ function revalidar() {
   revalidatePath("/admin/modalidades");
   revalidatePath("/admin/alunos");
   revalidatePath("/admin/turmas");
+  revalidatePath("/admin/grupos");
 }
 
 export async function criarModalidade(d: DadosModalidade): Promise<ActionResult> {
@@ -44,7 +50,10 @@ export async function criarModalidade(d: DadosModalidade): Promise<ActionResult>
   const admin = createAdminClient();
   const { error } = await admin
     .from("modalidades")
-    .insert({ nome: d.nome.trim(), valor: d.valor, valor_infantil: d.valorInfantil });
+    .insert({
+      nome: d.nome.trim(), valor: d.valor, valor_infantil: d.valorInfantil,
+      grupo_id: d.grupoId, desconta_noutro_local: d.descontaNoutroLocal,
+    });
   if (error) return { ok: false, erro: erroDb(error) };
 
   revalidar();
@@ -60,7 +69,10 @@ export async function editarModalidade(id: string, d: DadosModalidade): Promise<
   const admin = createAdminClient();
   const { error } = await admin
     .from("modalidades")
-    .update({ nome: d.nome.trim(), valor: d.valor, valor_infantil: d.valorInfantil })
+    .update({
+      nome: d.nome.trim(), valor: d.valor, valor_infantil: d.valorInfantil,
+      grupo_id: d.grupoId, desconta_noutro_local: d.descontaNoutroLocal,
+    })
     .eq("id", id);
   if (error) return { ok: false, erro: erroDb(error) };
 
@@ -99,6 +111,7 @@ export async function apagarModalidade(id: string): Promise<ActionResult> {
     admin.from("aluno_modalidades").select("aluno_id", { count: "exact", head: true }).eq("modalidade_id", id),
     admin.from("turmas").select("id", { count: "exact", head: true }).eq("modalidade_id", id),
   ]);
+  // Descontos automáticos que vieram desta modalidade ficam como descontos manuais (ON DELETE SET NULL)
   if ((alunos ?? 0) > 0 || (turmas ?? 0) > 0) {
     const partes = [
       alunos ? `${alunos} aluno${alunos === 1 ? "" : "s"}` : null,

@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TurmasView } from "./TurmasView";
-import { listarModalidades } from "@/lib/modalidades";
+import { listarModalidadesRotuladas } from "@/lib/modalidades";
 
 export default async function TurmasPage() {
   const admin = createAdminClient();
@@ -10,7 +10,7 @@ export default async function TurmasPage() {
       .from("turmas")
       .select("*, professor:profiles(id, nome_completo)")
       .order("nome"),
-    listarModalidades(admin),
+    listarModalidadesRotuladas(admin),
   ]);
 
   return (

@@ -8,12 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { labelCorFaixa } from "@/lib/utils";
 import { PhoneInput } from "@/components/PhoneInput";
-import { GrupoPicker } from "@/components/GrupoPicker";
 import { ModalidadesEditor, lerPlano, type PlanoRascunho } from "@/components/ModalidadesEditor";
+import type { GrupoRef } from "@/lib/modalidades";
 import { valorParaInput, valorSugerido } from "@/lib/modalidades";
 import { senhaValida, REGRA_SENHA_TEXTO } from "@/lib/senha";
 import { criarAluno } from "./actions";
-import type { CorFaixa, CategoriaFaixa, GrupoAluno, Modalidade } from "@/lib/types";
+import type { CorFaixa, CategoriaFaixa, Modalidade } from "@/lib/types";
 
 const COR_FAIXA_OPTIONS: CorFaixa[] = [
   "branca",
@@ -28,14 +28,17 @@ const selectClass = "w-full h-10 rounded-xl border border-gray-200 bg-white px-3
 
 interface Props {
   alunosComLogin: { id: string; nome_completo: string }[];
-  grupos: GrupoAluno[];
+  grupos: GrupoRef[];
   modalidades: Modalidade[];
 }
 
 /** Plano inicial: modalidade padrão com o valor sugerido para a idade. */
-function planoInicial(modalidades: Modalidade[], dataNascimento: string): PlanoRascunho[] {
+function planoInicial(modalidades: Modalidade[], dataNascimento: string): PlanoRascunho {
   const padrao = modalidades.find((m) => m.padrao && m.ativo) ?? modalidades.find((m) => m.ativo);
-  return padrao ? [{ modalidade_id: padrao.id, valor: valorParaInput(valorSugerido(padrao, dataNascimento)) }] : [];
+  return {
+    linhas: padrao ? [{ modalidade_id: padrao.id, valor: valorParaInput(valorSugerido(padrao, dataNascimento)), cobrar: true }] : [],
+    descontos: [],
+  };
 }
 
 export function NovoAlunoForm({ alunosComLogin, grupos, modalidades }: Props) {
@@ -56,7 +59,6 @@ export function NovoAlunoForm({ alunosComLogin, grupos, modalidades }: Props) {
     primeiro_vencimento: "",
     dia_vencimento: "10",
     responsavel_id: "",
-    grupo_id: (grupos.find((g) => g.padrao && g.ativo) ?? grupos.find((g) => g.ativo))?.id ?? "",
   });
 
   function set(field: string, value: string) {
@@ -64,7 +66,7 @@ export function NovoAlunoForm({ alunosComLogin, grupos, modalidades }: Props) {
   }
 
   // Modalidades: enquanto o admin não mexer, o valor acompanha a data de nascimento (<16 → infantil)
-  const [plano, setPlano] = useState<PlanoRascunho[]>(() => planoInicial(modalidades, ""));
+  const [plano, setPlano] = useState<PlanoRascunho>(() => planoInicial(modalidades, ""));
   const [planoMexido, setPlanoMexido] = useState(false);
   useEffect(() => {
     if (!planoMexido) setPlano(planoInicial(modalidades, form.data_nascimento));
@@ -82,14 +84,15 @@ export function NovoAlunoForm({ alunosComLogin, grupos, modalidades }: Props) {
     }
 
     const precisaPlano = form.perfil !== "responsavel";
-    const { itens, erro: erroPlano } = lerPlano(precisaPlano ? plano : [], modalidades);
-    if (!itens) { setErro(erroPlano ?? "Valor inválido numa modalidade."); return; }
+    const lido = lerPlano(precisaPlano ? plano : { linhas: [], descontos: [] }, modalidades);
+    if (!lido.linhas || !lido.descontos) { setErro(lido.erro ?? "Valor inválido numa modalidade."); return; }
 
     setCarregando(true);
 
     const fd = new FormData();
     Object.entries(form).forEach(([k, v]) => fd.append(k, v));
-    fd.append("modalidades", JSON.stringify(itens));
+    fd.append("modalidades", JSON.stringify(lido.linhas));
+    fd.append("descontos", JSON.stringify(lido.descontos));
     fd.append("sem_login", String(semLogin));
 
     try {
@@ -176,24 +179,6 @@ export function NovoAlunoForm({ alunosComLogin, grupos, modalidades }: Props) {
           </select>
         </div>
       </div>
-      )}
-
-      {/* Grupo — onde treina (academia, colégio…); não se aplica a responsáveis */}
-      {form.perfil !== "responsavel" && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
-          <div>
-            <h2 id="grupo-label" className="font-bold text-gray-900 text-sm uppercase tracking-wide text-gb-blue">Grupo</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Onde treina. Usado para filtrar cadastros e mensalidades.</p>
-          </div>
-          <GrupoPicker
-            id="grupo_id"
-            labelledBy="grupo-label"
-            grupos={grupos}
-            value={form.grupo_id}
-            onChange={(v) => set("grupo_id", v)}
-            disabled={carregando}
-          />
-        </div>
       )}
 
       {/* Dados de Acesso — oculto quando sem_login */}
@@ -360,12 +345,13 @@ export function NovoAlunoForm({ alunosComLogin, grupos, modalidades }: Props) {
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
         <div>
           <h2 className="font-bold text-sm uppercase tracking-wide text-gb-blue">Modalidades e mensalidade</h2>
-          <p className="text-xs text-gray-500 mt-0.5">O que treina e quanto paga por cada uma. A mensalidade é a soma.</p>
+          <p className="text-xs text-gray-500 mt-0.5">O que treina, onde (Academia, Colégio…) e quanto paga. A mensalidade é a soma, menos os descontos.</p>
         </div>
 
         <ModalidadesEditor
           idPrefix="novo-plano"
           modalidades={modalidades}
+          grupos={grupos}
           value={plano}
           onChange={(p) => { setPlano(p); setPlanoMexido(true); }}
           dataNascimento={form.data_nascimento}

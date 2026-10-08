@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listarGrupos } from "@/lib/grupos";
-import { listarModalidades } from "@/lib/modalidades";
+import { listarModalidades, type DescontoPlano } from "@/lib/modalidades";
 import type { Profile, Mensalidade, HistoricoGraduacao, AlunoModalidade } from "@/lib/types";
 import type { PresencaItem } from "@/components/PresencasCalendario";
 import { calcularElegibilidade, type ElegibilidadeResult } from "@/lib/graduacao-rules";
@@ -27,6 +27,7 @@ export default async function AlunoDetailPage({ params }: Props) {
     grupos,
     modalidades,
     { data: planoRows },
+    { data: descontosRows },
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", id).single(),
     supabase
@@ -62,7 +63,8 @@ export default async function AlunoDetailPage({ params }: Props) {
     supabase.auth.admin.getUserById(id),
     listarGrupos(supabase),
     listarModalidades(supabase),
-    supabase.from("aluno_modalidades").select("aluno_id, modalidade_id, valor").eq("aluno_id", id),
+    supabase.from("aluno_modalidades").select("aluno_id, modalidade_id, valor, cobrar").eq("aluno_id", id),
+    supabase.from("aluno_descontos").select("descricao, valor, origem_modalidade_id").eq("aluno_id", id).order("criado_em"),
   ]);
 
   if (!aluno) notFound();
@@ -102,6 +104,7 @@ export default async function AlunoDetailPage({ params }: Props) {
       alunosComLogin={todosProfiles}
       grupos={grupos}
       modalidades={modalidades}
+      descontosIniciais={((descontosRows ?? []) as DescontoPlano[]).map((d) => ({ ...d, valor: Number(d.valor) }))}
       planoInicial={((planoRows ?? []) as AlunoModalidade[])
         .map((r) => ({ ...r, valor: Number(r.valor) }))
         // mesma ordem da lista de modalidades (padrão primeiro)

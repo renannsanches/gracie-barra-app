@@ -14,6 +14,8 @@ import type { GrupoAluno } from "@/lib/types";
 export interface ContagemGrupo {
   total: number;
   ativos: number;
+  /** Modalidades dadas neste local */
+  modalidades: number;
 }
 
 interface Props {
@@ -138,7 +140,7 @@ export function GruposView({ grupos: gruposServidor, contagens }: Props) {
       <div>
         <h1 className="text-xl font-bold text-gray-900">Grupos</h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          Separa os alunos por local de treino — ex.: Academia, Colégio.
+          Locais de treino — ex.: Academia, Colégio. Cada modalidade pertence a um local; o local de cada aluno vem das suas modalidades.
         </p>
       </div>
 
@@ -191,11 +193,11 @@ export function GruposView({ grupos: gruposServidor, contagens }: Props) {
       ) : (
         <ul className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-100">
           {grupos.map((g) => {
-            const c = contagens[g.id] ?? { total: 0, ativos: 0 };
+            const c = contagens[g.id] ?? { total: 0, ativos: 0, modalidades: 0 };
             const inativos = c.total - c.ativos;
             const emEdicao = editId === g.id;
             const ocupado = ocupadoId === g.id || guardandoId === g.id;
-            const podeApagar = !g.padrao && c.total === 0;
+            const podeApagar = !g.padrao && c.total === 0 && c.modalidades === 0;
 
             return (
               <li key={g.id} className="px-4 py-3.5">
@@ -267,6 +269,12 @@ export function GruposView({ grupos: gruposServidor, contagens }: Props) {
                             {inativos > 0 && ` · ${inativos} inativo${inativos === 1 ? "" : "s"}`}
                           </Link>
                         )}
+                        {" · "}
+                        <Link href="/admin/modalidades" className="underline-offset-2 hover:text-gb-blue hover:underline">
+                          {c.modalidades === 0
+                            ? "sem modalidades"
+                            : `${c.modalidades} modalidade${c.modalidades === 1 ? "" : "s"}`}
+                        </Link>
                         {g.padrao && <span className="block text-xs">Novos registos feitos na app entram aqui.</span>}
                       </p>
                     </div>

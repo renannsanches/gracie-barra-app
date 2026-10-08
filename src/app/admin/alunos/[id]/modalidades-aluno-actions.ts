@@ -3,7 +3,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
-import { inicioMesAtual, planoDoAluno } from "@/lib/modalidades";
+import {
+  gravarPlanoAluno, inicioMesAtual, planoDoAluno, validarPlano,
+  type DescontoPlano, type LinhaPlano,
+} from "@/lib/modalidades";
 import type { ItemMensalidade } from "@/lib/types";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -24,9 +27,9 @@ export interface GuardarModalidadesResult {
 }
 
 /** Assinatura comparável da composição (ignora nomes e ordem). */
-function assinatura(itens: Pick<ItemMensalidade, "modalidade_id" | "valor">[] | null): string {
+function assinatura(itens: Pick<ItemMensalidade, "modalidade_id" | "valor" | "tipo">[] | null): string {
   return (itens ?? [])
-    .map((i) => `${i.modalidade_id}:${Number(i.valor).toFixed(2)}`)
+    .map((i) => `${i.tipo ?? "modalidade"}:${i.modalidade_id}:${Number(i.valor).toFixed(2)}`)
     .sort()
     .join("|");
 }
@@ -49,41 +52,25 @@ async function pendentesDesatualizadas(admin: AdminClient, alunoId: string) {
   return { linhas, itens, total };
 }
 
-/** Substitui as modalidades do aluno e indica quantas mensalidades pendentes ficaram desatualizadas. */
+/** Substitui modalidades + descontos do aluno e indica quantas mensalidades pendentes ficaram desatualizadas. */
 export async function guardarModalidadesAluno(
   alunoId: string,
-  plano: { modalidade_id: string; valor: number }[],
+  linhas: LinhaPlano[],
+  descontos: DescontoPlano[],
 ): Promise<GuardarModalidadesResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
 
-  if (new Set(plano.map((p) => p.modalidade_id)).size !== plano.length) {
-    return { ok: false, erro: "Modalidade repetida." };
-  }
-  if (plano.some((p) => !Number.isFinite(p.valor) || p.valor < 0)) {
-    return { ok: false, erro: "Valor inválido numa das modalidades." };
-  }
+  const invalido = validarPlano(linhas, descontos);
+  if (invalido) return { ok: false, erro: invalido };
 
   const admin = createAdminClient();
   const antes = await planoDoAluno(admin, alunoId);
 
-  const ids = plano.map((p) => p.modalidade_id);
-  const del = admin.from("aluno_modalidades").delete().eq("aluno_id", alunoId);
-  const { error: delErr } = ids.length > 0
-    ? await del.not("modalidade_id", "in", `(${ids.join(",")})`)
-    : await del;
-  if (delErr) return { ok: false, erro: delErr.message };
+  const erro = await gravarPlanoAluno(admin, alunoId, linhas, descontos);
+  if (erro) return { ok: false, erro };
 
-  if (plano.length > 0) {
-    const { error } = await admin
-      .from("aluno_modalidades")
-      .upsert(plano.map((p) => ({ aluno_id: alunoId, modalidade_id: p.modalidade_id, valor: p.valor })), {
-        onConflict: "aluno_id,modalidade_id",
-      });
-    if (error) return { ok: false, erro: error.message };
-  }
-
-  const { linhas, total } = await pendentesDesatualizadas(admin, alunoId);
+  const { linhas: pendentes, total } = await pendentesDesatualizadas(admin, alunoId);
   revalidatePath(`/admin/alunos/${alunoId}`);
   revalidatePath("/admin/alunos");
 
@@ -92,9 +79,9 @@ export async function guardarModalidadesAluno(
     totalAntes: antes.total,
     totalDepois: total,
     pendentes: {
-      quantidade: linhas.length,
-      de: linhas[0]?.mes_referencia ?? null,
-      ate: linhas[linhas.length - 1]?.mes_referencia ?? null,
+      quantidade: pendentes.length,
+      de: pendentes[0]?.mes_referencia ?? null,
+      ate: pendentes[pendentes.length - 1]?.mes_referencia ?? null,
     },
   };
 }

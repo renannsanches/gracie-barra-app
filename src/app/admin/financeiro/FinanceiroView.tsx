@@ -5,16 +5,18 @@ import { marcarPago, desmarcarPago } from "./actions";
 import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type { GrupoAluno, Mensalidade, Modalidade, StatusMensalidade } from "@/lib/types";
 import { DetalheMensalidade } from "@/components/ValorMensalidade";
-import { descreverItens } from "@/lib/modalidades";
+import { descreverItens, rotuloModalidade } from "@/lib/modalidades";
 
 type MensalidadeComAluno = Mensalidade & {
-  profiles: { nome_completo: string; grupo_id: string | null } | null;
+  profiles: { nome_completo: string } | null;
 };
 
 interface Props {
   mensalidades: MensalidadeComAluno[];
   grupos: GrupoAluno[];
   modalidades: Modalidade[];
+  /** aluno_id → locais (grupos) onde treina, derivados das modalidades */
+  gruposPorAluno: Record<string, string[]>;
 }
 
 function statusBadge(s: StatusMensalidade) {
@@ -42,7 +44,7 @@ const hoje = new Date();
 const MES_ATUAL = String(hoje.getMonth() + 1).padStart(2, "0");
 const ANO_ATUAL = String(hoje.getFullYear());
 
-export function FinanceiroView({ mensalidades, grupos, modalidades }: Props) {
+export function FinanceiroView({ mensalidades, grupos, modalidades, gruposPorAluno }: Props) {
   const [busca, setBusca] = useState("");
   const [filtroMes, setFiltroMes] = useState(MES_ATUAL);
   const [filtroAno, setFiltroAno] = useState(ANO_ATUAL);
@@ -67,7 +69,7 @@ export function FinanceiroView({ mensalidades, grupos, modalidades }: Props) {
       const nome = m.profiles?.nome_completo ?? "";
       if (busca && !nome.toLowerCase().includes(busca.toLowerCase())) return false;
       if (statusFiltro && getEffectiveStatus(m) !== statusFiltro) return false;
-      if (filtroGrupo && m.profiles?.grupo_id !== filtroGrupo) return false;
+      if (filtroGrupo && !(gruposPorAluno[m.aluno_id] ?? []).includes(filtroGrupo)) return false;
       if (filtroModalidade && !m.itens?.some((i) => i.modalidade_id === filtroModalidade)) return false;
       if (temPeriodo) {
         if (dataInicio && m.data_vencimento < dataInicio) return false;
@@ -78,7 +80,7 @@ export function FinanceiroView({ mensalidades, grupos, modalidades }: Props) {
       }
       return true;
     });
-  }, [mensalidades, busca, filtroAno, filtroMes, statusFiltro, filtroGrupo, filtroModalidade, dataInicio, dataFim, temPeriodo]);
+  }, [mensalidades, busca, filtroAno, filtroMes, statusFiltro, filtroGrupo, gruposPorAluno, filtroModalidade, dataInicio, dataFim, temPeriodo]);
 
   const totalPago = filtered.filter((m) => m.status === "pago").reduce((s, m) => s + m.valor, 0);
   const totalPendente = filtered.filter((m) => m.status !== "pago").reduce((s, m) => s + m.valor, 0);
@@ -90,7 +92,7 @@ export function FinanceiroView({ mensalidades, grupos, modalidades }: Props) {
     for (const m of filtered) {
       const { linhas, ajuste } = descreverItens(m.valor, m.itens);
       if (linhas.length === 0) somar("Sem detalhe", Number(m.valor));
-      for (const l of linhas) somar(l.nome, l.valor);
+      for (const l of linhas) somar(l.tipo === "desconto" ? "Descontos" : l.nome, l.valor);
       if (ajuste !== 0) somar("Ajustes", ajuste);
     }
     return [...somas.entries()].sort((a, b) => b[1] - a[1]);
@@ -202,7 +204,7 @@ export function FinanceiroView({ mensalidades, grupos, modalidades }: Props) {
           >
             <option value="">Todas as modalidades</option>
             {modalidades.map((mo) => (
-              <option key={mo.id} value={mo.id}>{mo.nome}{mo.ativo ? "" : " (inativa)"}</option>
+              <option key={mo.id} value={mo.id}>{rotuloModalidade(mo, grupos)}{mo.ativo ? "" : " (inativa)"}</option>
             ))}
           </select>
         )}

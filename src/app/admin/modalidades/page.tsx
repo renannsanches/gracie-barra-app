@@ -1,15 +1,16 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { listarModalidades } from "@/lib/modalidades";
+import { listarGruposRef, listarModalidades } from "@/lib/modalidades";
 import { ModalidadesView, type ContagemModalidade } from "./ModalidadesView";
 
 export const dynamic = "force-dynamic";
 
 export default async function ModalidadesPage() {
   const admin = createAdminClient();
-  const [modalidades, { data: inscricoes }, { data: turmas }] = await Promise.all([
+  const [modalidades, { data: inscricoes }, { data: turmas }, grupos] = await Promise.all([
     listarModalidades(admin),
     admin.from("aluno_modalidades").select("modalidade_id, aluno:profiles(status)"),
     admin.from("turmas").select("modalidade_id"),
+    listarGruposRef(admin),
   ]);
 
   const contagens: Record<string, ContagemModalidade> = {};
@@ -23,5 +24,5 @@ export default async function ModalidadesPage() {
   }
   for (const t of turmas ?? []) conta(t.modalidade_id as string).turmas += 1;
 
-  return <ModalidadesView modalidades={modalidades} contagens={contagens} />;
+  return <ModalidadesView modalidades={modalidades} contagens={contagens} grupos={grupos} />;
 }

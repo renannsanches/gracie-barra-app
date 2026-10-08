@@ -140,7 +140,8 @@ export async function gerarProximoMes(alunoId: string): Promise<GerarResult> {
 
   // Valor vem das modalidades actuais do aluno; sem modalidades, repete a última mensalidade
   const plano = await planoDoAluno(admin, alunoId);
-  const temPlano = plano.itens.length > 0;
+  // Plano com linhas (mesmo que todas pagas fora) manda; sem plano, repete a última
+  const temPlano = plano.linhas.length > 0;
 
   const { data: nova, error } = await admin
     .from("mensalidades")

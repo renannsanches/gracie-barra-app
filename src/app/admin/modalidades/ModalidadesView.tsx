@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { EuroInput } from "@/components/ui/euro-input";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { formatarEuro, lerValorEuro, valorParaInput } from "@/lib/modalidades";
+import { formatarEuro, lerValorEuro, valorParaInput, type GrupoRef } from "@/lib/modalidades";
+import { GrupoPicker } from "@/components/GrupoPicker";
 import {
   apagarModalidade, criarModalidade, definirModalidadeAtiva, editarModalidade,
   type DadosModalidade,
@@ -25,6 +26,8 @@ export interface ContagemModalidade {
 interface Props {
   modalidades: Modalidade[];
   contagens: Record<string, ContagemModalidade>;
+  /** Locais (grupos): Academia, Colégio… */
+  grupos: GrupoRef[];
 }
 
 const NOME_MAX = 40;
@@ -33,9 +36,9 @@ interface Rascunho {
   nome: string;
   valor: string;
   valorInfantil: string;
+  grupoId: string;
+  desconta: boolean;
 }
-
-const VAZIO: Rascunho = { nome: "", valor: "", valorInfantil: "" };
 
 /** Converte o rascunho do formulário; devolve erro legível se algo estiver mal. */
 function lerRascunho(r: Rascunho): { dados?: DadosModalidade; erro?: string; campo?: keyof Rascunho } {
@@ -46,7 +49,9 @@ function lerRascunho(r: Rascunho): { dados?: DadosModalidade; erro?: string; cam
   if (r.valorInfantil.trim() && valorInfantil === null) {
     return { erro: "Valor para menores de 16 inválido.", campo: "valorInfantil" };
   }
-  return { dados: { nome: r.nome.trim(), valor, valorInfantil } };
+  return {
+    dados: { nome: r.nome.trim(), valor, valorInfantil, grupoId: r.grupoId, descontaNoutroLocal: r.desconta },
+  };
 }
 
 function descreverPreco(m: Modalidade): string {
@@ -55,15 +60,21 @@ function descreverPreco(m: Modalidade): string {
   return `${base} · ${formatarEuro(m.valor_infantil)} menores de 16`;
 }
 
-export function ModalidadesView({ modalidades: doServidor, contagens }: Props) {
+export function ModalidadesView({ modalidades: doServidor, contagens, grupos }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+
+  const grupoPadraoId = grupos.find((g) => g.padrao)?.id ?? grupos[0]?.id ?? "";
+  const VAZIO: Rascunho = { nome: "", valor: "", valorInfantil: "", grupoId: grupoPadraoId, desconta: false };
+  const variosLocais = grupos.length > 1;
+  const opcoesLocal = grupos.map((g) => ({ id: g.id, nome: g.nome, ativo: true }));
+  const nomeLocal = (id: string) => grupos.find((g) => g.id === id)?.nome ?? "";
 
   const [modalidades, setModalidades] = useState(doServidor);
   useEffect(() => setModalidades(doServidor), [doServidor]);
 
   // Criar
-  const [novo, setNovo] = useState<Rascunho>(VAZIO);
+  const [novo, setNovo] = useState<Rascunho>(() => VAZIO);
   const [criando, setCriando] = useState(false);
   const [erroCriar, setErroCriar] = useState<{ msg: string; campo?: keyof Rascunho } | null>(null);
   const nomeRef = useRef<HTMLInputElement>(null);
@@ -87,7 +98,7 @@ export function ModalidadesView({ modalidades: doServidor, contagens }: Props) {
     startTransition(() => router.refresh());
   }
 
-  function mudarNovo(campo: keyof Rascunho, v: string) {
+  function mudarNovo<K extends keyof Rascunho>(campo: K, v: Rascunho[K]) {
     setNovo((r) => ({ ...r, [campo]: v }));
     if (erroCriar) setErroCriar(null);
   }
@@ -97,7 +108,8 @@ export function ModalidadesView({ modalidades: doServidor, contagens }: Props) {
     const { dados, erro, campo } = lerRascunho(novo);
     if (!dados) {
       setErroCriar({ msg: erro!, campo });
-      ({ nome: nomeRef, valor: valorRef, valorInfantil: infantilRef })[campo!].current?.focus();
+      const refs = { nome: nomeRef, valor: valorRef, valorInfantil: infantilRef } as const;
+      if (campo && campo in refs) refs[campo as keyof typeof refs].current?.focus();
       return;
     }
     setCriando(true);
@@ -115,7 +127,10 @@ export function ModalidadesView({ modalidades: doServidor, contagens }: Props) {
   function iniciarEdicao(m: Modalidade) {
     setErroLinha(null);
     setEditId(m.id);
-    setEdit({ nome: m.nome, valor: valorParaInput(m.valor), valorInfantil: valorParaInput(m.valor_infantil) });
+    setEdit({
+      nome: m.nome, valor: valorParaInput(m.valor), valorInfantil: valorParaInput(m.valor_infantil),
+      grupoId: m.grupo_id, desconta: m.desconta_noutro_local,
+    });
   }
 
   async function guardarEdicao(m: Modalidade) {
@@ -134,7 +149,10 @@ export function ModalidadesView({ modalidades: doServidor, contagens }: Props) {
     }
     setModalidades((prev) =>
       prev.map((x) => (x.id === m.id
-        ? { ...x, nome: dados.nome, valor: dados.valor, valor_infantil: dados.valorInfantil }
+        ? {
+          ...x, nome: dados.nome, valor: dados.valor, valor_infantil: dados.valorInfantil,
+          grupo_id: dados.grupoId, desconta_noutro_local: dados.descontaNoutroLocal,
+        }
         : x)),
     );
     setEditId(null);
@@ -195,6 +213,19 @@ export function ModalidadesView({ modalidades: doServidor, contagens }: Props) {
             className="h-10 rounded-xl border-gray-200"
           />
         </div>
+        {variosLocais && (
+          <div className="space-y-1.5">
+            <p id="mod-local-label" className="text-sm font-medium text-gray-700">Local</p>
+            <GrupoPicker
+              id="mod-local"
+              labelledBy="mod-local-label"
+              grupos={opcoesLocal}
+              value={novo.grupoId}
+              onChange={(v) => mudarNovo("grupoId", v)}
+              disabled={criando}
+            />
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label htmlFor="mod-valor" className="text-sm font-medium text-gray-700">Valor mensal</label>
@@ -225,6 +256,14 @@ export function ModalidadesView({ modalidades: doServidor, contagens }: Props) {
         <p id="mod-infantil-ajuda" className="text-xs text-gray-500">
           Deixa &ldquo;Menores de 16&rdquo; vazio se o valor for o mesmo para todos.
         </p>
+        {variosLocais && (
+          <CheckboxDesconto
+            id="mod-desconta"
+            checked={novo.desconta}
+            onChange={(v) => mudarNovo("desconta", v)}
+            disabled={criando}
+          />
+        )}
         {erroCriar && (
           <p role="alert" className="text-sm text-red-600">{erroCriar.msg}</p>
         )}
@@ -271,6 +310,15 @@ export function ModalidadesView({ modalidades: doServidor, contagens }: Props) {
                       aria-label="Nome da modalidade"
                       className="h-10 rounded-xl border-gray-200"
                     />
+                    {variosLocais && (
+                      <GrupoPicker
+                        id={`el-${m.id}`}
+                        grupos={opcoesLocal}
+                        value={edit.grupoId}
+                        onChange={(v) => setEdit((r) => ({ ...r, grupoId: v }))}
+                        disabled={ocupado}
+                      />
+                    )}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label htmlFor={`ev-${m.id}`} className="text-xs font-medium text-gray-600">Valor mensal</label>
@@ -292,6 +340,14 @@ export function ModalidadesView({ modalidades: doServidor, contagens }: Props) {
                         />
                       </div>
                     </div>
+                    {variosLocais && (
+                      <CheckboxDesconto
+                        id={`ed-${m.id}`}
+                        checked={edit.desconta}
+                        onChange={(v) => setEdit((r) => ({ ...r, desconta: v }))}
+                        disabled={ocupado}
+                      />
+                    )}
                     <div className="flex gap-2">
                       <Button type="submit" disabled={ocupado} className="h-9 rounded-xl bg-gb-blue hover:bg-gb-blue-dark text-white">
                         <Check size={15} className="mr-1" />
@@ -315,7 +371,10 @@ export function ModalidadesView({ modalidades: doServidor, contagens }: Props) {
                           <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">Inativa</span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-700 mt-0.5 tabular-nums">{descreverPreco(m)}</p>
+                      <p className="text-sm text-gray-700 mt-0.5 tabular-nums">
+                        {variosLocais && <span className="font-medium">{nomeLocal(m.grupo_id)} · </span>}
+                        {descreverPreco(m)}
+                      </p>
                       <p className="text-sm text-gray-500">
                         {c.alunos === 0 ? (
                           "Sem alunos"
@@ -332,6 +391,11 @@ export function ModalidadesView({ modalidades: doServidor, contagens }: Props) {
                         {c.turmas === 0 ? "sem turmas" : `${c.turmas} turma${c.turmas === 1 ? "" : "s"}`}
                       </p>
                       {m.padrao && <p className="text-xs text-gray-500">Novos registos feitos na app entram aqui.</p>}
+                      {m.desconta_noutro_local && (
+                        <p className="text-xs text-green-700">
+                          Quem também treina noutro local paga isto no {nomeLocal(m.grupo_id)} e recebe-o como desconto.
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
@@ -380,5 +444,29 @@ export function ModalidadesView({ modalidades: doServidor, contagens }: Props) {
         </ul>
       )}
     </div>
+  );
+}
+
+/** "Quem também treina noutro local recebe este valor como desconto" */
+function CheckboxDesconto({
+  id, checked, onChange, disabled,
+}: { id: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  return (
+    <label htmlFor={id} className="flex items-start gap-2.5 cursor-pointer">
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-gb-blue focus:ring-gb-blue/30"
+      />
+      <span className="text-sm text-gray-700">
+        Desconto noutro local
+        <span className="block text-xs text-gray-500">
+          Se o aluno também treinar noutro local, este valor passa a ser pago aqui diretamente e entra como desconto na mensalidade.
+        </span>
+      </span>
+    </label>
   );
 }

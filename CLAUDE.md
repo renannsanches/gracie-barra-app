@@ -156,7 +156,7 @@ PLAYWRIGHT_ADMIN_PASSWORD=<strong-random>
 /admin/alunos           → lista de alunos com filtros (grupo, perfil, faixa, categoria) e pesquisa; aceita ?grupo=<id>
 /admin/alunos/novo      → formulário de novo aluno
 /admin/alunos/[id]      → ficha completa: dados, fotos, mensalidades, presenças, graduações, dependentes
-/admin/grupos           → grupos de alunos (ex.: Academia, Colégio): criar, renomear, ativar/desativar, apagar vazio
+/admin/grupos           → locais de treino (Academia, Colégio…): criar, renomear, ativar/desativar; contagens vêm das modalidades
 /admin/modalidades      → modalidades (Jiu-Jitsu, Capoeira…): valor sugerido adulto/menores de 16, ativar/desativar, apagar sem uso
 /admin/turmas           → lista de turmas
 /admin/turmas/nova      → criar turma
@@ -285,9 +285,10 @@ Ao concluir cadastro:
 | `avisos` | Avisos publicados pela academia (fixado, publicado, timestamps) |
 | `albuns` | Álbuns de fotos (título, capa, autor) |
 | `fotos` | Fotos dentro de álbuns (URL no Storage, legenda) |
-| `grupos_alunos` | Grupos de alunos (nome, ativo, padrao). O grupo `padrao` recebe os registos feitos em `/cadastro`; não pode ser desativado nem apagado |
-| `modalidades` | Catálogo (nome, valor, valor_infantil, ativo, padrao). Padrão (Jiu-Jitsu) = modalidade dos registos da app |
-| `aluno_modalidades` | "Plano" do aluno: modalidades + valor próprio de cada (PK aluno_id+modalidade_id). Mensalidade = soma |
+| `grupos_alunos` | Locais de treino (nome, ativo, padrao). Cada modalidade pertence a um local; o(s) local(is) do aluno são derivados das suas modalidades (`profiles.grupo_id` está obsoleto — não usar) |
+| `modalidades` | Catálogo (nome, valor, valor_infantil, ativo, padrao, `grupo_id` = local, `desconta_noutro_local`). Nome único por local. Padrão (Jiu-Jitsu Academia) = registos da app |
+| `aluno_modalidades` | "Plano" do aluno: modalidades + valor próprio + `cobrar` (false = pago diretamente no local, fora da app) |
+| `aluno_descontos` | Descontos mensais do aluno (descricao, valor, `origem_modalidade_id` quando automático). Mensalidade = Σ linhas cobradas − Σ descontos |
 
 ### Campos chave de `profiles`
 
@@ -307,7 +308,7 @@ iban: string | null
 nif: string | null
 aulas_manual: number      // contador de presenças importadas manualmente (fichinhas físicas)
 sem_login: boolean        // true para dependentes (filhos sem conta de auth)
-grupo_id: string | null   // FK grupos_alunos — 1 grupo por pessoa que treina (não responsáveis)
+grupo_id: string | null   // OBSOLETO — o local vem das modalidades (aluno_modalidades → modalidades.grupo_id)
 ```
 
 ### RPCs (funções Postgres)
@@ -472,6 +473,7 @@ gb: {
 | — | **Modal semanal de aptos a graduar** | Admin/professor vêem em `/perfil`, 1x por semana, aviso de que há alunos aptos (só se houver ≥1) |
 | — | **Grupos de alunos** | `/admin/grupos` (CRUD inline); campo Grupo em novo aluno e ficha (todos os perfis menos responsável); filtro por grupo em Cadastros e Financeiro (totais seguem o filtro); `/cadastro` atribui o grupo padrão |
 | — | **Modalidades** | `/admin/modalidades`; card Modalidades na ficha (valor por aluno, total, "Atualizar pendentes" quando muda); `mensalidades.itens` (jsonb) guarda a composição e `valor` continua a ser o total; detalhe "JJ 50 € · Capoeira 20 €" no Financeiro, ficha, perfil do aluno e relatórios; `turmas.modalidade_id` filtra `/aulas` e é validado em `reservar` |
+| — | **Colégio e descontos** | Modalidade "Jiu-Jitsu · Colégio" 13 € com `desconta_noutro_local`: ao juntar uma modalidade de outro local, o editor passa o Colégio a "pago no colégio" (`cobrar=false`) e cria "Desconto aluno do Colégio −13 €" (editável); ao sair, reverte. Ficha mostra "Onde treina"; filtros de grupo (Cadastros, Financeiro) usam locais derivados; descontos manuais no editor |
 
 ### ❌ Por implementar
 

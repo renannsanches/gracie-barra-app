@@ -5,8 +5,10 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { senhaValida, REGRA_SENHA_TEXTO } from "@/lib/senha";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { somaItens } from "@/lib/modalidades";
-import type { ItemMensalidade } from "@/lib/types";
+import {
+  calcularPlano, gravarPlanoAluno, rotulosModalidades, validarPlano,
+  type DescontoPlano, type LinhaPlano,
+} from "@/lib/modalidades";
 
 export interface CriarAlunoResult {
   ok: boolean;
@@ -33,46 +35,30 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
   const nif                 = (formData.get("nif") as string | null)?.trim() || null;
   const primeiroVencimento  = isResponsavel ? null : ((formData.get("primeiro_vencimento") as string | null)?.trim() || null);
 
-  let planoForm: { modalidade_id: string; valor: number }[] = [];
+  let linhas: LinhaPlano[] = [];
+  let descontos: DescontoPlano[] = [];
   try {
-    planoForm = isResponsavel ? [] : JSON.parse((formData.get("modalidades") as string | null) || "[]");
+    linhas = isResponsavel ? [] : JSON.parse((formData.get("modalidades") as string | null) || "[]");
+    descontos = isResponsavel ? [] : JSON.parse((formData.get("descontos") as string | null) || "[]");
   } catch {
     return { ok: false, erro: "Modalidades inválidas." };
   }
-  const grupoIdForm         = (formData.get("grupo_id") as string | null)?.trim() || null;
 
   if (!nomeCompleto) return { ok: false, erro: "Nome é obrigatório." };
+  const planoInvalido = validarPlano(linhas, descontos);
+  if (planoInvalido) return { ok: false, erro: planoInvalido };
 
   const admin = createAdminClient();
 
-  // Grupo aplica-se a quem treina (todos menos responsável); tem de existir e estar activo
-  let grupoId: string | null = null;
-  if (!isResponsavel && grupoIdForm) {
-    const { data: grupo } = await admin
-      .from("grupos_alunos").select("id, ativo").eq("id", grupoIdForm).maybeSingle();
-    if (!grupo || !grupo.ativo) return { ok: false, erro: "Grupo inválido ou inativo. Escolhe outro grupo." };
-    grupoId = grupo.id;
-  }
-
-  // Modalidades: confirmar que existem e montar a composição da mensalidade
-  let itens: ItemMensalidade[] = [];
-  if (planoForm.length > 0) {
-    const { data: mods } = await admin
-      .from("modalidades").select("id, nome").in("id", planoForm.map((p) => p.modalidade_id));
-    const nomes = new Map((mods ?? []).map((m) => [m.id as string, m.nome as string]));
-    if (nomes.size !== planoForm.length || planoForm.some((p) => !Number.isFinite(p.valor) || p.valor < 0)) {
-      return { ok: false, erro: "Modalidade ou valor inválido." };
-    }
-    itens = planoForm.map((p) => ({ modalidade_id: p.modalidade_id, nome: nomes.get(p.modalidade_id)!, valor: p.valor }));
-  }
-  const valorMensalidade = itens.length > 0 ? somaItens(itens) : 0;
+  // Composição da primeira mensalidade (o local de cada modalidade define onde o aluno treina)
+  const rotulos = await rotulosModalidades(admin);
+  if (linhas.some((l) => !rotulos.has(l.modalidade_id))) return { ok: false, erro: "Modalidade inválida." };
+  const { itens, total: valorMensalidade } = calcularPlano(linhas, descontos, rotulos);
 
   async function gravarPlano(alunoId: string) {
-    if (itens.length === 0) return null;
-    const { error } = await admin.from("aluno_modalidades").insert(
-      itens.map((i) => ({ aluno_id: alunoId, modalidade_id: i.modalidade_id, valor: i.valor })),
-    );
-    return error;
+    if (linhas.length === 0 && descontos.length === 0) return null;
+    const erro = await gravarPlanoAluno(admin, alunoId, linhas, descontos);
+    return erro ? { message: erro } : null;
   }
 
   try {
@@ -91,7 +77,6 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
         graus,
         categoria,
         perfil,
-        grupo_id:        grupoId,
         status:          "ativo",
         sem_login:       true,
       });
@@ -156,7 +141,6 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
         graus,
         categoria,
         perfil,
-        grupo_id: grupoId,
         status: "ativo",
       })
       .eq("id", userId);

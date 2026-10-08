@@ -17,7 +17,6 @@ import {
   formatarData, formatarMoeda, formatarMes, labelCorFaixa,
 } from "@/lib/utils";
 import { PhoneInput } from "@/components/PhoneInput";
-import { GrupoPicker } from "@/components/GrupoPicker";
 import { telefoneParaE164 } from "@/lib/phone";
 import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type {
@@ -39,9 +38,11 @@ import {
   editarMensalidadesEmLote as serverEditarMensalidadesEmLote,
 } from "./mensalidades-actions";
 import { guardarModalidadesAluno, aplicarPlanoPendentes } from "./modalidades-aluno-actions";
-import { ModalidadesEditor, lerPlano, type PlanoRascunho } from "@/components/ModalidadesEditor";
+import { ModalidadesEditor, lerPlano, planoParaRascunho, type PlanoRascunho } from "@/components/ModalidadesEditor";
 import { ValorMensalidade } from "@/components/ValorMensalidade";
-import { formatarEuro, lerValorEuro, mesCurto, somaItens, valorParaInput } from "@/lib/modalidades";
+import {
+  calcularPlano, formatarEuro, mesCurto, rotuloModalidade, valorParaInput, type DescontoPlano,
+} from "@/lib/modalidades";
 import { registrarGraduacao, excluirGraduacao } from "./graduacao-actions";
 import { uploadFotoAluno } from "./foto-actions";
 import { atualizarResponsavel } from "./dependentes-actions";
@@ -117,6 +118,7 @@ interface Props {
   grupos: GrupoAluno[];
   modalidades: Modalidade[];
   planoInicial: AlunoModalidade[];
+  descontosIniciais: DescontoPlano[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -133,6 +135,7 @@ export function AlunoEditView({
   grupos,
   modalidades,
   planoInicial,
+  descontosIniciais,
 }: Props) {
   const router = useRouter();
   const fotoInputRef = useRef<HTMLInputElement>(null);
@@ -156,7 +159,6 @@ export function AlunoEditView({
     graus:           String(aluno.graus ?? 0),
     categoria:       aluno.categoria,
     perfil:          aluno.perfil,
-    grupo_id:        aluno.grupo_id ?? "",
   });
 
   // ── Status toggle ──────────────────────────────────────────────────────────
@@ -183,10 +185,8 @@ export function AlunoEditView({
   });
 
   // ── Modalidades (plano do aluno) ───────────────────────────────────────────
-  const planoParaRascunho = (p: AlunoModalidade[]): PlanoRascunho[] =>
-    p.map((x) => ({ modalidade_id: x.modalidade_id, valor: valorParaInput(x.valor) }));
-  const [plano, setPlano] = useState<PlanoRascunho[]>(() => planoParaRascunho(planoInicial));
-  const [planoGuardado, setPlanoGuardado] = useState<PlanoRascunho[]>(() => planoParaRascunho(planoInicial));
+  const [plano, setPlano] = useState<PlanoRascunho>(() => planoParaRascunho(planoInicial, descontosIniciais));
+  const [planoGuardado, setPlanoGuardado] = useState<PlanoRascunho>(() => plano);
   const [guardandoPlano, setGuardandoPlano] = useState(false);
   const [erroPlano, setErroPlano] = useState("");
   const [planoOk, setPlanoOk] = useState(false);
@@ -195,7 +195,15 @@ export function AlunoEditView({
   } | null>(null);
   const [aplicandoPendentes, setAplicandoPendentes] = useState(false);
   const planoAlterado = JSON.stringify(plano) !== JSON.stringify(planoGuardado);
-  const totalDoPlano = (p: PlanoRascunho[]) => somaItens(p.map((x) => ({ valor: lerValorEuro(x.valor) ?? 0 })));
+  const rotulos = new Map(modalidades.map((m) => [m.id, rotuloModalidade(m, grupos)]));
+  const totalDoPlano = (p: PlanoRascunho) => {
+    const { linhas, descontos } = lerPlano(p, modalidades);
+    return linhas && descontos ? calcularPlano(linhas, descontos, rotulos).total : 0;
+  };
+  // Onde treina: locais das modalidades guardadas (Colégio, Academia…)
+  const ondeTreina = grupos.filter((g) =>
+    planoGuardado.linhas.some((l) => modalidades.find((m) => m.id === l.modalidade_id)?.grupo_id === g.id),
+  );
 
   // ── Presenças ──────────────────────────────────────────────────────────────
   const [presencas, setPresencas] = useState(presencasProp);
@@ -261,8 +269,6 @@ export function AlunoEditView({
     const salvandoResponsavel = form.perfil === "responsavel";
     const faixaFinal: CorFaixa | null = salvandoResponsavel ? null : (form.faixa as CorFaixa);
     const grausFinal = salvandoResponsavel ? 0 : Number(form.graus);
-    // Grupo aplica-se a quem treina (todos menos responsável)
-    const grupoFinal = salvandoResponsavel ? null : (form.grupo_id || null);
     try {
       const supabase = createClient();
       const { error } = await supabase.from("profiles").update({
@@ -277,7 +283,6 @@ export function AlunoEditView({
         categoria:       form.categoria as CategoriaFaixa,
         status:          statusAluno,
         perfil:          form.perfil as PerfilUsuario,
-        grupo_id:        grupoFinal,
       }).eq("id", aluno.id);
       if (error) throw error;
       setAluno((p) => ({
@@ -293,7 +298,6 @@ export function AlunoEditView({
         categoria:       form.categoria as CategoriaFaixa,
         status:          statusAluno,
         perfil:          form.perfil as PerfilUsuario,
-        grupo_id:        grupoFinal,
       }));
       setSalvoOk(true);
       setTimeout(() => setSalvoOk(false), 3000);
@@ -423,11 +427,11 @@ export function AlunoEditView({
   }
 
   async function handleGuardarPlano() {
-    const { itens, erro } = lerPlano(plano, modalidades);
-    if (!itens) { setErroPlano(erro ?? "Valor inválido."); return; }
+    const { linhas, descontos, erro } = lerPlano(plano, modalidades);
+    if (!linhas || !descontos) { setErroPlano(erro ?? "Valor inválido."); return; }
     setGuardandoPlano(true); setErroPlano(""); setPlanoOk(false); setAvisoPendentes(null);
     try {
-      const r = await guardarModalidadesAluno(aluno.id, itens);
+      const r = await guardarModalidadesAluno(aluno.id, linhas, descontos);
       if (!r.ok) { setErroPlano(r.erro ?? "Não foi possível guardar."); return; }
       setPlanoGuardado(plano);
       if (r.pendentes && r.pendentes.quantidade > 0) {
@@ -694,6 +698,15 @@ export function AlunoEditView({
               </div>
             )
           )}
+          {!isResponsavel && ondeTreina.length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Onde treina">
+              {ondeTreina.map((g) => (
+                <span key={g.id} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                  {g.nome}
+                </span>
+              ))}
+            </div>
+          )}
           {uploadFotoErro && (
             <p className="text-xs text-red-500 mt-1">{uploadFotoErro}</p>
           )}
@@ -828,22 +841,6 @@ export function AlunoEditView({
               </p>
             )}
           </div>
-          {form.perfil !== "responsavel" && (
-            <div className="sm:col-span-2 space-y-1.5">
-              <Label id="grupo_edit_label" htmlFor="grupo_edit">Grupo</Label>
-              <GrupoPicker
-                id="grupo_edit"
-                labelledBy="grupo_edit_label"
-                grupos={grupos}
-                value={form.grupo_id}
-                onChange={(v) => setForm((f) => ({ ...f, grupo_id: v }))}
-                disabled={salvando}
-              />
-              {!form.grupo_id && (
-                <p className="text-xs text-amber-700">Sem grupo — escolhe onde treina.</p>
-              )}
-            </div>
-          )}
         </div>
 
         {salvoErro && <p className="text-red-600 text-sm">{salvoErro}</p>}
@@ -1220,12 +1217,13 @@ export function AlunoEditView({
             <Shapes size={16} className="text-gb-blue" />
             Modalidades
           </h2>
-          <p className="text-xs text-gray-500 mt-0.5">O que treina e quanto paga por cada uma. A mensalidade é a soma.</p>
+          <p className="text-xs text-gray-500 mt-0.5">O que treina, onde, e quanto paga. A mensalidade é a soma, menos os descontos.</p>
         </div>
 
         <ModalidadesEditor
           idPrefix="plano"
           modalidades={modalidades}
+          grupos={grupos}
           value={plano}
           onChange={(p) => { setPlano(p); setErroPlano(""); setPlanoOk(false); }}
           dataNascimento={form.data_nascimento || aluno.data_nascimento}

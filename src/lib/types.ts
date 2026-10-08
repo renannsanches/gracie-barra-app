@@ -20,7 +20,10 @@ export interface Mensalidade {
 export interface ItemMensalidade {
   modalidade_id: string | null;
   nome: string;
+  /** Negativo nos descontos */
   valor: number;
+  /** Ausente = modalidade (mensalidades antigas) */
+  tipo?: "modalidade" | "desconto";
 }
 
 /** Modalidade praticada na academia (ex.: Jiu-Jitsu, Capoeira). */
@@ -33,6 +36,10 @@ export interface Modalidade {
   valor_infantil: number | null;
   ativo: boolean;
   padrao: boolean;
+  /** Local onde é dada (grupo: Academia, Colégio…) */
+  grupo_id: string;
+  /** Quem também treina noutro local recebe este valor como desconto */
+  desconta_noutro_local: boolean;
   criado_em: string;
   atualizado_em: string;
 }
@@ -42,6 +49,19 @@ export interface AlunoModalidade {
   aluno_id: string;
   modalidade_id: string;
   valor: number;
+  /** false = pago fora da app (no próprio local) */
+  cobrar: boolean;
+}
+
+/** Desconto mensal de um aluno (ex.: "Desconto aluno do Colégio" 13 €). */
+export interface AlunoDesconto {
+  id: string;
+  aluno_id: string;
+  descricao: string;
+  /** Sempre positivo; é subtraído ao total */
+  valor: number;
+  /** Modalidade que originou o desconto automático; null = manual */
+  origem_modalidade_id: string | null;
 }
 export type CategoriaFaixa = "adulto" | "infantil" | "adulto_infantil";
 export type CorFaixa =
