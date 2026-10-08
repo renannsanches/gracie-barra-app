@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rotulosModalidades } from "@/lib/modalidades";
 import type { StatusAula, StatusReserva, CategoriaFaixa } from "@/lib/types";
 import { AulasView, type AulaParaAluno, type DependenteOpcao, type ReservanteDaAula } from "./AulasView";
 
@@ -11,7 +12,7 @@ interface AulaRow {
   horario: string;
   lotacao_maxima: number;
   status: string;
-  turma: { id: string; nome: string; categoria: string; ativa: boolean; apenas_experimental: boolean } | null;
+  turma: { id: string; nome: string; categoria: string; ativa: boolean; apenas_experimental: boolean; modalidade_id: string } | null;
 }
 
 interface ReservaRichRow {
@@ -51,7 +52,7 @@ export default async function AulasPage() {
 
   const { data: aulasRaw } = await admin
     .from("aulas")
-    .select("id, turma_id, data, horario, lotacao_maxima, status, turma:turmas(id, nome, categoria, ativa, apenas_experimental)")
+    .select("id, turma_id, data, horario, lotacao_maxima, status, turma:turmas(id, nome, categoria, ativa, apenas_experimental, modalidade_id)")
     .gte("data", hoje)
     .lte("data", fim)
     .eq("status", "agendada")
@@ -66,7 +67,7 @@ export default async function AulasPage() {
   const dezDiasAtras = new Date();
   dezDiasAtras.setDate(dezDiasAtras.getDate() - 10);
 
-  const [richReservasRes, todasReservasRes, bloqueadosRes] = await Promise.all([
+  const [richReservasRes, todasReservasRes, bloqueadosRes, inscricoesRes, modalidadesRes] = await Promise.all([
     aulaIds.length > 0
       ? admin
           .from("reservas")
@@ -87,7 +88,18 @@ export default async function AulasPage() {
       .in("aluno_id", todosIds)
       .neq("status", "pago")
       .lte("data_vencimento", dezDiasAtras.toISOString().split("T")[0]),
+    admin.from("aluno_modalidades").select("aluno_id, modalidade_id").in("aluno_id", todosIds),
+    admin.from("modalidades").select("id, nome, padrao"),
   ]);
+
+  const modalidadesPorPessoa: Record<string, string[]> = {};
+  for (const i of (inscricoesRes.data ?? []) as { aluno_id: string; modalidade_id: string }[]) {
+    (modalidadesPorPessoa[i.aluno_id] ??= []).push(i.modalidade_id);
+  }
+  const listaModalidades = (modalidadesRes.data ?? []) as { id: string; nome: string; padrao: boolean }[];
+  // "Jiu-Jitsu · Colégio" quando a modalidade é de outro local
+  const nomesModalidade = Object.fromEntries(await rotulosModalidades(admin));
+  const modalidadePadraoId = listaModalidades.find((m) => m.padrao)?.id ?? null;
 
   const bloqueadosPorFinanceiro = [
     ...new Set(((bloqueadosRes.data ?? []) as { aluno_id: string }[]).map((b) => b.aluno_id)),
@@ -113,7 +125,9 @@ export default async function AulasPage() {
     horario:        a.horario,
     lotacao_maxima: a.lotacao_maxima,
     status:         a.status as StatusAula,
-    turma:          a.turma ? { id: a.turma.id, nome: a.turma.nome, categoria: a.turma.categoria as CategoriaFaixa } : null,
+    turma:          a.turma
+      ? { id: a.turma.id, nome: a.turma.nome, categoria: a.turma.categoria as CategoriaFaixa, modalidade_id: a.turma.modalidade_id }
+      : null,
     reservas_confirmadas: reservantesPorAula[a.id]?.length ?? 0,
   }));
 
@@ -129,6 +143,9 @@ export default async function AulasPage() {
       dependentes={dependentes}
       bloqueadosPorFinanceiro={bloqueadosPorFinanceiro}
       reservantesPorAula={reservantesPorAula}
+      modalidadesPorPessoa={modalidadesPorPessoa}
+      nomesModalidade={nomesModalidade}
+      modalidadePadraoId={modalidadePadraoId}
     />
   );
 }

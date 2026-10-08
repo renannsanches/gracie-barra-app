@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import type { Turma, CategoriaFaixa, RecorrenciaTurma, StatusAula, StatusReserva } from "@/lib/types";
+import type { Turma, CategoriaFaixa, Modalidade, RecorrenciaTurma, StatusAula, StatusReserva } from "@/lib/types";
+import { GrupoPicker } from "@/components/GrupoPicker";
 import {
   salvarTurma,
   toggleTurmaAtiva,
@@ -86,9 +87,10 @@ interface Props {
   turma: Turma;
   professores: { id: string; nome_completo: string }[];
   aulas: AulaComContagem[];
+  modalidades: Modalidade[];
 }
 
-export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp }: Props) {
+export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp, modalidades }: Props) {
   const router = useRouter();
 
   const [turma, setTurma]       = useState(turmaProp);
@@ -136,6 +138,7 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp 
     lotacao_maxima: String(turma.lotacao_maxima),
     categoria:      turma.categoria,
     professor_id:   turma.professor_id ?? "",
+    modalidade_id:  turma.modalidade_id,
   });
 
   const hoje     = new Date().toISOString().split("T")[0];
@@ -157,6 +160,7 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp 
       lotacao_maxima: Number(form.lotacao_maxima),
       categoria:      form.categoria as CategoriaFaixa,
       professor_id:   form.professor_id || null,
+      modalidade_id:  form.modalidade_id,
     });
     if (!result.ok) {
       setSalvoErro(result.erro ?? "Erro ao salvar.");
@@ -170,6 +174,7 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp 
         lotacao_maxima: Number(form.lotacao_maxima),
         categoria:      form.categoria as CategoriaFaixa,
         professor_id:   form.professor_id || null,
+        modalidade_id:  form.modalidade_id,
       }));
       setSalvoOk(true);
       setTimeout(() => setSalvoOk(false), 3000);
@@ -536,6 +541,18 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp 
               id="nome"
               value={form.nome}
               onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+            />
+          </div>
+
+          <div className="sm:col-span-2 space-y-1.5">
+            <Label id="modalidade-edit-label">Modalidade</Label>
+            <GrupoPicker
+              id="modalidade_edit"
+              labelledBy="modalidade-edit-label"
+              grupos={modalidades}
+              value={form.modalidade_id}
+              onChange={(v) => setForm((f) => ({ ...f, modalidade_id: v }))}
+              disabled={salvando}
             />
           </div>
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Users, Layers, Megaphone, Images, LayoutDashboard, LogOut, CalendarDays, DollarSign, FileSpreadsheet } from "lucide-react";
+import { Users, Layers, Shapes, Megaphone, Images, LayoutDashboard, LogOut, CalendarDays, DollarSign, FileSpreadsheet } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/admin",        label: "Dashboard", icon: LayoutDashboard, disabled: false, exact: true  },
   { href: "/admin/alunos", label: "Cadastros", icon: Users,           disabled: false, exact: false },
   { href: "/admin/grupos", label: "Grupos",    icon: Layers,          disabled: false, exact: false },
+  { href: "/admin/modalidades", label: "Modalidades", icon: Shapes, disabled: false, exact: false },
   { href: "/admin/turmas", label: "Turmas",    icon: CalendarDays,    disabled: false, exact: false },
   { href: "/admin/financeiro",  label: "Financeiro", icon: DollarSign,      disabled: false, exact: false },
   { href: "/admin/relatorios", label: "Relatórios", icon: FileSpreadsheet, disabled: false, exact: false },

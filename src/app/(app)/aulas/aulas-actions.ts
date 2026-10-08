@@ -51,12 +51,27 @@ export async function reservar(aulaId: string, alunoId: string): Promise<ActionR
 
   const { data: aula } = await admin
     .from("aulas")
-    .select("id, lotacao_maxima, status")
+    .select("id, lotacao_maxima, status, turma:turmas(modalidade:modalidades(id, nome, padrao))")
     .eq("id", aulaId)
     .single();
 
   if (!aula) return { ok: false, erro: "Aula não encontrada." };
   if (aula.status !== "agendada") return { ok: false, erro: "Esta aula não está disponível." };
+
+  // Só pode reservar aulas das modalidades em que está inscrito (sem registo = só a padrão)
+  const modalidade = (aula.turma as unknown as { modalidade: { id: string; nome: string; padrao: boolean } | null } | null)
+    ?.modalidade;
+  if (modalidade) {
+    const { data: inscricoes } = await admin
+      .from("aluno_modalidades")
+      .select("modalidade_id")
+      .eq("aluno_id", alunoId);
+    const ids = (inscricoes ?? []).map((i) => i.modalidade_id as string);
+    const inscrito = ids.length > 0 ? ids.includes(modalidade.id) : modalidade.padrao;
+    if (!inscrito) {
+      return { ok: false, erro: `Esta aula é de ${modalidade.nome} — não estás inscrito nesta modalidade.` };
+    }
+  }
 
   if (await estaBloqueadoFinanceiramente(alunoId, admin)) {
     return { ok: false, erro: "Não é possível reservar a aula. Falar com Simone." };

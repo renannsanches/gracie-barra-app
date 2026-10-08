@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { Turma, StatusAula } from "@/lib/types";
 import type { AulaComContagem } from "./turma-actions";
 import { TurmaEditView } from "./TurmaEditView";
+import { listarModalidadesRotuladas } from "@/lib/modalidades";
 
 interface Props { params: Promise<{ id: string }>; }
 
@@ -10,10 +11,11 @@ export default async function TurmaDetailPage({ params }: Props) {
   const { id } = await params;
   const admin = createAdminClient();
 
-  const [turmaRes, professorRes, aulaRes] = await Promise.all([
+  const [turmaRes, professorRes, aulaRes, modalidades] = await Promise.all([
     admin.from("turmas").select("*, professor:profiles(id, nome_completo)").eq("id", id).single(),
     admin.from("profiles").select("id, nome_completo").in("perfil", ["professor", "admin"]).order("nome_completo"),
     admin.from("aulas").select("*").eq("turma_id", id).order("data", { ascending: false }),
+    listarModalidadesRotuladas(admin),
   ]);
 
   if (!turmaRes.data) notFound();
@@ -45,6 +47,7 @@ export default async function TurmaDetailPage({ params }: Props) {
       turma={turmaRes.data as Turma}
       professores={(professorRes.data ?? []) as { id: string; nome_completo: string }[]}
       aulas={aulasComContagem}
+      modalidades={modalidades}
     />
   );
 }
