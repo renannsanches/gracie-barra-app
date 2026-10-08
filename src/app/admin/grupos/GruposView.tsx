@@ -35,6 +35,7 @@ export function GruposView({ grupos: gruposServidor, contagens }: Props) {
   const [novoNome, setNovoNome] = useState("");
   const [criando, setCriando] = useState(false);
   const [erroCriar, setErroCriar] = useState<string | null>(null);
+  const novoInputRef = useRef<HTMLInputElement>(null);
 
   // Editar nome inline
   const [editId, setEditId] = useState<string | null>(null);
@@ -59,6 +60,7 @@ export function GruposView({ grupos: gruposServidor, contagens }: Props) {
     const nome = novoNome.trim();
     if (!nome) {
       setErroCriar("Escreve um nome para o grupo.");
+      novoInputRef.current?.focus();
       return;
     }
     setCriando(true);
@@ -147,6 +149,7 @@ export function GruposView({ grupos: gruposServidor, contagens }: Props) {
         </label>
         <div className="flex gap-2">
           <Input
+            ref={novoInputRef}
             id="novo-grupo"
             value={novoNome}
             onChange={(e) => {
@@ -162,7 +165,7 @@ export function GruposView({ grupos: gruposServidor, contagens }: Props) {
           />
           <Button
             type="submit"
-            disabled={criando || !novoNome.trim()}
+            disabled={criando}
             className="h-10 shrink-0 rounded-xl bg-gb-blue hover:bg-gb-blue-dark text-white"
           >
             <Plus size={16} className="mr-1" />
