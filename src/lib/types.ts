@@ -88,8 +88,19 @@ export interface Profile {
   nif: string | null;
   aulas_manual: number;
   sem_login: boolean | null;
+  grupo_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Grupo de alunos (ex.: Academia, Colégio). `padrao` recebe os registos feitos pela app. */
+export interface GrupoAluno {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  padrao: boolean;
+  criado_em: string;
+  atualizado_em: string;
 }
 
 export interface DependentePerfil {

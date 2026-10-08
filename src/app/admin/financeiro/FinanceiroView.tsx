@@ -3,14 +3,15 @@
 import { useState, useMemo, useTransition } from "react";
 import { marcarPago, desmarcarPago } from "./actions";
 import { getEffectiveStatus } from "@/lib/mensalidade-status";
-import type { Mensalidade, StatusMensalidade } from "@/lib/types";
+import type { GrupoAluno, Mensalidade, StatusMensalidade } from "@/lib/types";
 
 type MensalidadeComAluno = Mensalidade & {
-  profiles: { nome_completo: string } | null;
+  profiles: { nome_completo: string; grupo_id: string | null } | null;
 };
 
 interface Props {
   mensalidades: MensalidadeComAluno[];
+  grupos: GrupoAluno[];
 }
 
 function statusBadge(s: StatusMensalidade) {
@@ -38,13 +39,14 @@ const hoje = new Date();
 const MES_ATUAL = String(hoje.getMonth() + 1).padStart(2, "0");
 const ANO_ATUAL = String(hoje.getFullYear());
 
-export function FinanceiroView({ mensalidades }: Props) {
+export function FinanceiroView({ mensalidades, grupos }: Props) {
   const [busca, setBusca] = useState("");
   const [filtroMes, setFiltroMes] = useState(MES_ATUAL);
   const [filtroAno, setFiltroAno] = useState(ANO_ATUAL);
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [statusFiltro, setStatusFiltro] = useState<"" | StatusMensalidade>("");
+  const [filtroGrupo, setFiltroGrupo] = useState("");
   const [pending, startTransition] = useTransition();
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
@@ -61,6 +63,7 @@ export function FinanceiroView({ mensalidades }: Props) {
       const nome = m.profiles?.nome_completo ?? "";
       if (busca && !nome.toLowerCase().includes(busca.toLowerCase())) return false;
       if (statusFiltro && getEffectiveStatus(m) !== statusFiltro) return false;
+      if (filtroGrupo && m.profiles?.grupo_id !== filtroGrupo) return false;
       if (temPeriodo) {
         if (dataInicio && m.data_vencimento < dataInicio) return false;
         if (dataFim && m.data_vencimento > dataFim) return false;
@@ -70,7 +73,7 @@ export function FinanceiroView({ mensalidades }: Props) {
       }
       return true;
     });
-  }, [mensalidades, busca, filtroAno, filtroMes, statusFiltro, dataInicio, dataFim, temPeriodo]);
+  }, [mensalidades, busca, filtroAno, filtroMes, statusFiltro, filtroGrupo, dataInicio, dataFim, temPeriodo]);
 
   const totalPago = filtered.filter((m) => m.status === "pago").reduce((s, m) => s + m.valor, 0);
   const totalPendente = filtered.filter((m) => m.status !== "pago").reduce((s, m) => s + m.valor, 0);
@@ -163,6 +166,20 @@ export function FinanceiroView({ mensalidades }: Props) {
           <option value="pago">Pago</option>
           <option value="atrasado">Atrasado</option>
         </select>
+        {grupos.length > 0 && (
+          <select
+            title="Filtrar por grupo"
+            aria-label="Filtrar por grupo"
+            value={filtroGrupo}
+            onChange={(e) => setFiltroGrupo(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">Todos os grupos</option>
+            {grupos.map((g) => (
+              <option key={g.id} value={g.id}>{g.nome}{g.ativo ? "" : " (inativo)"}</option>
+            ))}
+          </select>
+        )}
         <div className="flex items-center gap-1">
           <label className="text-xs text-gray-500" htmlFor="data-inicio">De</label>
           <input

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { listarGrupos } from "@/lib/grupos";
 import type { Profile, Mensalidade, HistoricoGraduacao } from "@/lib/types";
 import type { PresencaItem } from "@/components/PresencasCalendario";
 import { calcularElegibilidade, type ElegibilidadeResult } from "@/lib/graduacao-rules";
@@ -22,6 +23,7 @@ export default async function AlunoDetailPage({ params }: Props) {
     { data: dependentesRows },
     { data: alunosComLoginRows },
     authUserResult,
+    grupos,
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", id).single(),
     supabase
@@ -55,6 +57,7 @@ export default async function AlunoDetailPage({ params }: Props) {
       .or("sem_login.is.null,sem_login.eq.false")
       .order("nome_completo"),
     supabase.auth.admin.getUserById(id),
+    listarGrupos(supabase),
   ]);
 
   if (!aluno) notFound();
@@ -92,6 +95,7 @@ export default async function AlunoDetailPage({ params }: Props) {
       responsavel={responsavelProfile}
       dependentesDoAluno={dependentesProfiles}
       alunosComLogin={todosProfiles}
+      grupos={grupos}
     />
   );
 }

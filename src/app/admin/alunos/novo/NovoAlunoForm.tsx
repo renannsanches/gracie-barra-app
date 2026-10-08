@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { labelCorFaixa } from "@/lib/utils";
 import { PhoneInput } from "@/components/PhoneInput";
+import { GrupoPicker } from "@/components/GrupoPicker";
 import { senhaValida, REGRA_SENHA_TEXTO } from "@/lib/senha";
 import { criarAluno } from "./actions";
-import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
+import type { CorFaixa, CategoriaFaixa, GrupoAluno } from "@/lib/types";
 
 const COR_FAIXA_OPTIONS: CorFaixa[] = [
   "branca",
@@ -25,9 +26,10 @@ const selectClass = "w-full h-10 rounded-xl border border-gray-200 bg-white px-3
 
 interface Props {
   alunosComLogin: { id: string; nome_completo: string }[];
+  grupos: GrupoAluno[];
 }
 
-export function NovoAlunoForm({ alunosComLogin }: Props) {
+export function NovoAlunoForm({ alunosComLogin, grupos }: Props) {
   const router = useRouter();
   const [carregando, setCarregando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
@@ -46,6 +48,7 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
     primeiro_vencimento: "",
     dia_vencimento: "10",
     responsavel_id: "",
+    grupo_id: (grupos.find((g) => g.padrao && g.ativo) ?? grupos.find((g) => g.ativo))?.id ?? "",
   });
 
   function set(field: string, value: string) {
@@ -153,6 +156,24 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
           </select>
         </div>
       </div>
+      )}
+
+      {/* Grupo — onde treina (academia, colégio…); não se aplica a responsáveis */}
+      {form.perfil !== "responsavel" && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+          <div>
+            <h2 id="grupo-label" className="font-bold text-gray-900 text-sm uppercase tracking-wide text-gb-blue">Grupo</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Onde treina. Usado para filtrar cadastros e mensalidades.</p>
+          </div>
+          <GrupoPicker
+            id="grupo_id"
+            labelledBy="grupo-label"
+            grupos={grupos}
+            value={form.grupo_id}
+            onChange={(v) => set("grupo_id", v)}
+            disabled={carregando}
+          />
+        </div>
       )}
 
       {/* Dados de Acesso — oculto quando sem_login */}
