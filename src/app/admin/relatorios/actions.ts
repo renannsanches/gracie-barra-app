@@ -1,8 +1,9 @@
 "use server";
 
+import { descreverItens, formatarEuro } from "@/lib/modalidades";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
-import { StatusMensalidade, StatusLancamento, TipoLancamento } from "@/lib/types";
+import { type ItemMensalidade, StatusMensalidade, StatusLancamento, TipoLancamento } from "@/lib/types";
 
 export interface LancamentoRelatorio {
   id: string;
@@ -24,6 +25,8 @@ export interface MensalidadeRelatorio {
   mes_referencia: string;
   data_vencimento: string;
   valor: number;
+  /** Composição legível, ex.: "Jiu-Jitsu 50 € + Capoeira 20 €" */
+  detalhe: string;
   status: StatusMensalidade;
   data_pagamento: string | null;
 }
@@ -31,6 +34,15 @@ export interface MensalidadeRelatorio {
 export interface PresencaRelatorio {
   aluno_nome: string;
   registrado_em: string;
+}
+
+function textoDetalhe(valor: number, itens: ItemMensalidade[] | null): string {
+  const { linhas, ajuste } = descreverItens(valor, itens);
+  if (linhas.length === 0) return "";
+  if (linhas.length === 1 && ajuste === 0) return linhas[0].nome;
+  const partes = linhas.map((l) => `${l.nome} ${formatarEuro(l.valor)}`);
+  if (ajuste !== 0) partes.push(`Ajuste ${ajuste > 0 ? "+" : "−"}${formatarEuro(Math.abs(ajuste))}`);
+  return partes.join(" + ");
 }
 
 export async function getRelatorioFinanceiro(filtros: {
@@ -44,7 +56,7 @@ export async function getRelatorioFinanceiro(filtros: {
 
   let query = admin
     .from("mensalidades")
-    .select("id, aluno_id, mes_referencia, data_vencimento, valor, status, data_pagamento, profiles(nome_completo)")
+    .select("id, aluno_id, mes_referencia, data_vencimento, valor, itens, status, data_pagamento, profiles(nome_completo)")
     .order("mes_referencia", { ascending: false })
     .order("data_vencimento", { ascending: false });
 
@@ -65,6 +77,7 @@ export async function getRelatorioFinanceiro(filtros: {
     mes_referencia: row.mes_referencia,
     data_vencimento: row.data_vencimento,
     valor: row.valor,
+    detalhe: textoDetalhe(row.valor, row.itens),
     status: row.status,
     data_pagamento: row.data_pagamento,
   }));

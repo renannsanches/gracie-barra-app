@@ -5,6 +5,8 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { senhaValida, REGRA_SENHA_TEXTO } from "@/lib/senha";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { somaItens } from "@/lib/modalidades";
+import type { ItemMensalidade } from "@/lib/types";
 
 export interface CriarAlunoResult {
   ok: boolean;
@@ -29,9 +31,14 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
   const categoria           = (formData.get("categoria") as string) || "adulto";
   const iban                = (formData.get("iban") as string | null)?.trim() || null;
   const nif                 = (formData.get("nif") as string | null)?.trim() || null;
-  const valorMensalidade    = isResponsavel ? null : ((formData.get("valor_mensalidade") as string | null)?.trim() || null);
   const primeiroVencimento  = isResponsavel ? null : ((formData.get("primeiro_vencimento") as string | null)?.trim() || null);
 
+  let planoForm: { modalidade_id: string; valor: number }[] = [];
+  try {
+    planoForm = isResponsavel ? [] : JSON.parse((formData.get("modalidades") as string | null) || "[]");
+  } catch {
+    return { ok: false, erro: "Modalidades inválidas." };
+  }
   const grupoIdForm         = (formData.get("grupo_id") as string | null)?.trim() || null;
 
   if (!nomeCompleto) return { ok: false, erro: "Nome é obrigatório." };
@@ -45,6 +52,27 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
       .from("grupos_alunos").select("id, ativo").eq("id", grupoIdForm).maybeSingle();
     if (!grupo || !grupo.ativo) return { ok: false, erro: "Grupo inválido ou inativo. Escolhe outro grupo." };
     grupoId = grupo.id;
+  }
+
+  // Modalidades: confirmar que existem e montar a composição da mensalidade
+  let itens: ItemMensalidade[] = [];
+  if (planoForm.length > 0) {
+    const { data: mods } = await admin
+      .from("modalidades").select("id, nome").in("id", planoForm.map((p) => p.modalidade_id));
+    const nomes = new Map((mods ?? []).map((m) => [m.id as string, m.nome as string]));
+    if (nomes.size !== planoForm.length || planoForm.some((p) => !Number.isFinite(p.valor) || p.valor < 0)) {
+      return { ok: false, erro: "Modalidade ou valor inválido." };
+    }
+    itens = planoForm.map((p) => ({ modalidade_id: p.modalidade_id, nome: nomes.get(p.modalidade_id)!, valor: p.valor }));
+  }
+  const valorMensalidade = itens.length > 0 ? somaItens(itens) : 0;
+
+  async function gravarPlano(alunoId: string) {
+    if (itens.length === 0) return null;
+    const { error } = await admin.from("aluno_modalidades").insert(
+      itens.map((i) => ({ aluno_id: alunoId, modalidade_id: i.modalidade_id, valor: i.valor })),
+    );
+    return error;
   }
 
   try {
@@ -70,6 +98,9 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
 
       if (insertErr) return { ok: false, erro: insertErr.message };
 
+      const planoErr = await gravarPlano(uuid);
+      if (planoErr) return { ok: false, erro: `Aluno criado, mas erro nas modalidades: ${planoErr.message}` };
+
       if (responsavelId) {
         await admin.from("dependentes").insert({
           dependente_id:  uuid,
@@ -77,14 +108,15 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
         });
       }
 
-      if (valorMensalidade && primeiroVencimento && Number(valorMensalidade) > 0) {
+      if (valorMensalidade > 0 && primeiroVencimento) {
         const [ano, mes] = primeiroVencimento.split("-");
         const mesRef = `${ano}-${mes}-01`;
         await admin.from("mensalidades").insert({
           aluno_id:        uuid,
           mes_referencia:  mesRef,
           data_vencimento: primeiroVencimento,
-          valor:           Number(valorMensalidade),
+          valor:           valorMensalidade,
+          itens,
           status:          "pendente",
         });
       }
@@ -131,14 +163,18 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
 
     if (profileErr) return { ok: false, erro: `Usuário criado, mas erro no perfil: ${profileErr.message}` };
 
-    if (valorMensalidade && primeiroVencimento && Number(valorMensalidade) > 0) {
+    const planoErr = await gravarPlano(userId);
+    if (planoErr) return { ok: false, erro: `Usuário criado, mas erro nas modalidades: ${planoErr.message}` };
+
+    if (valorMensalidade > 0 && primeiroVencimento) {
       const [ano, mes] = primeiroVencimento.split("-");
       const mesRef = `${ano}-${mes}-01`;
       await admin.from("mensalidades").insert({
         aluno_id:        userId,
         mes_referencia:  mesRef,
         data_vencimento: primeiroVencimento,
-        valor:           Number(valorMensalidade),
+        valor:           valorMensalidade,
+        itens,
         status:          "pendente",
       });
     }

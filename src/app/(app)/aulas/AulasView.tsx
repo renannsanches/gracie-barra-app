@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Users, Check, X, Clock, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,7 +21,7 @@ export interface AulaParaAluno {
   horario: string;
   lotacao_maxima: number;
   status: StatusAula;
-  turma: { id: string; nome: string; categoria: CategoriaFaixa } | null;
+  turma: { id: string; nome: string; categoria: CategoriaFaixa; modalidade_id: string } | null;
   reservas_confirmadas: number;
 }
 
@@ -168,6 +168,11 @@ interface Props {
   dependentes: DependenteOpcao[];
   bloqueadosPorFinanceiro: string[];
   reservantesPorAula: Record<string, ReservanteDaAula[]>;
+  /** pessoa (eu ou dependente) → modalidades em que está inscrita */
+  modalidadesPorPessoa: Record<string, string[]>;
+  nomesModalidade: Record<string, string>;
+  /** Usada quando a pessoa não tem modalidades registadas */
+  modalidadePadraoId: string | null;
 }
 
 export function AulasView({
@@ -181,6 +186,9 @@ export function AulasView({
   dependentes,
   bloqueadosPorFinanceiro,
   reservantesPorAula: reservantesProp,
+  modalidadesPorPessoa,
+  nomesModalidade,
+  modalidadePadraoId,
 }: Props) {
   const router = useRouter();
   const [aulas, setAulas] = useState(aulasProp);
@@ -194,6 +202,23 @@ export function AulasView({
   const selecionadoCategoria: CategoriaFaixa = selecionadoId === userId
     ? categoriaAluno
     : (dependentes.find((d) => d.id === selecionadoId)?.categoria ?? categoriaAluno);
+
+  // Modalidades da pessoa selecionada; sem registo, assume a padrão (ex.: Jiu-Jitsu)
+  const modalidadesSelecionado = useMemo(() => {
+    const proprias = modalidadesPorPessoa[selecionadoId] ?? [];
+    return proprias.length > 0 ? proprias : modalidadePadraoId ? [modalidadePadraoId] : [];
+  }, [modalidadesPorPessoa, selecionadoId, modalidadePadraoId]);
+  const mostrarModalidade = modalidadesSelecionado.length > 1;
+
+  /** A aula é para esta pessoa? (categoria + modalidade) */
+  const aulaParaSelecionado = useCallback(
+    (a: AulaParaAluno) => {
+      if (!a.turma) return false;
+      if (modalidadesSelecionado.length > 0 && !modalidadesSelecionado.includes(a.turma.modalidade_id)) return false;
+      return selecionadoCategoria === "adulto_infantil" || a.turma.categoria === selecionadoCategoria;
+    },
+    [modalidadesSelecionado, selecionadoCategoria],
+  );
 
   function getSelecionadoInfo(): { nome_completo: string; foto_url: string | null } {
     if (selecionadoId === userId) return { nome_completo: nomeCompleto, foto_url: fotoUrl };
@@ -221,24 +246,22 @@ export function AulasView({
       aulas
         .filter((a) => {
           if (a.data !== diaAtivo) return false;
-          if (selecionadoCategoria === "adulto_infantil") return true;
-          return a.turma?.categoria === selecionadoCategoria;
+          return aulaParaSelecionado(a);
         })
         .sort((a, b) => a.horario.localeCompare(b.horario)),
-    [aulas, diaAtivo, selecionadoCategoria],
+    [aulas, diaAtivo, aulaParaSelecionado],
   );
 
   const reservasPorDia = useMemo(() => {
     const map: Record<string, number> = {};
     const minhas = reservasPorAluno[selecionadoId] ?? {};
     for (const a of aulas) {
-      if (minhas[a.id]?.status === "confirmada" &&
-          (selecionadoCategoria === "adulto_infantil" || a.turma?.categoria === selecionadoCategoria)) {
+      if (minhas[a.id]?.status === "confirmada" && aulaParaSelecionado(a)) {
         map[a.data] = (map[a.data] ?? 0) + 1;
       }
     }
     return map;
-  }, [aulas, reservasPorAluno, selecionadoId, selecionadoCategoria]);
+  }, [aulas, reservasPorAluno, selecionadoId, aulaParaSelecionado]);
 
   function handleSelecionado(id: string) {
     setSelecionadoId(id);
@@ -369,7 +392,7 @@ export function AulasView({
             const isToday   = iso === dias[0].iso;
             const isActive  = iso === diaAtivo;
             const temReserva = !!reservasPorDia[iso];
-            const temAulas  = aulas.some((a) => a.data === iso && a.turma?.categoria === selecionadoCategoria);
+            const temAulas  = aulas.some((a) => a.data === iso && aulaParaSelecionado(a));
 
             return (
               <button
@@ -481,6 +504,11 @@ export function AulasView({
                         <p className="font-bold text-gray-900 text-sm leading-tight">
                           {aula.turma?.nome ?? "—"}
                           {tag && <span className="font-normal text-gray-500"> · {formatarHorario(aula.horario)}</span>}
+                          {mostrarModalidade && aula.turma && nomesModalidade[aula.turma.modalidade_id] && (
+                            <span className="ml-1.5 align-middle inline-block rounded-full bg-gb-blue/10 px-2 py-px text-[11px] font-semibold text-gb-blue">
+                              {nomesModalidade[aula.turma.modalidade_id]}
+                            </span>
+                          )}
                         </p>
                       );
                     })()}
