@@ -2,8 +2,9 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { grupoPadraoId } from "@/lib/grupos";
+import { modalidadePadrao, valorSugerido } from "@/lib/modalidades";
 import { createClient } from "@/lib/supabase/server";
-import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
+import type { CorFaixa, CategoriaFaixa, ItemMensalidade, Modalidade } from "@/lib/types";
 import { sendContractEmail } from "@/lib/send-contract-email";
 
 export async function verificarEmailExistente(email: string): Promise<boolean> {
@@ -39,7 +40,7 @@ function gerarDatas6Meses(): Date[] {
   return Array.from({ length: 6 }, (_, i) => proximoDia5DoMes(offsetBase + i));
 }
 
-async function gerarMensalidades(alunoId: string, valor: number) {
+async function gerarMensalidades(alunoId: string, valor: number, itens: ItemMensalidade[] | null) {
   const admin = createAdminClient();
   const datas = gerarDatas6Meses();
   for (const data of datas) {
@@ -53,12 +54,36 @@ async function gerarMensalidades(alunoId: string, valor: number) {
         mes_referencia: mesRef,
         data_vencimento: dataVenc,
         valor,
+        itens,
         status: "pendente",
       },
       { onConflict: "aluno_id,mes_referencia", ignoreDuplicates: true }
     );
     if (error) throw new Error(`Erro ao gerar mensalidade ${mesRef}: ${error.message}`);
   }
+}
+
+/**
+ * Inscreve na modalidade padrão (ex.: Jiu-Jitsu) com o valor sugerido para a idade
+ * e gera as mensalidades. Sem modalidade padrão, usa 62/55 € como antes.
+ */
+async function inscreverEGerarMensalidades(
+  alunoId: string,
+  dataNasc: string | null,
+  padrao: Modalidade | null,
+) {
+  if (!padrao) {
+    await gerarMensalidades(alunoId, calcularIdade(dataNasc) < 16 ? 55 : 62, null);
+    return;
+  }
+  const valor = valorSugerido(padrao, dataNasc);
+  const admin = createAdminClient();
+  const { error } = await admin.from("aluno_modalidades").upsert(
+    { aluno_id: alunoId, modalidade_id: padrao.id, valor },
+    { onConflict: "aluno_id,modalidade_id", ignoreDuplicates: true },
+  );
+  if (error) throw new Error(`Erro ao inscrever na modalidade: ${error.message}`);
+  await gerarMensalidades(alunoId, valor, [{ modalidade_id: padrao.id, nome: padrao.nome, valor }]);
 }
 
 export async function concluirCadastro(params: {
@@ -90,6 +115,7 @@ export async function concluirCadastro(params: {
     const admin = createAdminClient();
     // Registos feitos pela app entram no grupo padrão (ex.: Academia)
     const grupoId = await grupoPadraoId(admin);
+    const modalidade = await modalidadePadrao(admin);
 
     // 1. Update responsável/adulto profile
     const profileUpdate: Record<string, unknown> = {
@@ -118,9 +144,7 @@ export async function concluirCadastro(params: {
 
     // 2. Generate mensalidades for adult (if not pure responsavel)
     if (params.tipo !== "responsavel") {
-      const idadeAdulto = calcularIdade(params.dataNascimento);
-      const valorAdulto = idadeAdulto < 16 ? 55 : 62;
-      await gerarMensalidades(user.id, valorAdulto);
+      await inscreverEGerarMensalidades(user.id, params.dataNascimento, modalidade);
     }
 
     // 3. Create dependentes (if not pure aluno)
@@ -152,9 +176,7 @@ export async function concluirCadastro(params: {
 
         if (linkErr) return { ok: false, erro: `Erro ao vincular dependente: ${linkErr.message}` };
 
-        const idadeDep = calcularIdade(dep.dataNasc);
-        const valorDep = idadeDep < 16 ? 55 : 62;
-        await gerarMensalidades(depId, valorDep);
+        await inscreverEGerarMensalidades(depId, dep.dataNasc, modalidade);
       }
     }
 

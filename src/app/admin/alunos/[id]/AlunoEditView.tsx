@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Check, Loader2, User, CalendarDays, CreditCard,
-  Plus, RotateCcw, Award, Trash2, Camera, Users, Pencil, X, Star, ChevronRight,
+  Plus, RotateCcw, Award, Trash2, Camera, Users, Pencil, X, Star, ChevronRight, Shapes,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
@@ -23,6 +23,7 @@ import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type {
   Profile, CorFaixa, StatusAluno, CategoriaFaixa, PerfilUsuario,
   Mensalidade, StatusMensalidade, HistoricoGraduacao, GrupoAluno,
+  Modalidade, AlunoModalidade,
 } from "@/lib/types";
 import type { PresencaItem } from "@/components/PresencasCalendario";
 import {
@@ -37,6 +38,10 @@ import {
   editarMensalidade as serverEditarMensalidade,
   editarMensalidadesEmLote as serverEditarMensalidadesEmLote,
 } from "./mensalidades-actions";
+import { guardarModalidadesAluno, aplicarPlanoPendentes } from "./modalidades-aluno-actions";
+import { ModalidadesEditor, lerPlano, type PlanoRascunho } from "@/components/ModalidadesEditor";
+import { ValorMensalidade } from "@/components/ValorMensalidade";
+import { formatarEuro, lerValorEuro, mesCurto, somaItens, valorParaInput } from "@/lib/modalidades";
 import { registrarGraduacao, excluirGraduacao } from "./graduacao-actions";
 import { uploadFotoAluno } from "./foto-actions";
 import { atualizarResponsavel } from "./dependentes-actions";
@@ -110,6 +115,8 @@ interface Props {
   dependentesDoAluno: ProfileSimples[];
   alunosComLogin: ProfileSimples[];
   grupos: GrupoAluno[];
+  modalidades: Modalidade[];
+  planoInicial: AlunoModalidade[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -124,6 +131,8 @@ export function AlunoEditView({
   dependentesDoAluno,
   alunosComLogin,
   grupos,
+  modalidades,
+  planoInicial,
 }: Props) {
   const router = useRouter();
   const fotoInputRef = useRef<HTMLInputElement>(null);
@@ -172,6 +181,21 @@ export function AlunoEditView({
     mes_referencia: `${hojeObj.getFullYear()}-${String(hojeObj.getMonth() + 1).padStart(2, "0")}-01`,
     data_vencimento: `${hojeObj.getFullYear()}-${String(hojeObj.getMonth() + 1).padStart(2, "0")}-05`,
   });
+
+  // ── Modalidades (plano do aluno) ───────────────────────────────────────────
+  const planoParaRascunho = (p: AlunoModalidade[]): PlanoRascunho[] =>
+    p.map((x) => ({ modalidade_id: x.modalidade_id, valor: valorParaInput(x.valor) }));
+  const [plano, setPlano] = useState<PlanoRascunho[]>(() => planoParaRascunho(planoInicial));
+  const [planoGuardado, setPlanoGuardado] = useState<PlanoRascunho[]>(() => planoParaRascunho(planoInicial));
+  const [guardandoPlano, setGuardandoPlano] = useState(false);
+  const [erroPlano, setErroPlano] = useState("");
+  const [planoOk, setPlanoOk] = useState(false);
+  const [avisoPendentes, setAvisoPendentes] = useState<{
+    quantidade: number; de: string | null; ate: string | null; totalAntes: number; totalDepois: number;
+  } | null>(null);
+  const [aplicandoPendentes, setAplicandoPendentes] = useState(false);
+  const planoAlterado = JSON.stringify(plano) !== JSON.stringify(planoGuardado);
+  const totalDoPlano = (p: PlanoRascunho[]) => somaItens(p.map((x) => ({ valor: lerValorEuro(x.valor) ?? 0 })));
 
   // ── Presenças ──────────────────────────────────────────────────────────────
   const [presencas, setPresencas] = useState(presencasProp);
@@ -398,8 +422,54 @@ export function AlunoEditView({
     }
   }
 
+  async function handleGuardarPlano() {
+    const { itens, erro } = lerPlano(plano, modalidades);
+    if (!itens) { setErroPlano(erro ?? "Valor inválido."); return; }
+    setGuardandoPlano(true); setErroPlano(""); setPlanoOk(false); setAvisoPendentes(null);
+    try {
+      const r = await guardarModalidadesAluno(aluno.id, itens);
+      if (!r.ok) { setErroPlano(r.erro ?? "Não foi possível guardar."); return; }
+      setPlanoGuardado(plano);
+      if (r.pendentes && r.pendentes.quantidade > 0) {
+        setAvisoPendentes({ ...r.pendentes, totalAntes: r.totalAntes ?? 0, totalDepois: r.totalDepois ?? 0 });
+      } else {
+        setPlanoOk(true);
+        setTimeout(() => setPlanoOk(false), 3000);
+      }
+    } catch {
+      setErroPlano("Erro de rede. Tenta novamente.");
+    } finally {
+      setGuardandoPlano(false);
+    }
+  }
+
+  async function handleAplicarPendentes() {
+    setAplicandoPendentes(true); setErroPlano("");
+    try {
+      const r = await aplicarPlanoPendentes(aluno.id);
+      if (!r.ok) { setErroPlano(r.erro ?? "Não foi possível atualizar as mensalidades."); return; }
+      const porId = new Map((r.atualizadas ?? []).map((a) => [a.id, a]));
+      setMensalidades((prev) => prev.map((m) => {
+        const a = porId.get(m.id);
+        return a ? { ...m, valor: a.valor, itens: a.itens } : m;
+      }));
+      setAvisoPendentes(null);
+      setPlanoOk(true);
+      setTimeout(() => setPlanoOk(false), 3000);
+    } catch {
+      setErroPlano("Erro de rede. Tenta novamente.");
+    } finally {
+      setAplicandoPendentes(false);
+    }
+  }
+
   async function handleGerarProximoMes() {
-    if (mensalidades.length === 0) { setMostraCriarPrimeira(true); return; }
+    if (mensalidades.length === 0) {
+      // Pré-preenche com o total das modalidades guardadas
+      setPrimeiraMensalidadeForm((f) => ({ ...f, valor: f.valor || valorParaInput(totalDoPlano(planoGuardado)) }));
+      setMostraCriarPrimeira(true);
+      return;
+    }
     setAcao("gerar"); setAcaoErro("");
     try {
       const result = await serverGerarProximoMes(aluno.id);
@@ -556,7 +626,7 @@ export function AlunoEditView({
   // ─── JSX ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-2xl mx-auto">
+    <div className="w-full p-4 md:p-6 space-y-5 max-w-2xl mx-auto">
 
       {/* ── Back ── */}
       <button
@@ -1142,10 +1212,86 @@ export function AlunoEditView({
       </div>
       )}
 
+      {/* ── Modalidades ── */}
+      {!isResponsavel && (
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+        <div>
+          <h2 className="font-bold text-gray-900 flex items-center gap-2">
+            <Shapes size={16} className="text-gb-blue" />
+            Modalidades
+          </h2>
+          <p className="text-xs text-gray-500 mt-0.5">O que treina e quanto paga por cada uma. A mensalidade é a soma.</p>
+        </div>
+
+        <ModalidadesEditor
+          idPrefix="plano"
+          modalidades={modalidades}
+          value={plano}
+          onChange={(p) => { setPlano(p); setErroPlano(""); setPlanoOk(false); }}
+          dataNascimento={form.data_nascimento || aluno.data_nascimento}
+          disabled={guardandoPlano || aplicandoPendentes}
+        />
+
+        {erroPlano && <p role="alert" className="text-sm text-red-600">{erroPlano}</p>}
+        {planoOk && (
+          <p className="flex items-center gap-1.5 text-sm font-medium text-green-700">
+            <Check size={15} /> Modalidades guardadas.
+          </p>
+        )}
+
+        {avisoPendentes && (
+          <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+            <p className="text-sm text-amber-900">
+              O valor mensal passou de <strong>{formatarEuro(avisoPendentes.totalAntes)}</strong> para{" "}
+              <strong>{formatarEuro(avisoPendentes.totalDepois)}</strong>. Atualizar{" "}
+              {avisoPendentes.quantidade === 1
+                ? "a mensalidade pendente"
+                : `as ${avisoPendentes.quantidade} mensalidades pendentes`}
+              {avisoPendentes.de && (
+                <>
+                  {" "}({mesCurto(avisoPendentes.de)}
+                  {avisoPendentes.ate && avisoPendentes.ate !== avisoPendentes.de && <> – {mesCurto(avisoPendentes.ate)}</>})
+                </>
+              )}
+              ?
+            </p>
+            <p className="text-xs text-amber-800">As mensalidades já pagas não mudam.</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                onClick={handleAplicarPendentes}
+                disabled={aplicandoPendentes}
+                className="h-9 bg-gb-blue hover:bg-gb-blue-dark text-white"
+              >
+                {aplicandoPendentes ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Check size={14} className="mr-1.5" />}
+                Atualizar pendentes
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setAvisoPendentes(null)} disabled={aplicandoPendentes} className="h-9">
+                Agora não
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {planoAlterado && !avisoPendentes && (
+          <Button
+            type="button"
+            onClick={handleGuardarPlano}
+            disabled={guardandoPlano}
+            className="bg-gb-blue hover:bg-gb-blue-dark text-white"
+          >
+            {guardandoPlano
+              ? <><Loader2 size={15} className="animate-spin mr-2" />A guardar…</>
+              : <><Check size={15} className="mr-2" />Guardar modalidades · {formatarEuro(totalDoPlano(plano))}/mês</>}
+          </Button>
+        )}
+      </div>
+      )}
+
       {/* ── Mensalidades ── */}
       {!isResponsavel && (
       <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
           <h2 className="font-bold text-gray-900 flex items-center gap-2">
             <CreditCard size={16} className="text-gb-blue" />
             Mensalidades
@@ -1294,7 +1440,7 @@ export function AlunoEditView({
                               onChange={(e) => setEditando((prev) => prev && { ...prev, valor: e.target.value })}
                               className="h-7 w-24 rounded border border-gray-300 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-gb-blue/30"
                             />
-                          ) : (m.valor != null ? formatarMoeda(m.valor) : "—")}
+                          ) : (m.valor != null ? <ValorMensalidade valor={m.valor} itens={m.itens} /> : "—")}
                         </td>
                         <td className="px-4 py-3">
                           {(() => { const ef = getEffectiveStatus(m); return (

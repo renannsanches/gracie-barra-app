@@ -157,6 +157,7 @@ PLAYWRIGHT_ADMIN_PASSWORD=<strong-random>
 /admin/alunos/novo      → formulário de novo aluno
 /admin/alunos/[id]      → ficha completa: dados, fotos, mensalidades, presenças, graduações, dependentes
 /admin/grupos           → grupos de alunos (ex.: Academia, Colégio): criar, renomear, ativar/desativar, apagar vazio
+/admin/modalidades      → modalidades (Jiu-Jitsu, Capoeira…): valor sugerido adulto/menores de 16, ativar/desativar, apagar sem uso
 /admin/turmas           → lista de turmas
 /admin/turmas/nova      → criar turma
 /admin/turmas/[id]      → editar turma + gerir aulas + ver reservas + marcar presenças
@@ -285,6 +286,8 @@ Ao concluir cadastro:
 | `albuns` | Álbuns de fotos (título, capa, autor) |
 | `fotos` | Fotos dentro de álbuns (URL no Storage, legenda) |
 | `grupos_alunos` | Grupos de alunos (nome, ativo, padrao). O grupo `padrao` recebe os registos feitos em `/cadastro`; não pode ser desativado nem apagado |
+| `modalidades` | Catálogo (nome, valor, valor_infantil, ativo, padrao). Padrão (Jiu-Jitsu) = modalidade dos registos da app |
+| `aluno_modalidades` | "Plano" do aluno: modalidades + valor próprio de cada (PK aluno_id+modalidade_id). Mensalidade = soma |
 
 ### Campos chave de `profiles`
 
@@ -468,6 +471,7 @@ gb: {
 | — | **Modal de mensalidade em atraso** | Atraso ≥2 dias (próprio ou de dependente) → modal 1x/dia no layout `(app)` com WhatsApp da Simone; some quando a mensalidade é paga |
 | — | **Modal semanal de aptos a graduar** | Admin/professor vêem em `/perfil`, 1x por semana, aviso de que há alunos aptos (só se houver ≥1) |
 | — | **Grupos de alunos** | `/admin/grupos` (CRUD inline); campo Grupo em novo aluno e ficha (todos os perfis menos responsável); filtro por grupo em Cadastros e Financeiro (totais seguem o filtro); `/cadastro` atribui o grupo padrão |
+| — | **Modalidades** | `/admin/modalidades`; card Modalidades na ficha (valor por aluno, total, "Atualizar pendentes" quando muda); `mensalidades.itens` (jsonb) guarda a composição e `valor` continua a ser o total; detalhe "JJ 50 € · Capoeira 20 €" no Financeiro, ficha, perfil do aluno e relatórios; `turmas.modalidade_id` filtra `/aulas` e é validado em `reservar` |
 
 ### ❌ Por implementar
 

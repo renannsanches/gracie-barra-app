@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,11 @@ import { Label } from "@/components/ui/label";
 import { labelCorFaixa } from "@/lib/utils";
 import { PhoneInput } from "@/components/PhoneInput";
 import { GrupoPicker } from "@/components/GrupoPicker";
+import { ModalidadesEditor, lerPlano, type PlanoRascunho } from "@/components/ModalidadesEditor";
+import { valorParaInput, valorSugerido } from "@/lib/modalidades";
 import { senhaValida, REGRA_SENHA_TEXTO } from "@/lib/senha";
 import { criarAluno } from "./actions";
-import type { CorFaixa, CategoriaFaixa, GrupoAluno } from "@/lib/types";
+import type { CorFaixa, CategoriaFaixa, GrupoAluno, Modalidade } from "@/lib/types";
 
 const COR_FAIXA_OPTIONS: CorFaixa[] = [
   "branca",
@@ -27,9 +29,16 @@ const selectClass = "w-full h-10 rounded-xl border border-gray-200 bg-white px-3
 interface Props {
   alunosComLogin: { id: string; nome_completo: string }[];
   grupos: GrupoAluno[];
+  modalidades: Modalidade[];
 }
 
-export function NovoAlunoForm({ alunosComLogin, grupos }: Props) {
+/** Plano inicial: modalidade padrão com o valor sugerido para a idade. */
+function planoInicial(modalidades: Modalidade[], dataNascimento: string): PlanoRascunho[] {
+  const padrao = modalidades.find((m) => m.padrao && m.ativo) ?? modalidades.find((m) => m.ativo);
+  return padrao ? [{ modalidade_id: padrao.id, valor: valorParaInput(valorSugerido(padrao, dataNascimento)) }] : [];
+}
+
+export function NovoAlunoForm({ alunosComLogin, grupos, modalidades }: Props) {
   const router = useRouter();
   const [carregando, setCarregando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
@@ -44,7 +53,6 @@ export function NovoAlunoForm({ alunosComLogin, grupos }: Props) {
     graus: "0",
     categoria: "adulto" as CategoriaFaixa,
     perfil: "aluno",
-    valor_mensalidade: "",
     primeiro_vencimento: "",
     dia_vencimento: "10",
     responsavel_id: "",
@@ -54,6 +62,13 @@ export function NovoAlunoForm({ alunosComLogin, grupos }: Props) {
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
   }
+
+  // Modalidades: enquanto o admin não mexer, o valor acompanha a data de nascimento (<16 → infantil)
+  const [plano, setPlano] = useState<PlanoRascunho[]>(() => planoInicial(modalidades, ""));
+  const [planoMexido, setPlanoMexido] = useState(false);
+  useEffect(() => {
+    if (!planoMexido) setPlano(planoInicial(modalidades, form.data_nascimento));
+  }, [form.data_nascimento, planoMexido, modalidades]);
 
   const senhaFraca = form.senha.length > 0 && !senhaValida(form.senha);
 
@@ -66,10 +81,15 @@ export function NovoAlunoForm({ alunosComLogin, grupos }: Props) {
       return;
     }
 
+    const precisaPlano = form.perfil !== "responsavel";
+    const { itens, erro: erroPlano } = lerPlano(precisaPlano ? plano : [], modalidades);
+    if (!itens) { setErro(erroPlano ?? "Valor inválido numa modalidade."); return; }
+
     setCarregando(true);
 
     const fd = new FormData();
     Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+    fd.append("modalidades", JSON.stringify(itens));
     fd.append("sem_login", String(semLogin));
 
     try {
@@ -338,20 +358,21 @@ export function NovoAlunoForm({ alunosComLogin, grupos }: Props) {
       {/* Mensalidade */}
       {form.perfil !== "responsavel" && (
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
-        <h2 className="font-bold text-sm uppercase tracking-wide text-gb-blue">Mensalidade</h2>
+        <div>
+          <h2 className="font-bold text-sm uppercase tracking-wide text-gb-blue">Modalidades e mensalidade</h2>
+          <p className="text-xs text-gray-500 mt-0.5">O que treina e quanto paga por cada uma. A mensalidade é a soma.</p>
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="valor_mensalidade">Valor (€)</Label>
-            <Input
-              id="valor_mensalidade"
-              type="number" min="0" step="0.01"
-              placeholder="0,00"
-              value={form.valor_mensalidade}
-              onChange={(e) => set("valor_mensalidade", e.target.value)}
-              disabled={carregando}
-            />
-          </div>
+        <ModalidadesEditor
+          idPrefix="novo-plano"
+          modalidades={modalidades}
+          value={plano}
+          onChange={(p) => { setPlano(p); setPlanoMexido(true); }}
+          dataNascimento={form.data_nascimento}
+          disabled={carregando}
+        />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
 
           <div className="space-y-1.5">
             <Label htmlFor="primeiro_vencimento">Primeiro vencimento</Label>

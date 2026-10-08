@@ -10,8 +10,38 @@ export interface Mensalidade {
   valor: number;
   status: StatusMensalidade;
   data_pagamento: string | null;
+  /** Composição (snapshot do plano do aluno). `valor` é sempre o total. */
+  itens: ItemMensalidade[] | null;
   criado_em: string;
   atualizado_em: string;
+}
+
+/** Uma linha da composição da mensalidade (ex.: Capoeira 20 €). */
+export interface ItemMensalidade {
+  modalidade_id: string | null;
+  nome: string;
+  valor: number;
+}
+
+/** Modalidade praticada na academia (ex.: Jiu-Jitsu, Capoeira). */
+export interface Modalidade {
+  id: string;
+  nome: string;
+  /** Valor mensal sugerido (adultos) */
+  valor: number;
+  /** Valor mensal sugerido para menores de 16; null = igual ao adulto */
+  valor_infantil: number | null;
+  ativo: boolean;
+  padrao: boolean;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+/** Modalidade no plano de um aluno, com o valor próprio desse aluno. */
+export interface AlunoModalidade {
+  aluno_id: string;
+  modalidade_id: string;
+  valor: number;
 }
 export type CategoriaFaixa = "adulto" | "infantil" | "adulto_infantil";
 export type CorFaixa =
@@ -50,6 +80,7 @@ export interface Turma {
   professor_id: string | null;
   ativa: boolean;
   apenas_experimental: boolean;
+  modalidade_id: string;
   criado_em: string;
   atualizado_em: string;
 }
