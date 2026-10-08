@@ -32,9 +32,20 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
   const valorMensalidade    = isResponsavel ? null : ((formData.get("valor_mensalidade") as string | null)?.trim() || null);
   const primeiroVencimento  = isResponsavel ? null : ((formData.get("primeiro_vencimento") as string | null)?.trim() || null);
 
+  const grupoIdForm         = (formData.get("grupo_id") as string | null)?.trim() || null;
+
   if (!nomeCompleto) return { ok: false, erro: "Nome é obrigatório." };
 
   const admin = createAdminClient();
+
+  // Grupo aplica-se a quem treina (todos menos responsável); tem de existir e estar activo
+  let grupoId: string | null = null;
+  if (!isResponsavel && grupoIdForm) {
+    const { data: grupo } = await admin
+      .from("grupos_alunos").select("id, ativo").eq("id", grupoIdForm).maybeSingle();
+    if (!grupo || !grupo.ativo) return { ok: false, erro: "Grupo inválido ou inativo. Escolhe outro grupo." };
+    grupoId = grupo.id;
+  }
 
   try {
     if (semLogin) {
@@ -52,6 +63,7 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
         graus,
         categoria,
         perfil,
+        grupo_id:        grupoId,
         status:          "ativo",
         sem_login:       true,
       });
@@ -112,6 +124,7 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
         graus,
         categoria,
         perfil,
+        grupo_id: grupoId,
         status: "ativo",
       })
       .eq("id", userId);

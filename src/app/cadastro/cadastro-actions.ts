@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { grupoPadraoId } from "@/lib/grupos";
 import { createClient } from "@/lib/supabase/server";
 import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
 import { sendContractEmail } from "@/lib/send-contract-email";
@@ -87,6 +88,8 @@ export async function concluirCadastro(params: {
     const user = data.user;
 
     const admin = createAdminClient();
+    // Registos feitos pela app entram no grupo padrão (ex.: Academia)
+    const grupoId = await grupoPadraoId(admin);
 
     // 1. Update responsável/adulto profile
     const profileUpdate: Record<string, unknown> = {
@@ -103,6 +106,7 @@ export async function concluirCadastro(params: {
       profileUpdate.faixa = params.faixaAdulto;
       profileUpdate.graus = params.grausAdulto;
       profileUpdate.categoria = params.categoriaAdulto;
+      profileUpdate.grupo_id = grupoId;
     }
 
     const { error: respErr } = await admin
@@ -136,6 +140,7 @@ export async function concluirCadastro(params: {
           perfil: "aluno",
           status: "ativo",
           sem_login: true,
+          grupo_id: grupoId,
         });
 
         if (depProfileErr) return { ok: false, erro: `Erro ao criar perfil do dependente: ${depProfileErr.message}` };

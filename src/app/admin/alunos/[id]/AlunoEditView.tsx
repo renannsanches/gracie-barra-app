@@ -17,11 +17,12 @@ import {
   formatarData, formatarMoeda, formatarMes, labelCorFaixa,
 } from "@/lib/utils";
 import { PhoneInput } from "@/components/PhoneInput";
+import { GrupoPicker } from "@/components/GrupoPicker";
 import { telefoneParaE164 } from "@/lib/phone";
 import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type {
   Profile, CorFaixa, StatusAluno, CategoriaFaixa, PerfilUsuario,
-  Mensalidade, StatusMensalidade, HistoricoGraduacao,
+  Mensalidade, StatusMensalidade, HistoricoGraduacao, GrupoAluno,
 } from "@/lib/types";
 import type { PresencaItem } from "@/components/PresencasCalendario";
 import {
@@ -108,6 +109,7 @@ interface Props {
   responsavel: ProfileSimples | null;
   dependentesDoAluno: ProfileSimples[];
   alunosComLogin: ProfileSimples[];
+  grupos: GrupoAluno[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -121,6 +123,7 @@ export function AlunoEditView({
   responsavel: responsavelProp,
   dependentesDoAluno,
   alunosComLogin,
+  grupos,
 }: Props) {
   const router = useRouter();
   const fotoInputRef = useRef<HTMLInputElement>(null);
@@ -144,6 +147,7 @@ export function AlunoEditView({
     graus:           String(aluno.graus ?? 0),
     categoria:       aluno.categoria,
     perfil:          aluno.perfil,
+    grupo_id:        aluno.grupo_id ?? "",
   });
 
   // ── Status toggle ──────────────────────────────────────────────────────────
@@ -233,6 +237,8 @@ export function AlunoEditView({
     const salvandoResponsavel = form.perfil === "responsavel";
     const faixaFinal: CorFaixa | null = salvandoResponsavel ? null : (form.faixa as CorFaixa);
     const grausFinal = salvandoResponsavel ? 0 : Number(form.graus);
+    // Grupo aplica-se a quem treina (todos menos responsável)
+    const grupoFinal = salvandoResponsavel ? null : (form.grupo_id || null);
     try {
       const supabase = createClient();
       const { error } = await supabase.from("profiles").update({
@@ -247,6 +253,7 @@ export function AlunoEditView({
         categoria:       form.categoria as CategoriaFaixa,
         status:          statusAluno,
         perfil:          form.perfil as PerfilUsuario,
+        grupo_id:        grupoFinal,
       }).eq("id", aluno.id);
       if (error) throw error;
       setAluno((p) => ({
@@ -262,6 +269,7 @@ export function AlunoEditView({
         categoria:       form.categoria as CategoriaFaixa,
         status:          statusAluno,
         perfil:          form.perfil as PerfilUsuario,
+        grupo_id:        grupoFinal,
       }));
       setSalvoOk(true);
       setTimeout(() => setSalvoOk(false), 3000);
@@ -750,6 +758,22 @@ export function AlunoEditView({
               </p>
             )}
           </div>
+          {form.perfil !== "responsavel" && (
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label id="grupo_edit_label" htmlFor="grupo_edit">Grupo</Label>
+              <GrupoPicker
+                id="grupo_edit"
+                labelledBy="grupo_edit_label"
+                grupos={grupos}
+                value={form.grupo_id}
+                onChange={(v) => setForm((f) => ({ ...f, grupo_id: v }))}
+                disabled={salvando}
+              />
+              {!form.grupo_id && (
+                <p className="text-xs text-amber-700">Sem grupo — escolhe onde treina.</p>
+              )}
+            </div>
+          )}
         </div>
 
         {salvoErro && <p className="text-red-600 text-sm">{salvoErro}</p>}

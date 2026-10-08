@@ -1,14 +1,24 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { listarGrupos } from "@/lib/grupos";
 import type { Profile } from "@/lib/types";
 import { AlunosView } from "./AlunosView";
 
-export default async function AdminAlunosPage() {
+export default async function AdminAlunosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ grupo?: string }>;
+}) {
   const supabase = createAdminClient();
 
-  const [{ data }, { data: dependentesRows }] = await Promise.all([
+  const [{ data }, { data: dependentesRows }, grupos, params] = await Promise.all([
     supabase.from("profiles").select("*").neq("perfil", "tablet").order("nome_completo"),
     supabase.from("dependentes").select("dependente_id, responsavel_id"),
+    listarGrupos(supabase),
+    searchParams,
   ]);
+
+  // ?grupo=<id> vindo da página de Grupos abre a lista já filtrada
+  const grupoInicial = grupos.some((g) => g.id === params.grupo) ? params.grupo! : "";
 
   const alunos = (data ?? []) as Profile[];
 
@@ -19,5 +29,13 @@ export default async function AdminAlunosPage() {
     if (nome) responsaveisMap[row.dependente_id as string] = nome;
   }
 
-  return <AlunosView alunos={alunos} responsaveisMap={responsaveisMap} />;
+  return (
+    <AlunosView
+      key={grupoInicial}
+      alunos={alunos}
+      responsaveisMap={responsaveisMap}
+      grupos={grupos}
+      grupoInicial={grupoInicial}
+    />
+  );
 }
