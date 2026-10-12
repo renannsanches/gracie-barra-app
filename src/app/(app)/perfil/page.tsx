@@ -6,6 +6,7 @@ import { fetchAllPresencasDias } from "@/lib/fetch-all-presencas";
 import type { Profile, Mensalidade, HistoricoGraduacao, DependentePerfil, CorFaixa, CategoriaFaixa } from "@/lib/types";
 import { PerfilView } from "./PerfilView";
 import { GraduacaoAptosModal } from "@/components/GraduacaoAptosModal";
+import { CHAVE_AVISO_GRADUACAO, janelaAvisoGraduacao } from "@/lib/aviso-graduacao";
 
 interface AptosGraduarAluno {
   id: string;
@@ -182,9 +183,15 @@ export default async function PerfilPage() {
     }
   }
 
+  const janelaAviso = janelaAvisoGraduacao();
+  const mostrarAvisoGraduacao =
+    isAdminOrProfessor &&
+    aptosGraduar.length > 0 &&
+    user.user_metadata?.[CHAVE_AVISO_GRADUACAO] !== janelaAviso;
+
   return (
     <>
-      {isAdminOrProfessor && aptosGraduar.length > 0 && <GraduacaoAptosModal />}
+      {mostrarAvisoGraduacao && <GraduacaoAptosModal janela={janelaAviso} />}
       <PerfilView
         profile={p}
         email={user.email ?? ""}

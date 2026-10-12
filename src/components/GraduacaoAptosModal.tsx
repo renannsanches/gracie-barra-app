@@ -2,34 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { Award, X } from "lucide-react";
+import { marcarAvisoGraduacaoVisto } from "@/app/(app)/perfil/aviso-graduacao-actions";
 
-// v2: texto alterado — força todos a verem a nova versão uma vez
-const STORAGE_KEY = "graduacao-modal-ultima-semana-v2";
+// Janela já mostrada nesta sessão — evita reabrir ao voltar a /perfil (cache do router)
+let janelaMostrada: string | null = null;
 
-// Segunda-feira da semana actual (data local, YYYY-MM-DD)
-function segundaDaSemana(): string {
-  const d = new Date();
-  const diasDesdeSegunda = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - diasDesdeSegunda);
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
-}
+// O servidor só renderiza este modal se a conta ainda não viu a janela actual
+// (2x por semana: 1º acesso a partir de segunda e a partir de quinta)
+export function GraduacaoAptosModal({ janela }: { janela: string }) {
+  const [aberto, setAberto] = useState(() => janelaMostrada !== janela);
 
-export function GraduacaoAptosModal() {
-  const [aberto, setAberto] = useState(false);
-
-  // Mostra no máximo 1x por semana (por dispositivo), no 1º acesso a partir de segunda
   useEffect(() => {
-    const semana = segundaDaSemana();
-    try {
-      if (localStorage.getItem(STORAGE_KEY) === semana) return;
-      localStorage.setItem(STORAGE_KEY, semana);
-    } catch {
-      // localStorage indisponível — mostra na mesma
-    }
-    setAberto(true);
-  }, []);
+    if (janelaMostrada === janela) return;
+    janelaMostrada = janela;
+    void marcarAvisoGraduacaoVisto(janela);
+  }, [janela]);
 
   useEffect(() => {
     if (!aberto) return;
