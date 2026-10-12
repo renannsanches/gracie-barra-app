@@ -21,6 +21,7 @@ export async function criarTurma(formData: FormData): Promise<CriarTurmaResult> 
   const lotacao_maxima = Number(formData.get("lotacao_maxima") || 20);
   const categoria     = (formData.get("categoria") as string) || "adulto";
   const professor_id  = (formData.get("professor_id") as string) || null;
+  const modalidade_id = (formData.get("modalidade_id") as string) || null;
   const gerarSemanas  = Number(formData.get("gerar_semanas") || 0);
 
   if (!nome)    return { ok: false, erro: "Nome é obrigatório." };
@@ -34,6 +35,11 @@ export async function criarTurma(formData: FormData): Promise<CriarTurmaResult> 
 
   const admin = createAdminClient();
 
+  if (modalidade_id) {
+    const { data: mod } = await admin.from("modalidades").select("id").eq("id", modalidade_id).maybeSingle();
+    if (!mod) return { ok: false, erro: "Modalidade inválida." };
+  }
+
   const { data: nova, error } = await admin
     .from("turmas")
     .insert({
@@ -44,6 +50,8 @@ export async function criarTurma(formData: FormData): Promise<CriarTurmaResult> 
       lotacao_maxima,
       categoria,
       professor_id: professor_id || null,
+      // Sem modalidade escolhida, a BD usa a padrão (DEFAULT)
+      ...(modalidade_id ? { modalidade_id } : {}),
       ativa: true,
     })
     .select("id")

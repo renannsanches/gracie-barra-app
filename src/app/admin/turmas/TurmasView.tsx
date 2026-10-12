@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Users, Calendar, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { Turma, RecorrenciaTurma, CategoriaFaixa } from "@/lib/types";
+import type { Turma, RecorrenciaTurma, CategoriaFaixa, Modalidade } from "@/lib/types";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -28,14 +28,18 @@ type TurmaComProfessor = Turma & {
 
 interface Props {
   turmas: TurmaComProfessor[];
+  modalidades: Modalidade[];
 }
 
 function formatarHorario(h: string) {
   return h.slice(0, 5);
 }
 
-export function TurmasView({ turmas }: Props) {
+export function TurmasView({ turmas, modalidades }: Props) {
   const router = useRouter();
+  // Badge de modalidade só faz sentido quando há mais de uma
+  const nomeModalidade = new Map(modalidades.map((m) => [m.id, m.nome]));
+  const mostrarModalidade = modalidades.filter((m) => m.ativo).length > 1;
 
   const ativas   = turmas.filter((t) => t.ativa);
   const inativas = turmas.filter((t) => !t.ativa);
@@ -102,6 +106,11 @@ export function TurmasView({ turmas }: Props) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-gray-900 text-sm">{turma.nome}</span>
+                        {mostrarModalidade && nomeModalidade.has(turma.modalidade_id) && (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gb-blue/10 text-gb-blue">
+                            {nomeModalidade.get(turma.modalidade_id)}
+                          </span>
+                        )}
                         <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", CATEGORIA_CLASS[turma.categoria])}>
                           {turma.categoria}
                         </span>

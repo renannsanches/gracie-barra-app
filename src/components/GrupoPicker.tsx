@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import type { GrupoAluno } from "@/lib/types";
+/** Qualquer opção com nome e estado (grupos, modalidades…). */
+export interface OpcaoPicker {
+  id: string;
+  nome: string;
+  ativo: boolean;
+}
 
 /** Até este nº de opções mostra botões lado a lado; acima disso usa um select. */
 const MAX_SEGMENTOS = 4;
@@ -13,22 +18,25 @@ const selectClass =
 
 interface Props {
   id: string;
-  grupos: GrupoAluno[];
+  grupos: OpcaoPicker[];
   value: string;
   onChange: (grupoId: string) => void;
   disabled?: boolean;
   /** id do elemento que rotula o campo (para o radiogroup) */
   labelledBy?: string;
+  /** Mensagem quando não há opções activas (por defeito fala de grupos) */
+  vazio?: React.ReactNode;
 }
 
 /**
  * Escolha do grupo do aluno. Mostra os grupos activos e, se o aluno já estiver
  * num grupo desactivado, mantém esse grupo visível para não o perder ao guardar.
  */
-export function GrupoPicker({ id, grupos, value, onChange, disabled, labelledBy }: Props) {
+export function GrupoPicker({ id, grupos, value, onChange, disabled, labelledBy, vazio }: Props) {
   const opcoes = grupos.filter((g) => g.ativo || g.id === value);
 
   if (opcoes.length === 0) {
+    if (vazio) return <>{vazio}</>;
     return (
       <p className="text-sm text-gray-500">
         Ainda não há grupos ativos.{" "}

@@ -87,6 +87,7 @@ async function exportFinanceiroExcel(dados: MensalidadeRelatorio[], mes: string)
     "Mês Referência": r.mes_referencia.slice(0, 7),
     "Vencimento": formatDate(r.data_vencimento),
     "Valor (€)": r.valor,
+    "Detalhe": r.detalhe,
     "Status": statusLabel(r.status),
     "Data Pagamento": r.data_pagamento ? formatDate(r.data_pagamento) : "—",
   }));
@@ -100,6 +101,7 @@ async function exportFinanceiroExcel(dados: MensalidadeRelatorio[], mes: string)
     "Mês Referência": "",
     "Vencimento": "",
     "Valor (€)": totalPago,
+    "Detalhe": "",
     "Status": "",
     "Data Pagamento": "",
   });
@@ -108,6 +110,7 @@ async function exportFinanceiroExcel(dados: MensalidadeRelatorio[], mes: string)
     "Mês Referência": "",
     "Vencimento": "",
     "Valor (€)": totalPendente,
+    "Detalhe": "",
     "Status": "",
     "Data Pagamento": "",
   });
@@ -116,6 +119,7 @@ async function exportFinanceiroExcel(dados: MensalidadeRelatorio[], mes: string)
     "Mês Referência": "",
     "Vencimento": "",
     "Valor (€)": totalPago + totalPendente,
+    "Detalhe": "",
     "Status": "",
     "Data Pagamento": "",
   });
@@ -160,19 +164,20 @@ async function exportFinanceiroPDF(dados: MensalidadeRelatorio[], mes: string) {
 
   autoTable(doc, {
     startY: y,
-    head: [["Nome do Aluno", "Mês Referência", "Vencimento", "Valor", "Status", "Data Pagamento"]],
+    head: [["Nome do Aluno", "Mês Referência", "Vencimento", "Valor", "Detalhe", "Status", "Data Pagamento"]],
     body: dados.map((r) => [
       r.aluno_nome,
       r.mes_referencia.slice(0, 7),
       formatDate(r.data_vencimento),
       formatEuro(r.valor),
+      r.detalhe,
       statusLabel(r.status),
       r.data_pagamento ? formatDate(r.data_pagamento) : "—",
     ]),
     foot: [
-      ["Total Pago", "", "", formatEuro(totalPago), "", ""],
-      ["Total Pendente/Atrasado", "", "", formatEuro(totalPendente), "", ""],
-      ["Total Geral", "", "", formatEuro(totalPago + totalPendente), "", ""],
+      ["Total Pago", "", "", formatEuro(totalPago), "", "", ""],
+      ["Total Pendente/Atrasado", "", "", formatEuro(totalPendente), "", "", ""],
+      ["Total Geral", "", "", formatEuro(totalPago + totalPendente), "", "", ""],
     ],
     headStyles: { fillColor: [204, 0, 0] },
     footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold" },

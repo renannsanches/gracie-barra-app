@@ -15,6 +15,7 @@ type TurmaUpdate = {
   lotacao_maxima: number;
   categoria: CategoriaFaixa;
   professor_id: string | null;
+  modalidade_id: string;
 };
 
 export interface AulaComContagem {

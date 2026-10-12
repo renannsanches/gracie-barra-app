@@ -1,5 +1,6 @@
 "use client";
 
+import { DetalheMensalidade } from "@/components/ValorMensalidade";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -836,6 +837,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-[14px] font-medium text-gray-900">{m.valor != null ? formatarMoeda(m.valor) : "—"}</p>
+                    {m.valor != null && <DetalheMensalidade valor={m.valor} itens={m.itens} className="text-[11px]" />}
                     <span className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded-full mt-1 ${
                       ef === "pago"
                         ? "bg-emerald-500/15 text-emerald-600"

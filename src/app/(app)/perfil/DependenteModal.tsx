@@ -1,5 +1,6 @@
 "use client";
 
+import { DetalheMensalidade } from "@/components/ValorMensalidade";
 import { useEffect, useState } from "react";
 import { X, Award, CalendarDays, CreditCard } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -181,6 +182,7 @@ export function DependenteModal({ dependente, onClose }: Props) {
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-[13px] font-bold text-gray-800">{formatarMoeda(m.valor)}</p>
+                          <DetalheMensalidade valor={m.valor} itens={m.itens} className="text-[11px]" />
                           <p className={`text-[11px] font-medium mt-0.5 ${MENS_TEXT[ef]}`}>
                             {MENS_STATUS_LABEL[ef]}
                           </p>

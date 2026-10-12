@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { criarTurma } from "./actions";
-import type { CategoriaFaixa, RecorrenciaTurma } from "@/lib/types";
+import { GrupoPicker } from "@/components/GrupoPicker";
+import type { CategoriaFaixa, Modalidade, RecorrenciaTurma } from "@/lib/types";
 
 const DIAS_SEMANA = [
   { value: 0, label: "Domingo" },
@@ -33,9 +34,10 @@ const selectClass =
 
 interface Props {
   professores: { id: string; nome_completo: string }[];
+  modalidades: Modalidade[];
 }
 
-export function NovaTurmaForm({ professores }: Props) {
+export function NovaTurmaForm({ professores, modalidades }: Props) {
   const router = useRouter();
   const [carregando, setCarregando] = useState(false);
   const [sucesso, setSucesso]       = useState(false);
@@ -49,6 +51,7 @@ export function NovaTurmaForm({ professores }: Props) {
     lotacao_maxima:  "20",
     categoria:       "adulto" as CategoriaFaixa,
     professor_id:    "",
+    modalidade_id:   (modalidades.find((m) => m.padrao && m.ativo) ?? modalidades.find((m) => m.ativo))?.id ?? "",
     gerar_semanas:   "4",
     gerar:           true,
   });
@@ -70,6 +73,7 @@ export function NovaTurmaForm({ professores }: Props) {
     fd.append("lotacao_maxima", form.lotacao_maxima);
     fd.append("categoria",      form.categoria);
     fd.append("professor_id",   form.professor_id);
+    fd.append("modalidade_id",  form.modalidade_id);
     if (form.gerar) fd.append("gerar_semanas", form.gerar_semanas);
 
     try {
@@ -119,6 +123,18 @@ export function NovaTurmaForm({ professores }: Props) {
             id="nome" required placeholder="Ex: Adultos Avançado"
             value={form.nome}
             onChange={(e) => set("nome", e.target.value)}
+            disabled={carregando}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label id="modalidade-label">Modalidade</Label>
+          <GrupoPicker
+            id="modalidade_id"
+            labelledBy="modalidade-label"
+            grupos={modalidades}
+            value={form.modalidade_id}
+            onChange={(v) => set("modalidade_id", v)}
             disabled={carregando}
           />
         </div>
