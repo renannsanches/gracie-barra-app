@@ -3,6 +3,7 @@ import {
   sendPushAviso,
   sendPushResponsavelAula,
   sendPushGraduacao,
+  sendPushLembreteVencimento,
 } from "@/lib/push-sender";
 
 export async function GET(req: Request) {
@@ -23,6 +24,8 @@ export async function GET(req: Request) {
       await sendPushResponsavelAula();
     } else if (type === "graduacao") {
       await sendPushGraduacao();
+    } else if (type === "lembrete_vencimento") {
+      await sendPushLembreteVencimento();
     } else {
       return new Response(`Tipo desconhecido: ${type}`, { status: 400 });
     }
