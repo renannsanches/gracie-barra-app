@@ -62,7 +62,7 @@ function isInfantilBelt(faixa: CorFaixa): boolean {
   return INFANTIL_SEQUENCIA.includes(faixa) && faixa !== "branca";
 }
 
-function resolveCategoria(faixa: CorFaixa, categoria: CategoriaFaixa): "adulto" | "infantil" {
+export function resolveCategoria(faixa: CorFaixa, categoria: CategoriaFaixa): "adulto" | "infantil" {
   if (isInfantilBelt(faixa)) return "infantil";
   if (categoria === "infantil") return "infantil";
   return "adulto";
@@ -81,7 +81,7 @@ function idadeEm(dataNascimento: string, referencia: Date): number {
 }
 
 // Retorna segunda-feira da semana de uma data YYYY-MM-DD
-function getMondayKey(dia: string): string {
+export function getMondayKey(dia: string): string {
   const d = new Date(dia + "T12:00:00");
   const dow = d.getDay(); // 0=Dom
   const diff = dow === 0 ? -6 : 1 - dow;
