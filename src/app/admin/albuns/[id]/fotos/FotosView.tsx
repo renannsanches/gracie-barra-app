@@ -182,7 +182,7 @@ export function FotosView({ album, fotos: initialFotos }: Props) {
                   />
 
                   {isCapa && (
-                    <div className="absolute top-2 left-2 flex items-center gap-1 bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+                    <div className="absolute top-2 left-2 flex items-center gap-1 bg-amber-400 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
                       <Star size={9} fill="white" />
                       Capa
                     </div>
@@ -210,7 +210,7 @@ export function FotosView({ album, fotos: initialFotos }: Props) {
                         type="button"
                         onClick={() => handleDefinirCapa(foto)}
                         disabled={settingCapaId === foto.id}
-                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-white bg-amber-500 hover:bg-amber-400 disabled:opacity-50 px-2 py-1 rounded-full transition-colors"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-400 disabled:opacity-50 px-2 py-1 rounded-full transition-colors"
                       >
                         {settingCapaId === foto.id ? (
                           <Loader2 size={10} className="animate-spin" />

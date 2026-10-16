@@ -63,7 +63,7 @@ interface AvatarProps {
 }
 
 function Avatar({ reservante, size, highlight }: AvatarProps) {
-  const dim = size === "sm" ? "w-7 h-7 text-[10px]" : "w-8 h-8 text-xs";
+  const dim = size === "sm" ? "w-7 h-7 text-xs" : "w-8 h-8 text-xs";
   const ring = highlight ? "ring-2 ring-gb-blue ring-offset-1" : "";
 
   if (reservante.foto_url) {
@@ -424,7 +424,8 @@ export function AulasView({
         </div>
       </PageHeader>
 
-      <div className="flex-1 px-4 py-4 pb-bottom-nav space-y-3">
+      {/* key: a cascata repete ao trocar de dia ou de pessoa */}
+      <div key={`${diaAtivo}-${selecionadoId}`} className="flex-1 px-4 py-4 pb-bottom-nav space-y-3 animar-lista">
 
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">
           {diaAtivoNome}
@@ -493,7 +494,7 @@ export function AulasView({
                           {aula.turma?.nome ?? "—"}
                           {tag && <span className="font-normal text-gray-500"> · {formatarHorario(aula.horario)}</span>}
                           {mostrarModalidade && aula.turma && nomesModalidade[aula.turma.modalidade_id] && (
-                            <span className="ml-1.5 align-middle inline-block rounded-full bg-gb-blue/10 px-2 py-px text-[11px] font-semibold text-gb-blue">
+                            <span className="ml-1.5 align-middle inline-block rounded-full bg-gb-blue/10 px-2 py-px text-xs font-semibold text-gb-blue">
                               {nomesModalidade[aula.turma.modalidade_id]}
                             </span>
                           )}
@@ -548,7 +549,7 @@ export function AulasView({
                         <div className="h-11 rounded-xl bg-amber-50 border border-amber-200 text-amber-400 text-sm flex items-center justify-center font-medium cursor-not-allowed select-none">
                           Reservar
                         </div>
-                        <p className="text-[11px] text-amber-600 text-center leading-tight">
+                        <p className="text-xs text-amber-600 text-center leading-tight">
                           Não é possível reservar a aula. Falar com Simone.
                         </p>
                       </div>

@@ -65,7 +65,7 @@ export function ConquistasView({ pessoas }: { pessoas: PessoaConquistas[] }) {
         )}
       </PageHeader>
 
-      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-3">
+      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-3 animar-lista">
         {!pessoa ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-[14px] text-gray-500">
             Sem alunos associados a esta conta.
@@ -142,11 +142,11 @@ function PainelPessoa({ pessoa }: { pessoa: PessoaConquistas }) {
       <div className="grid grid-cols-2 gap-2.5">
         <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center">
           <p className="text-[22px] font-medium text-gray-900 leading-none">{pessoa.totalAulas}</p>
-          <p className="text-[11px] text-gray-400 mt-1">Total de aulas</p>
+          <p className="text-xs text-gray-400 mt-1">Total de aulas</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center">
           <p className="text-[22px] font-medium text-gray-900 leading-none">{pessoa.conquistas.length}</p>
-          <p className="text-[11px] text-gray-400 mt-1">Medalhas</p>
+          <p className="text-xs text-gray-400 mt-1">Medalhas</p>
         </div>
       </div>
 
@@ -164,12 +164,12 @@ function PainelPessoa({ pessoa }: { pessoa: PessoaConquistas }) {
                   <div className="relative">
                     <Medalha codigo={def.codigo} bloqueada={!ganha} />
                     {def.repetivel && ganhas.length > 1 && (
-                      <span className="absolute -top-1 -right-2 bg-gray-900 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">
+                      <span className="absolute -top-1 -right-2 bg-gray-900 text-white text-xs font-bold rounded-full px-1.5 py-0.5">
                         ×{ganhas.length}
                       </span>
                     )}
                     {nova && (
-                      <span className="absolute -top-1 -left-2 bg-gb-blue text-white text-[9px] font-bold rounded-full px-1.5 py-0.5">
+                      <span className="absolute -top-1 -left-2 bg-gb-blue text-white text-xs font-bold rounded-full px-1.5 py-0.5">
                         NOVA
                       </span>
                     )}
@@ -178,7 +178,7 @@ function PainelPessoa({ pessoa }: { pessoa: PessoaConquistas }) {
                     {def.titulo}
                   </p>
                   {ganha ? (
-                    <p className="text-[11px] text-gray-400">{formatarData(ganhas[0].conquistadaEm)}</p>
+                    <p className="text-xs text-gray-400">{formatarData(ganhas[0].conquistadaEm)}</p>
                   ) : progresso ? (
                     <div className="w-full px-2">
                       <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
@@ -187,12 +187,12 @@ function PainelPessoa({ pessoa }: { pessoa: PessoaConquistas }) {
                           style={{ width: `${Math.round((progresso.atual / progresso.alvo) * 100)}%` }}
                         />
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-1 tabular-nums">
+                      <p className="text-xs text-gray-400 mt-1 tabular-nums">
                         {progresso.atual}/{progresso.alvo}
                       </p>
                     </div>
                   ) : (
-                    <p className="text-[10px] text-gray-400 leading-tight">{def.descricao}</p>
+                    <p className="text-xs text-gray-400 leading-tight">{def.descricao}</p>
                   )}
                 </div>
               );

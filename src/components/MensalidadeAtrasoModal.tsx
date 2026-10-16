@@ -63,7 +63,7 @@ export function MensalidadeAtrasoModal({ mensagem }: Props) {
             target="_blank"
             rel="noopener noreferrer"
             onClick={fechar}
-            className="w-full py-3 rounded-xl bg-[#25D366] hover:bg-[#1ebe5b] text-white text-center text-[15px] font-semibold transition-colors duration-fast"
+            className="w-full py-3 rounded-xl bg-whatsapp hover:bg-whatsapp-dark text-white text-center text-[15px] font-semibold transition-colors duration-fast"
           >
             Falar com Simone
           </a>

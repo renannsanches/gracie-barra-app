@@ -404,10 +404,11 @@ ink        // #0A0A0A — headers escuros
 canvas     // #F5F5F5 — fundo das páginas
 surface    // #FFFFFF — cards
 success / warning / destructive
+whatsapp / whatsapp-dark          // botões "Falar com a Simone"
 // gb-blue, gb-black, gb-gray… continuam como aliases (gb-blue é o vermelho, nome histórico)
 ```
 
-Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-sheet`, `pb-bottom-nav`; `duration-fast`/`duration-base` + `ease-out-expo`. O viewport usa `viewportFit: "cover"` e **não bloqueia o zoom** — em ecrãs táteis os campos ficam ≥16px para o iOS não fazer zoom ao focar.
+Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-sheet`, `pb-bottom-nav`; `duration-fast`/`duration-base` + `ease-out-expo`; `animar-entrada` / `animar-lista` (entrada de conteúdo). Texto nunca abaixo de 12px (`text-xs`). Avatares de utilizador em `<img>` (URL sobrescrito no upload), logos em `next/image`. O viewport usa `viewportFit: "cover"` e **não bloqueia o zoom** — em ecrãs táteis os campos ficam ≥16px para o iOS não fazer zoom ao focar.
 
 **Theme color PWA:** `#ED1C24` · **Fonte principal:** SF Pro Display (local woff2) + Geist · **Locale:** pt-PT · **Interface:** português europeu · **Código:** inglês · **Mobile-first**
 
@@ -508,7 +509,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 
 | Fase | Funcionalidade | Prioridade |
 |------|---------------|------------|
-| 15 | **UI/UX Polishing** — feito: tokens, safe areas, zoom, skeletons, barra inferior, toasts, diálogos/confirmações, UI optimista. Falta: micro-interacções e consistência de cores (`docs/plano-fluidez-ui.md`) | — |
+| 15 | **UI/UX Polishing** — feito (PRs #61–#63): tokens, safe areas, zoom, skeletons, barra inferior, toasts, diálogos/confirmações, UI optimista, micro-interacções, cores/tipografia consistentes. Opcional: Barlow Condensed nos números (`docs/plano-fluidez-ui.md`) | — |
 
 ---
 

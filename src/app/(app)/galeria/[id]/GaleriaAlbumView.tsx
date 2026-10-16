@@ -41,13 +41,13 @@ export function GaleriaAlbumView({ album, fotos }: Props) {
           <p className="text-gray-500 font-medium">Nenhuma foto neste álbum</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 animar-lista">
           {fotos.map((foto, idx) => (
             <button
               key={foto.id}
               type="button"
               onClick={() => open(idx)}
-              className="group relative aspect-square bg-gray-100 rounded-xl overflow-hidden focus:outline-none focus:ring-2 focus:ring-gb-blue"
+              className="group relative aspect-square bg-gray-100 rounded-xl overflow-hidden focus:outline-none focus:ring-2 focus:ring-gb-blue transition-transform duration-fast ease-out-expo active:scale-[0.97]"
             >
               <Image
                 src={foto.url}

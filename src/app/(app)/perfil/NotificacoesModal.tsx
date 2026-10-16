@@ -149,7 +149,7 @@ export function NotificacoesModal({ mensalidades, avisos, onClose }: Props) {
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-semibold text-gray-900 leading-snug">{item.titulo}</p>
                   <p className="text-[12px] text-gray-500 mt-0.5 leading-snug">{item.corpo}</p>
-                  <p className="text-[11px] text-gray-400 mt-1">{tempoRelativo(item.timestamp)}</p>
+                  <p className="text-xs text-gray-400 mt-1">{tempoRelativo(item.timestamp)}</p>
                 </div>
               </div>
             ))

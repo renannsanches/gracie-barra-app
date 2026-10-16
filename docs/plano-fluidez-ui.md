@@ -70,7 +70,7 @@
 
 Cada fase = 1 PR para `master` em `renannsanches/gracie-barra-app`, com preview Vercel verificado a 375 px.
 
-> **Estado (2026-10-16):** Fases 0 e 1 no ramo `feat/ui-fluidez` (PR #61); Fase 2 em `feat/ui-feedback-dialogos`. Fases 3–4 por fazer.
+> **Estado (2026-10-16):** Fases 0–1 no PR #61, Fase 2 no PR #62, Fases 3–4 em `feat/ui-polimento` (empilhados por esta ordem).
 
 ### Fase 0 — Fundações · ~2–3 h ✅
 1. Tokens acima em `globals.css` + `tailwind.config.ts` (apagar o bloco shadcn neutro duplicado).
@@ -96,17 +96,18 @@ Cada fase = 1 PR para `master` em `renannsanches/gracie-barra-app`, com preview 
 4. UI optimista: `useOptimistic` em marcar/desmarcar pago (financeiro); reservar/cancelar aula aplica e reverte se o servidor recusar.
    Também: `apagarAviso`/`apagarAlbum`/`apagarFoto` deixaram de falhar em silêncio.
 
-### Fase 3 — Micro-interacções · ~2–3 h
-1. Feedback de toque em cards e linhas clicáveis (opacidade/escala, 80–150 ms).
-2. Entrada de conteúdo: fade + 8 px slide-up, 220 ms; stagger nas listas de aulas/avisos (máx. 6 itens).
-3. Ecrã de presença confirmada: check animado + `navigator.vibrate(10)` (Android; iOS ignora sem erro).
-4. Tablet: transições só com `opacity`/`transform` (seguro em Safari 15).
+### Fase 3 — Micro-interacções · ~2–3 h ✅
+1. Feedback de toque (`active:scale`, 150 ms) nos atalhos do Início, álbuns, fotos, acordeões e botões de reserva.
+2. `.animar-entrada` / `.animar-lista` (globals.css): fade + 8 px a subir, 220 ms, cascata de 40 ms até 6 itens — em todas as páginas do aluno. Em `/aulas` a cascata repete ao trocar de dia ou de pessoa.
+3. Presença confirmada: check com zoom + rotação, anel que pulsa uma vez e `navigator.vibrate(15)`.
+4. Só `opacity`/`transform`; `prefers-reduced-motion` também zera os atrasos. O `/tablet` não foi tocado.
 
-### Fase 4 — Consistência visual · ~3–4 h
-1. Trocar os 80 hex e 180 `red-*` por tokens (`brand`, `destructive`, `success`, `warning`).
-2. Escala tipográfica fixa (12 / 14 / 16 / 18 / 22 / 28 px) — eliminar os 15 textos < 12 px.
-3. `<img>` → `next/image` com `sizes` e `loading="lazy"`, a começar pela galeria.
-4. (Opcional) Barlow Condensed nos números grandes (contagem de treinos, KPIs do dashboard).
+### Fase 4 — Consistência visual · ~3–4 h ✅
+1. 0 hex em classes: `#1a1a1a`→`ink`, `#c8102e`→`brand`, `#a50d25`→`brand-dark`, WhatsApp → token `whatsapp`. O hex que sobra é dado (cores por pessoa no calendário) ou o contrato do cadastro.
+   Os `red-*` de erro/estado ficam na escala do Tailwind (já consistentes e com contraste AA); só os usos de marca passaram a `brand`.
+2. 0 textos < 12 px (25 passaram a `text-xs`).
+3. Logos → `next/image` (admin, perfil, login, esqueci/nova senha, aula experimental). **Avatares ficam em `<img>`**: o upload sobrescreve o mesmo caminho e o cache do `next/image` (4 h) mostraria a foto antiga. Galeria já usava `next/image`.
+4. Barlow Condensed — não feito (opcional, decisão de marca).
 
 **Total estimado: ~17–23 h**, entregável em 5 PRs pequenos.
 

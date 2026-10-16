@@ -24,7 +24,7 @@ export function PresencasView({ presencas, pessoas, responsavelId, initialMes, i
         subtitle={`${presencas.length} presença${presencas.length !== 1 ? "s" : ""} registada${presencas.length !== 1 ? "s" : ""} na conta`}
       />
 
-      <div className="flex-1 px-4 py-5 pb-bottom-nav">
+      <div className="flex-1 px-4 py-5 pb-bottom-nav animar-entrada">
         <PresencasCalendario
           presencas={presencas}
           pessoas={pessoas}
