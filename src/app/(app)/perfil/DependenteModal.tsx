@@ -8,6 +8,7 @@ import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
 import { formatarData, formatarMoeda, formatarMes, labelCorFaixa } from "@/lib/utils";
 import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type { DependentePerfil, HistoricoGraduacao, Mensalidade, StatusMensalidade } from "@/lib/types";
+import { historicoGraduacoesDependente } from "./dependente-historico-actions";
 
 const MENS_BG: Record<StatusMensalidade, string> = {
   pago:     "bg-green-50 border-green-100",
@@ -47,7 +48,7 @@ export function DependenteModal({ dependente, onClose }: Props) {
       const [
         { count },
         { data: recentes },
-        { data: grads },
+        grads,
       ] = await Promise.all([
         supabase
           .from("presencas")
@@ -59,16 +60,13 @@ export function DependenteModal({ dependente, onClose }: Props) {
           .eq("aluno_id", dependente.id)
           .order("registrado_em", { ascending: false })
           .limit(5),
-        supabase
-          .from("historico_graduacoes")
-          .select("*, professor:profiles!historico_graduacoes_graduado_por_fkey(nome_completo)")
-          .eq("aluno_id", dependente.id)
-          .order("data_graduacao", { ascending: false }),
+        // No servidor: o nome do professor está num perfil que o RLS não deixa ler aqui
+        historicoGraduacoesDependente(dependente.id),
       ]);
 
       setPresencasCount(count ?? 0);
       setPresencasRecentes(recentes ?? []);
-      setGraduacoes((grads ?? []) as HistoricoGraduacao[]);
+      setGraduacoes(grads.historico ?? []);
       setCarregando(false);
     }
 

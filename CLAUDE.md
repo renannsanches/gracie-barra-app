@@ -423,6 +423,7 @@ gb: {
 | Problema | Solução |
 |----------|---------|
 | Queries admin retornam vazio | Usar `createAdminClient()` — RLS bloqueia com anon key |
+| Aluno não vê nome/foto de outro aluno ou do professor | RLS de `profiles` só deixa ler o próprio, os dependentes e (staff) todos — protege IBAN/NIF/telefone. Dados de outras pessoas vêm do servidor com `createAdminClient()` e só as colunas necessárias (ex.: ranking, reservas em `/aulas`, professor no histórico de graduações) |
 | Câmera não funciona no tablet | HTTPS obrigatório; HTTP bloqueia API de câmera |
 | `@zxing/browser` quebra SSR | `dynamic(..., { ssr: false })` só em Client Components |
 | `pgcrypto` indisponível | Habilitar extensão explicitamente no Supabase |
