@@ -143,7 +143,8 @@ PLAYWRIGHT_ADMIN_PASSWORD=<strong-random>
 /cadastro               → onboarding multi-step (3 tipos de perfil)
 /esqueci-senha          → pedido de reset de password
 /nova-senha             → formulário de nova password
-/perfil                 → home do aluno: faixa, mensalidade, dependentes, acções rápidas; admin/professor vêem card de alunos aptos a graduar
+/perfil                 → home compacta. Aluno: próxima aula reservada, frequência semanal, faixa, dependentes, galeria. Admin/professor: resumo (KPIs do /admin), aptos a graduar, Dashboard/Galeria, "Meu treino" recolhido. Sem atalhos repetidos da barra inferior
+/perfil/conta           → aberta pelo avatar: foto, dados pessoais (editar), mensalidades (+ WhatsApp) e sair
 /presenca               → gera QR Code (self ou dependentes); polling até confirmação
 /presencas              → histórico de presenças com calendário visual e filtro por mês
 /aulas                  → vista semanal de aulas disponíveis; reservar/cancelar
@@ -384,6 +385,7 @@ ActionResult = { ok: boolean; erro?: string }  // retorno padrão de Server Acti
 | `Medalha` | Medalha redonda (bronze/prata/ouro) — número nos marcos de aulas e sequências, ícone nas especiais |
 | `NovaConquistaModal` | Modal em `/perfil` com medalhas ainda não vistas (próprio + dependentes); não aparece com o aviso de graduação nem com mensalidade ≥2 dias em atraso |
 | `GraduacaoAptosModal` | Modal 2x por semana (1º acesso a partir de segunda e a partir de quinta, hora de Lisboa) para admin/professor quando há ≥1 aluno apto a graduar; janela vista guardada em `user_metadata.aviso_graduacao_janela` (por conta, não por dispositivo); renderizado em `/perfil` |
+| Home (`src/app/(app)/perfil/`) | `HomeHeader` (logo, saudação, sino, avatar → `/perfil/conta`), `ProximaAulaCard` (lógica em `src/lib/proxima-reserva.ts`, testada), `FrequenciaCard` (`data-testid="card-gamificacao"`), `FaixaCard` (evolução recolhida), `DependentesCard` (dados ligados por `id`; foto muda no `DependenteModal`), `AptosGraduarCard` (5 + "Mostrar todos"), `ResumoAdmin`/`AcessosAdmin`, `AvisoMensalidade` (só atraso < 5 dias — a partir daí o banner do layout avisa) |
 | `BottomNav` | Barra inferior do grupo `(app)`: Início · Aulas · Presença (centro) · Histórico · Avisos; ponto de avisos por ler (compara o último aviso publicado com `localStorage.avisos_last_seen`) |
 | `PageHeader` | Header escuro das páginas do aluno (título, ícone, voltar opcional, safe area). Tabs da barra inferior não têm "voltar" |
 | `skeletons` + `ui/skeleton` | Blocos para os `loading.tsx` — `AppPageSkeleton`, `CardListSkeleton`, `AdminPageSkeleton` |
@@ -504,6 +506,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | — | **Modalidades** | `/admin/modalidades`; card Modalidades na ficha (valor por aluno, total, "Atualizar pendentes" quando muda); `mensalidades.itens` (jsonb) guarda a composição e `valor` continua a ser o total; detalhe "JJ 50 € · Capoeira 20 €" no Financeiro, ficha, perfil do aluno e relatórios; `turmas.modalidade_id` filtra `/aulas` e é validado em `reservar` |
 | — | **Colégio e descontos** | Modalidade "Jiu-Jitsu · Colégio" 13 € com `desconta_noutro_local`: ao juntar uma modalidade de outro local, o editor passa o Colégio a "pago no colégio" (`cobrar=false`) e cria "Desconto aluno do Colégio −13 €" (editável); ao sair, reverte. Ficha mostra "Onde treina"; filtros de grupo (Cadastros, Financeiro) usam locais derivados; descontos manuais no editor |
 | 17 | **Gamificação** | `/ranking` (mês/ano, Adultos/Kids pela regra da graduação, empates 1,1,3, opção de ocultar); `/conquistas` (sequência = semanas seg–dom com ≥2 aulas, semana sem ninguém na academia é pausa; medalhas de aulas 10–500, sequências 4–52, Mês perfeito, Top 3 do mês desde 2026-10, 1/2/3 anos). Regras em `src/lib/gamificacao.ts` (testadas com vitest); gravação em `src/lib/conquistas-sync.ts` — depois do QR (ecrã de confirmação), na presença manual do tablet (`after`) e no cron diário `type=conquistas` (`?dry=1` só conta). Push agrupado por pessoa; backfill antigo não gera push |
+| — | **Home compacta** | `/perfil` sem os 4 atalhos da barra inferior; header baixo; hierarquia por perfil (aluno, responsável, admin/professor); conta/sair em `/perfil/conta` pelo avatar; aptos a graduar visíveis na home do admin (5 + "Mostrar todos (N)"), mesmas regras de elegibilidade |
 
 ### ❌ Por implementar
 

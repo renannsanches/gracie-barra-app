@@ -1,14 +1,17 @@
 "use client";
 
 import { DetalheMensalidade } from "@/components/ValorMensalidade";
-import { useEffect, useState } from "react";
-import { X, Award, CalendarDays, CreditCard } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { X, Award, CalendarDays, CreditCard, Camera, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
 import { formatarData, formatarMoeda, formatarMes, labelCorFaixa } from "@/lib/utils";
 import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type { DependentePerfil, HistoricoGraduacao, Mensalidade, StatusMensalidade } from "@/lib/types";
 import { historicoGraduacoesDependente } from "./dependente-historico-actions";
+import { atualizarFotoDependente } from "./dependente-foto-actions";
+import { comprimirParaWebP, TIPOS_IMAGEM, MAX_IMAGEM_BYTES } from "@/lib/comprimir-webp";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const MENS_BG: Record<StatusMensalidade, string> = {
@@ -32,10 +35,15 @@ const MENS_STATUS_LABEL: Record<StatusMensalidade, string> = {
 interface Props {
   dependente: DependentePerfil;
   onClose: () => void;
+  /** Depois de trocar a foto (URL já com ?t= para furar a cache) */
+  onFotoAlterada?: (dependenteId: string, url: string) => void;
 }
 
 
-export function DependenteModal({ dependente, onClose }: Props) {
+export function DependenteModal({ dependente, onClose, onFotoAlterada }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fotoUrl, setFotoUrl] = useState(dependente.foto_url);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [presencasCount, setPresencasCount] = useState<number | null>(null);
   const [presencasRecentes, setPresencasRecentes] = useState<{ registrado_em: string }[]>([]);
   const [graduacoes, setGraduacoes] = useState<HistoricoGraduacao[]>([]);
@@ -74,6 +82,46 @@ export function DependenteModal({ dependente, onClose }: Props) {
     carregar();
   }, [dependente.id]);
 
+  async function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file) return;
+    if (!TIPOS_IMAGEM.includes(file.type)) {
+      toast.error("Apenas JPG, PNG e WebP são aceites.");
+      return;
+    }
+    if (file.size > MAX_IMAGEM_BYTES) {
+      toast.error("A imagem deve ter no máximo 2MB.");
+      return;
+    }
+
+    setEnviandoFoto(true);
+    try {
+      const blob = await comprimirParaWebP(file);
+      const timestamp = Date.now();
+      const path = `dependentes/${dependente.id}/${timestamp}.webp`;
+
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, blob, { contentType: "image/webp", upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+      const result = await atualizarFotoDependente(dependente.id, publicUrl);
+      if (!result.ok) throw new Error(result.erro);
+
+      const urlComTs = `${publicUrl}?t=${timestamp}`;
+      setFotoUrl(urlComTs);
+      onFotoAlterada?.(dependente.id, urlComTs);
+      toast.success("Foto atualizada");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar a foto.");
+    } finally {
+      setEnviandoFoto(false);
+    }
+  }
+
   const iniciais = dependente.nome_completo
     .split(" ")
     .slice(0, 2)
@@ -92,15 +140,32 @@ export function DependenteModal({ dependente, onClose }: Props) {
       >
         <div className="sticky top-0 bg-white z-10 px-5 pt-5 pb-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-gb-blue flex items-center justify-center overflow-hidden shrink-0">
-              {dependente.foto_url ? (
+            <button
+              type="button"
+              onClick={() => !enviandoFoto && fileInputRef.current?.click()}
+              disabled={enviandoFoto}
+              aria-label={`Alterar foto de ${dependente.nome_completo}`}
+              className="relative w-12 h-12 rounded-full bg-brand flex items-center justify-center overflow-hidden shrink-0 focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            >
+              {fotoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={dependente.foto_url} alt={dependente.nome_completo} className="w-full h-full object-cover" />
+                <img src={fotoUrl} alt="" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-white font-black text-base">{iniciais}</span>
               )}
-            </div>
-            <div>
+              <span className="absolute inset-x-0 bottom-0 h-4 bg-black/55 flex items-center justify-center">
+                {enviandoFoto ? <Loader2 size={10} className="text-white animate-spin" /> : <Camera size={10} className="text-white" />}
+              </span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              aria-label={`Selecionar foto de ${dependente.nome_completo}`}
+              className="hidden"
+              onChange={handleFotoChange}
+            />
+            <div className="min-w-0">
               <DialogTitle className="text-base">{dependente.nome_completo}</DialogTitle>
               {dependente.faixa && (
                 <p className="text-xs text-gray-400">
