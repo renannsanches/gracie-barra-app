@@ -101,7 +101,7 @@ export function TurmasAlunoView({ aulas: aulasProp }: Props) {
       />
 
       {/* Content */}
-      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-4">
+      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-4 animar-lista">
 
         {datas.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">

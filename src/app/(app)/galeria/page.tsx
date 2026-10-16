@@ -66,12 +66,12 @@ export default async function GaleriaPage() {
             <p className="text-gray-500 font-medium">Nenhum álbum disponível</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 animar-lista">
             {lista.map((album) => (
               <Link
                 key={album.id}
                 href={`/galeria/${album.id}`}
-                className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow"
+                className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-[box-shadow,transform] duration-fast ease-out-expo active:scale-[0.98]"
               >
                 <div className="relative aspect-square bg-gray-100">
                   {album.capa ? (

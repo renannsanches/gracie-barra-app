@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -44,7 +45,7 @@ export function AdminSidebar({ perfil }: { perfil: "admin" | "professor" }) {
         {/* Logo */}
         <div className="px-5 py-6 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <img src="/logo.webp" alt="Gracie Barra" className="w-9 h-9 object-contain shrink-0" />
+            <Image src="/logo.webp" alt="Gracie Barra" width={36} height={36} className="w-9 h-9 object-contain shrink-0" />
             <div>
               <p className="text-white font-black text-sm tracking-wide leading-tight">GRACIE BARRA FAMALICÃO</p>
               <p className="text-white/40 text-xs">Painel Admin</p>
@@ -104,7 +105,7 @@ export function AdminSidebar({ perfil }: { perfil: "admin" | "professor" }) {
         {/* Top row: logo + back to profile */}
         <div className="px-4 py-1.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/logo.webp" alt="Gracie Barra" className="w-7 h-7 object-contain" />
+            <Image src="/logo.webp" alt="Gracie Barra" width={28} height={28} className="w-7 h-7 object-contain" />
             <span className="text-white font-bold text-sm tracking-wide">Admin</span>
           </div>
           <Link

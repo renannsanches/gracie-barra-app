@@ -37,7 +37,7 @@ export default async function AvisosPage() {
         subtitle={`${avisos.length} aviso${avisos.length !== 1 ? "s" : ""}`}
       />
 
-      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-3">
+      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-3 animar-lista">
         {avisos.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
             <Megaphone size={36} className="text-gray-200 mx-auto mb-3" />

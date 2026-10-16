@@ -179,15 +179,15 @@ export function DependenteModal({ dependente, onClose }: Props) {
                       >
                         <div>
                           <p className="text-[13px] font-semibold text-gray-800">{formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}</p>
-                          <p className="text-[11px] text-gray-400 mt-0.5">
+                          <p className="text-xs text-gray-400 mt-0.5">
                             Venc. {formatarData(m.data_vencimento)}
                             {m.data_pagamento ? ` · Pago ${formatarData(m.data_pagamento)}` : ""}
                           </p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-[13px] font-bold text-gray-800">{formatarMoeda(m.valor)}</p>
-                          <DetalheMensalidade valor={m.valor} itens={m.itens} className="text-[11px]" />
-                          <p className={`text-[11px] font-medium mt-0.5 ${MENS_TEXT[ef]}`}>
+                          <DetalheMensalidade valor={m.valor} itens={m.itens} className="text-xs" />
+                          <p className={`text-xs font-medium mt-0.5 ${MENS_TEXT[ef]}`}>
                             {MENS_STATUS_LABEL[ef]}
                           </p>
                         </div>

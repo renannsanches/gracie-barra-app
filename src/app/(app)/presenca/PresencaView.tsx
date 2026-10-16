@@ -115,6 +115,8 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
           limparTimer();
           limparPolling();
           setEstado("confirmado");
+          // Vibração curta de confirmação (Android; o iOS não suporta e ignora)
+          navigator.vibrate?.(15);
           iniciarBloqueio(new Date(data.registrado_em));
           // Medalhas novas e sequência de quem treinou
           void sincronizarMinhasConquistas(alunoIds).then((r) => {
@@ -227,7 +229,7 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
     <div className="min-h-screen flex flex-col bg-gb-gray">
       <PageHeader title="Registrar Presença" subtitle={`Olá, ${primeiroNome}!`} />
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6 pt-10 pb-bottom-nav">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 pt-10 pb-bottom-nav animar-entrada">
 
         {estado === "carregando" && (
           <Loader2 size={40} className="animate-spin text-gb-blue" />
@@ -292,10 +294,13 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
 
         {estado === "confirmado" && (
           <div className="w-full max-w-sm flex flex-col items-center gap-6">
-            <div className="w-32 h-32 rounded-full bg-green-500 flex items-center justify-center shadow-xl">
-              <CheckCircle2 size={64} className="text-white" />
+            <div className="relative w-32 h-32">
+              <span aria-hidden="true" className="absolute inset-0 rounded-full bg-green-500 animar-pulso" />
+              <div className="relative w-32 h-32 rounded-full bg-green-500 flex items-center justify-center shadow-xl animate-in fade-in zoom-in-50 duration-500 ease-out-expo">
+                <CheckCircle2 size={64} className="text-white animate-in zoom-in-50 spin-in-12 duration-500 delay-150 fill-mode-both" />
+              </div>
             </div>
-            <div className="text-center">
+            <div className="text-center animar-entrada" style={{ animationDelay: "200ms" }}>
               <p className="text-green-600 font-black text-3xl leading-tight">Presença</p>
               <p className="text-green-600 font-black text-3xl leading-tight">Registrada!</p>
               <p className="text-gray-500 text-lg mt-3 font-medium">Bom treino! 🥋</p>

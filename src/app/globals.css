@@ -150,6 +150,34 @@ html:has([data-bottom-nav]) .install-prompt {
 }
 
 /*
+ * Entrada de conteúdo (Fase 15.3): fade + 8px a subir, 220ms ease-out.
+ * .animar-entrada → um bloco; .animar-lista → filhos em cascata (máx. 6 passos).
+ * Só opacity/transform — barato e seguro no Safari 15.
+ */
+@keyframes entrar {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.animar-entrada,
+.animar-lista > * {
+  animation: entrar var(--dur-base) var(--ease-out) both;
+}
+.animar-lista > :nth-child(2) { animation-delay: 40ms; }
+.animar-lista > :nth-child(3) { animation-delay: 80ms; }
+.animar-lista > :nth-child(4) { animation-delay: 120ms; }
+.animar-lista > :nth-child(5) { animation-delay: 160ms; }
+.animar-lista > :nth-child(n + 6) { animation-delay: 200ms; }
+
+/* Anel que se expande uma vez (presença confirmada) */
+@keyframes pulso-unico {
+  from { opacity: 0.6; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.6); }
+}
+.animar-pulso {
+  animation: pulso-unico 700ms var(--ease-out) 150ms both;
+}
+
+/*
  * Movimento reduzido: corta animações e transições decorativas.
  * Os spinners continuam a rodar — são feedback de carregamento, não decoração.
  */
@@ -158,6 +186,7 @@ html:has([data-bottom-nav]) .install-prompt {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;

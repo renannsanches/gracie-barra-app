@@ -12,11 +12,13 @@ type AppPageSkeletonProps = {
   title?: React.ReactNode;
   icon?: React.ReactNode;
   back?: { href: string; label: string };
+  /** Conteúdo extra dentro do header (ex.: barra de dias em /aulas) */
+  headerExtra?: React.ReactNode;
   children?: React.ReactNode;
 };
 
 /** Página do aluno: header escuro + corpo. */
-export function AppPageSkeleton({ title, icon, back, children }: AppPageSkeletonProps) {
+export function AppPageSkeleton({ title, icon, back, headerExtra, children }: AppPageSkeletonProps) {
   return (
     <div className="min-h-screen flex flex-col bg-canvas" aria-busy="true" aria-live="polite">
       <span className="sr-only">A carregar…</span>
@@ -25,7 +27,9 @@ export function AppPageSkeleton({ title, icon, back, children }: AppPageSkeleton
         icon={icon}
         back={back}
         subtitle={<SkeletonDark className="h-4 w-28 mt-1.5 rounded-md" />}
-      />
+      >
+        {headerExtra}
+      </PageHeader>
       <div className="flex-1 px-4 py-5 pb-bottom-nav">
         {children ?? <CardListSkeleton />}
       </div>

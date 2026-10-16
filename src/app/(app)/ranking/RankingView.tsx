@@ -96,7 +96,7 @@ export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, gru
         </div>
       </PageHeader>
 
-      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-3">
+      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-3 animar-lista">
         {eu && oculto && (
           <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-3" data-testid="ranking-oculto">
             <EyeOff size={18} className="text-gray-400 mt-0.5 shrink-0" />
@@ -189,7 +189,7 @@ function Avatar({ linha, tamanho }: { linha: LinhaRanking; tamanho: "sm" | "lg" 
   return (
     <div
       className={cn(
-        "rounded-full bg-[#1a1a1a] flex items-center justify-center overflow-hidden shrink-0",
+        "rounded-full bg-ink flex items-center justify-center overflow-hidden shrink-0",
         tamanho === "lg" ? "w-16 h-16" : "w-10 h-10",
       )}
     >

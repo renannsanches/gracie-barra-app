@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { LoginForm } from "./LoginForm";
 
 /**
@@ -26,7 +27,7 @@ export default async function LoginPage({
     <div className="min-h-screen flex flex-col">
       {/* Header */}
       <div className="bg-gb-black py-10 px-6 flex flex-col items-center">
-        <img src="/logo.webp" alt="Gracie Barra" className="h-20 w-auto mb-4 object-contain" />
+        <Image src="/logo.webp" alt="Gracie Barra" width={93} height={80} priority className="h-20 w-auto mb-4 object-contain" />
         <h1 className="text-white font-black text-2xl tracking-wide flex flex-col items-center text-center">
           <span>GRACIE BARRA</span>
           <span>VILA NOVA DE FAMALICÃO</span>

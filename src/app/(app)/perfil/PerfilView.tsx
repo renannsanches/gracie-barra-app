@@ -1,5 +1,7 @@
 "use client";
 
+// NextImage: o nome "Image" é o construtor global usado na compressão WebP
+import NextImage from "next/image";
 import { toast } from "sonner";
 import { DetalheMensalidade } from "@/components/ValorMensalidade";
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -403,11 +405,11 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
 
   return (
     <div className="min-h-screen flex flex-col bg-gb-gray">
-      <div className="bg-[#1a1a1a] px-5 pt-header pb-6">
+      <div className="bg-ink px-5 pt-header pb-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
-            <img src="/logo.webp" alt="Gracie Barra" className="w-8 h-8 object-contain" />
+            <NextImage src="/logo.webp" alt="Gracie Barra" width={32} height={32} priority className="w-8 h-8 object-contain" />
             <span className="text-white font-medium text-[13px] tracking-[0.5px]">GRACIE BARRA FAMALICÃO</span>
           </div>
           <div className="flex items-center gap-3">
@@ -419,7 +421,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
             >
               <Bell size={18} className="text-white" />
               {hasUnread && (
-                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-red-500 border-2 border-[#1a1a1a]" />
+                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-brand border-2 border-ink" />
               )}
             </button>
             <button
@@ -441,7 +443,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
               type="button"
               onClick={handleAvatarClick}
               disabled={uploading}
-              className="relative w-[72px] h-[72px] rounded-full bg-[#333] border-[2.5px] border-[#c8102e] flex items-center justify-center shadow-lg overflow-hidden group focus:outline-none"
+              className="relative w-[72px] h-[72px] rounded-full bg-white/15 border-[2.5px] border-brand flex items-center justify-center shadow-lg overflow-hidden group focus:outline-none"
               aria-label="Alterar foto de perfil"
             >
               {fotoUrl ? (
@@ -468,7 +470,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
               type="button"
               onClick={handleAvatarClick}
               disabled={uploading}
-              className="absolute -bottom-0.5 -right-0.5 w-[22px] h-[22px] rounded-full bg-[#c8102e] border-2 border-[#1a1a1a] flex items-center justify-center shadow"
+              className="absolute -bottom-0.5 -right-0.5 w-[22px] h-[22px] rounded-full bg-brand border-2 border-ink flex items-center justify-center shadow"
               aria-label="Alterar foto"
             >
               <Camera size={10} className="text-white" />
@@ -499,10 +501,10 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
             <p className="text-[13px] text-white/50 mb-0.5">Bem-vindo de volta</p>
             <h1 className="text-white font-medium text-xl leading-tight">{profile.nome_completo}</h1>
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-              <span className="text-[11px] font-medium px-2.5 py-[3px] rounded-full bg-white/15 text-white/85">
+              <span className="text-xs font-medium px-2.5 py-[3px] rounded-full bg-white/15 text-white/85">
                 {PERFIL_LABELS[profile.perfil] ?? profile.perfil}
               </span>
-              <span className={`text-[11px] font-medium px-2.5 py-[3px] rounded-full ${
+              <span className={`text-xs font-medium px-2.5 py-[3px] rounded-full ${
                 statusInfo.variant === "success" ? "bg-emerald-500/20 text-emerald-400" :
                 statusInfo.variant === "destructive" ? "bg-red-500/20 text-red-400" :
                 "bg-amber-500/20 text-amber-400"
@@ -514,7 +516,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
         </div>
       </div>
 
-      <div className="flex-1 px-4 pt-4 space-y-3 pb-bottom-nav">
+      <div className="flex-1 px-4 pt-4 space-y-3 pb-bottom-nav animar-lista">
         <div className="grid grid-cols-2 gap-2.5">
           <ActionCard
             href="/presenca"
@@ -574,17 +576,17 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   <div className="grid grid-cols-3 gap-2">
                     <div className="bg-gb-gray rounded-xl p-3 text-center">
                       <p className="text-[22px] font-medium text-gray-900 leading-none">{totalAulas}</p>
-                      <p className="text-[11px] text-gray-400 mt-1">Total de aulas</p>
+                      <p className="text-xs text-gray-400 mt-1">Total de aulas</p>
                     </div>
                     <div className="bg-gb-gray rounded-xl p-3 text-center">
                       <p className="text-[22px] font-medium text-gray-900 leading-none">{aulasMes}</p>
-                      <p className="text-[11px] text-gray-400 mt-1">Esse mês</p>
+                      <p className="text-xs text-gray-400 mt-1">Esse mês</p>
                     </div>
                     <div className="bg-gb-gray rounded-xl p-3 text-center">
                       <p className="text-[22px] font-medium text-gray-900 leading-none">
                         {ultimoTreino ? formatarData(ultimoTreino).split("/").slice(0, 2).join("/") : "—"}
                       </p>
-                      <p className="text-[11px] text-gray-400 mt-1">Último treino</p>
+                      <p className="text-xs text-gray-400 mt-1">Último treino</p>
                     </div>
                   </div>
                 </>
@@ -706,7 +708,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   setDadosOpen(true);
                   iniciarEdicao();
                 }}
-                className="text-[12px] text-[#c8102e] font-medium"
+                className="text-[12px] text-brand font-medium"
               >
                 Editar
               </button>
@@ -782,7 +784,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   <Button
                     onClick={handleSalvar}
                     disabled={salvando}
-                    className="flex-1 bg-[#c8102e] hover:bg-[#a50d25] text-white"
+                    className="flex-1 bg-brand hover:bg-brand-dark text-white"
                   >
                     {salvando ? (
                       <><Loader2 size={16} className="animate-spin mr-2" />Salvando...</>
@@ -842,8 +844,8 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-[14px] font-medium text-gray-900">{m.valor != null ? formatarMoeda(m.valor) : "—"}</p>
-                    {m.valor != null && <DetalheMensalidade valor={m.valor} itens={m.itens} className="text-[11px]" />}
-                    <span className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded-full mt-1 ${
+                    {m.valor != null && <DetalheMensalidade valor={m.valor} itens={m.itens} className="text-xs" />}
+                    <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mt-1 ${
                       ef === "pago"
                         ? "bg-emerald-500/15 text-emerald-600"
                         : ef === "atrasado"
@@ -867,7 +869,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                 href="https://wa.me/14076941856"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full mt-3 py-2.5 rounded-lg bg-[#25D366] text-white text-[14px] font-medium"
+                className="flex items-center justify-center gap-2 w-full mt-3 py-2.5 rounded-lg bg-whatsapp hover:bg-whatsapp-dark transition-colors duration-fast text-white text-[14px] font-medium"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
@@ -915,7 +917,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                     className="w-full flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0 text-left"
                   >
                     <div className="relative shrink-0">
-                      <div className="w-10 h-10 rounded-full bg-[#1a3a6b] flex items-center justify-center overflow-hidden">
+                      <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden">
                         {dep.foto_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={dep.foto_url} alt={dep.nome_completo} className="w-full h-full object-cover" />
@@ -927,7 +929,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                         type="button"
                         onClick={(e) => handleDepAvatarClick(e, dep.id)}
                         disabled={!!uploadingDepId}
-                        className="absolute -bottom-0.5 -right-0.5 w-[18px] h-[18px] rounded-full bg-[#c8102e] border-[1.5px] border-white flex items-center justify-center shadow"
+                        className="absolute -bottom-0.5 -right-0.5 w-[18px] h-[18px] rounded-full bg-brand border-[1.5px] border-white flex items-center justify-center shadow"
                         aria-label={`Alterar foto de ${dep.nome_completo}`}
                       >
                         {isUploadingThis
@@ -945,7 +947,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                           </p>
                         )}
                         {ultimaMens && ultimaMensEf && (
-                          <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full ${mensStatusColor[ultimaMensEf]}`}>
+                          <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${mensStatusColor[ultimaMensEf]}`}>
                             {mensStatusLabel[ultimaMensEf]}
                           </span>
                         )}
@@ -1003,7 +1005,7 @@ function AccordionCard({
         tabIndex={0}
         onClick={onToggle}
         onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onToggle()}
-        className="w-full flex items-center justify-between px-4 py-3.5 cursor-pointer"
+        className="w-full flex items-center justify-between px-4 py-3.5 cursor-pointer active:bg-gray-50 transition-colors duration-fast"
       >
         <div className="flex items-center gap-2">
           {icon}
@@ -1017,7 +1019,7 @@ function AccordionCard({
           />
         </div>
       </div>
-      <div className={`overflow-hidden transition-[max-height] duration-[250ms] ease-in-out ${open ? "max-h-[2000px]" : "max-h-0"}`}>
+      <div className={`overflow-hidden transition-[max-height] duration-base ease-in-out ${open ? "max-h-[2000px]" : "max-h-0"}`}>
         <div className="px-4 pb-4 border-t border-gray-100 pt-3">
           {children}
         </div>
@@ -1096,7 +1098,7 @@ function ActionCard({
       href={href}
       className={`rounded-xl p-4 flex flex-col gap-2.5 active:scale-[0.97] transition-transform duration-fast ease-out-expo text-left ${
         primary
-          ? "bg-[#c8102e] border-0"
+          ? "bg-brand border-0"
           : "bg-white border border-gray-100"
       }`}
     >
@@ -1125,7 +1127,7 @@ function InfoRow({
     <div className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
       <div className="text-gray-400 shrink-0 w-5 text-center">{icon}</div>
       <div className="min-w-0">
-        <p className="text-[11px] text-gray-400 mb-0.5">{label}</p>
+        <p className="text-xs text-gray-400 mb-0.5">{label}</p>
         <p className="text-[14px] text-gray-900 break-words">{value}</p>
       </div>
     </div>
