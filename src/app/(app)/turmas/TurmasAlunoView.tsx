@@ -1,5 +1,7 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmDialog";
+import { toast } from "sonner";
 import { useState } from "react";
 import { Calendar, Loader2, Users, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,7 +39,6 @@ interface Props { aulas: AulaParaAluno[]; }
 export function TurmasAlunoView({ aulas: aulasProp }: Props) {
   const [aulas, setAulas]   = useState(aulasProp);
   const [acao, setAcao]     = useState<string | null>(null);
-  const [erro, setErro]     = useState("");
 
   // Group by date
   const grupos: Record<string, AulaParaAluno[]> = {};
@@ -49,11 +50,11 @@ export function TurmasAlunoView({ aulas: aulasProp }: Props) {
 
   async function handleReservar(aulaId: string) {
     setAcao(aulaId);
-    setErro("");
     const result = await reservar(aulaId);
     if (!result.ok) {
-      setErro(result.erro ?? "Erro ao reservar.");
+      toast.error(result.erro ?? "Erro ao reservar.");
     } else {
+      toast.success("Reserva confirmada");
       setAulas((prev) => prev.map((a) =>
         a.id === aulaId
           ? {
@@ -69,13 +70,13 @@ export function TurmasAlunoView({ aulas: aulasProp }: Props) {
   }
 
   async function handleCancelar(reservaId: string, aulaId: string) {
-    if (!confirm("Cancelar a reserva nesta aula?")) return;
+    if (!(await confirmar({ titulo: "Cancelar a reserva nesta aula?", confirmar: "Cancelar reserva", cancelar: "Manter", destrutivo: true }))) return;
     setAcao(reservaId);
-    setErro("");
     const result = await cancelarMinhaReserva(reservaId);
     if (!result.ok) {
-      setErro(result.erro ?? "Erro ao cancelar.");
+      toast.error(result.erro ?? "Erro ao cancelar.");
     } else {
+      toast.success("Reserva cancelada");
       setAulas((prev) => prev.map((a) =>
         a.id === aulaId
           ? {
@@ -101,11 +102,6 @@ export function TurmasAlunoView({ aulas: aulasProp }: Props) {
 
       {/* Content */}
       <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-4">
-        {erro && (
-          <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-            {erro}
-          </div>
-        )}
 
         {datas.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">

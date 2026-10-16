@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useOptimistic, useTransition } from "react";
+import { toast } from "sonner";
 import { marcarPago, desmarcarPago } from "./actions";
 import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type { GrupoAluno, Mensalidade, Modalidade, StatusMensalidade } from "@/lib/types";
@@ -56,16 +57,32 @@ export function FinanceiroView({ mensalidades, grupos, modalidades, gruposPorAlu
   const [pending, startTransition] = useTransition();
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
+  // Marcar/desmarcar pago muda a linha logo; o React volta aos dados do servidor
+  // quando a action termina (revalidatePath), ou desfaz se ela falhar.
+  const [otimistas, aplicarOtimista] = useOptimistic(
+    mensalidades,
+    (atual, { id, pago }: { id: string; pago: boolean }) => {
+      const hojeIso = new Date().toISOString().split("T")[0];
+      return atual.map((m) =>
+        m.id !== id
+          ? m
+          : pago
+          ? { ...m, status: "pago" as const, data_pagamento: hojeIso }
+          : { ...m, status: m.data_vencimento < hojeIso ? ("atrasado" as const) : ("pendente" as const), data_pagamento: null },
+      );
+    },
+  );
+
   const temPeriodo = !!(dataInicio || dataFim);
 
   const anos = useMemo(() => {
-    const set = new Set(mensalidades.map((m) => m.mes_referencia.slice(0, 4)));
+    const set = new Set(otimistas.map((m) => m.mes_referencia.slice(0, 4)));
     set.add(ANO_ATUAL);
     return Array.from(set).sort((a, b) => b.localeCompare(a));
-  }, [mensalidades]);
+  }, [otimistas]);
 
   const filtered = useMemo(() => {
-    return mensalidades.filter((m) => {
+    return otimistas.filter((m) => {
       const nome = m.profiles?.nome_completo ?? "";
       if (busca && !nome.toLowerCase().includes(busca.toLowerCase())) return false;
       if (statusFiltro && getEffectiveStatus(m) !== statusFiltro) return false;
@@ -80,7 +97,7 @@ export function FinanceiroView({ mensalidades, grupos, modalidades, gruposPorAlu
       }
       return true;
     });
-  }, [mensalidades, busca, filtroAno, filtroMes, statusFiltro, filtroGrupo, gruposPorAluno, filtroModalidade, dataInicio, dataFim, temPeriodo]);
+  }, [otimistas, busca, filtroAno, filtroMes, statusFiltro, filtroGrupo, gruposPorAluno, filtroModalidade, dataInicio, dataFim, temPeriodo]);
 
   const totalPago = filtered.filter((m) => m.status === "pago").reduce((s, m) => s + m.valor, 0);
   const totalPendente = filtered.filter((m) => m.status !== "pago").reduce((s, m) => s + m.valor, 0);
@@ -102,16 +119,22 @@ export function FinanceiroView({ mensalidades, grupos, modalidades, gruposPorAlu
   function handleMarcar(id: string) {
     setLoadingId(id);
     startTransition(async () => {
-      await marcarPago(id);
+      aplicarOtimista({ id, pago: true });
+      const r = await marcarPago(id);
       setLoadingId(null);
+      if (r.ok) toast.success("Mensalidade marcada como paga");
+      else toast.error(r.erro ?? "Não foi possível marcar como paga.");
     });
   }
 
   function handleDesmarcar(id: string) {
     setLoadingId(id);
     startTransition(async () => {
-      await desmarcarPago(id);
+      aplicarOtimista({ id, pago: false });
+      const r = await desmarcarPago(id);
       setLoadingId(null);
+      if (r.ok) toast.success("Pagamento revertido");
+      else toast.error(r.erro ?? "Não foi possível reverter o pagamento.");
     });
   }
 

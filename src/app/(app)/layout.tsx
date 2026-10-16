@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { MensalidadeVencidaBanner } from "@/components/MensalidadeVencidaBanner";
 import { MensalidadeAtrasoModal } from "@/components/MensalidadeAtrasoModal";
 import { BottomNav } from "@/components/BottomNav";
+import { FeedbackHosts } from "@/components/FeedbackHosts";
 import { getDiasAtraso, getMaiorAtraso } from "@/lib/mensalidade-status";
 import type { Mensalidade } from "@/lib/types";
 
@@ -109,6 +110,7 @@ export default async function AppLayout({
       {modal}
       {children}
       <BottomNav ultimoAvisoEm={ultimoAviso?.created_at ?? null} />
+      <FeedbackHosts />
     </>
   );
 }

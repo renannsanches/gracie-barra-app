@@ -387,6 +387,9 @@ ActionResult = { ok: boolean; erro?: string }  // retorno padrão de Server Acti
 | `BottomNav` | Barra inferior do grupo `(app)`: Início · Aulas · Presença (centro) · Histórico · Avisos; ponto de avisos por ler (compara o último aviso publicado com `localStorage.avisos_last_seen`) |
 | `PageHeader` | Header escuro das páginas do aluno (título, ícone, voltar opcional, safe area). Tabs da barra inferior não têm "voltar" |
 | `skeletons` + `ui/skeleton` | Blocos para os `loading.tsx` — `AppPageSkeleton`, `CardListSkeleton`, `AdminPageSkeleton` |
+| `ui/dialog` | Diálogo Radix partilhado (`variant="center"` ou `"sheet"` = bottom sheet no telemóvel). Usar em vez de `fixed inset-0` à mão |
+| `ConfirmDialog` | `await confirmar({ titulo, descricao?, destrutivo? })` — substitui `window.confirm()` |
+| `FeedbackHosts` | `<Toaster>` (sonner, topo) + host do `confirmar()`; montado nos layouts `(app)` e `admin` |
 
 ---
 
@@ -420,8 +423,9 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 - Cada rota tem `loading.tsx` com skeleton do formato real (header com o título já conhecido) — rota nova = `loading.tsx` novo
 - Navegação interna com `<Link>` (prefetch), não `router.push` em botões
 - Plano da Fase 15 em `docs/plano-fluidez-ui.md`
-- `window.confirm()` para confirmações destrutivas (débito UX a resolver na Fase 15)
-- Sem sistema de toasts — feedback inline nos componentes (débito UX a resolver na Fase 15)
+- Confirmações: `confirmar()` de `@/components/ConfirmDialog` — nunca `window.confirm()`/`alert()`
+- Resultado de acções (apagar, guardar, reservar): `toast.success` / `toast.error` do `sonner`. Erros de validação de formulário ficam inline, junto ao campo
+- Modais: `<Dialog>` de `@/components/ui/dialog`; conteúdo que lê um objecto (ex.: `deleteTarget.x`) fica dentro de `{obj && (<DialogContent>…)}` para não rebentar na animação de saída
 
 ---
 
@@ -456,7 +460,6 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | Race condition na capacidade de aulas | Exceder lotação com utilizadores simultâneos | Baixa (academia pequena) |
 | Componentes com 1000+ linhas | `AlunoEditView.tsx`, `CadastroForm.tsx` — difíceis de manter | Baixa |
 | ~54 avisos de lint em código legado | `no-explicit-any`, `set-state-in-effect` e `purity` rebaixadas a aviso em `eslint.config.mjs` — voltar a erro depois de corrigidas | Baixa |
-| `window.confirm()` e banners inline | UX inconsistente (a resolver Fase 15) | Baixa |
 
 ---
 
@@ -505,7 +508,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 
 | Fase | Funcionalidade | Prioridade |
 |------|---------------|------------|
-| 15 | **UI/UX Polishing** — feito: tokens, safe areas, zoom, skeletons, barra inferior. Falta: toasts, modais/confirmações, micro-interacções, consistência de cores (`docs/plano-fluidez-ui.md`) | — |
+| 15 | **UI/UX Polishing** — feito: tokens, safe areas, zoom, skeletons, barra inferior, toasts, diálogos/confirmações, UI optimista. Falta: micro-interacções e consistência de cores (`docs/plano-fluidez-ui.md`) | — |
 
 ---
 

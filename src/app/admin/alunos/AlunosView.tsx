@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+import { confirmar } from "@/components/ConfirmDialog";
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Search, UserPlus, ChevronRight, User, Trash2 } from "lucide-react";
@@ -76,7 +78,7 @@ export function AlunosView({
   async function handleExcluir(e: React.MouseEvent, aluno: Profile) {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm(`Excluir permanentemente "${aluno.nome_completo}"? Esta ação não pode ser desfeita.`)) return;
+    if (!(await confirmar({ titulo: `Excluir "${aluno.nome_completo}"?`, descricao: "O cadastro é apagado permanentemente. Esta ação não pode ser desfeita.", confirmar: "Excluir", destrutivo: true }))) return;
     setExcluindoId(aluno.id);
     try {
       const res = await fetch("/api/admin/delete-user", {
@@ -86,12 +88,13 @@ export function AlunosView({
       });
       const json = await res.json() as { ok: boolean; erro?: string };
       if (!json.ok) {
-        alert(`Erro ao excluir: ${json.erro ?? "desconhecido"}`);
+        toast.error(`Erro ao excluir: ${json.erro ?? "desconhecido"}`);
       } else {
         setLista((prev) => prev.filter((p) => p.id !== aluno.id));
+        toast.success("Cadastro excluído");
       }
     } catch {
-      alert("Erro de rede ao excluir.");
+      toast.error("Erro de rede ao excluir.");
     } finally {
       setExcluindoId(null);
     }

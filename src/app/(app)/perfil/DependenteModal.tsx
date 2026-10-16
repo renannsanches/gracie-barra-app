@@ -9,6 +9,7 @@ import { formatarData, formatarMoeda, formatarMes, labelCorFaixa } from "@/lib/u
 import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type { DependentePerfil, HistoricoGraduacao, Mensalidade, StatusMensalidade } from "@/lib/types";
 import { historicoGraduacoesDependente } from "./dependente-historico-actions";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const MENS_BG: Record<StatusMensalidade, string> = {
   pago:     "bg-green-50 border-green-100",
@@ -81,9 +82,14 @@ export function DependenteModal({ dependente, onClose }: Props) {
     .toUpperCase();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[85vh] overflow-y-auto">
+    <Dialog open onOpenChange={(aberto) => { if (!aberto) onClose(); }}>
+      <DialogContent
+        variant="sheet"
+        showClose={false}
+        showHandle={false}
+        aria-describedby={undefined}
+        className="p-0 pb-safe sm:p-0 sm:rounded-3xl max-h-[85vh]"
+      >
         <div className="sticky top-0 bg-white z-10 px-5 pt-5 pb-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-gb-blue flex items-center justify-center overflow-hidden shrink-0">
@@ -95,7 +101,7 @@ export function DependenteModal({ dependente, onClose }: Props) {
               )}
             </div>
             <div>
-              <p className="font-bold text-gray-900">{dependente.nome_completo}</p>
+              <DialogTitle className="text-base">{dependente.nome_completo}</DialogTitle>
               {dependente.faixa && (
                 <p className="text-xs text-gray-400">
                   {labelCorFaixa(dependente.faixa)} · {dependente.graus} grau{dependente.graus !== 1 ? "s" : ""}
@@ -103,7 +109,7 @@ export function DependenteModal({ dependente, onClose }: Props) {
               )}
             </div>
           </div>
-          <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100">
+          <button type="button" onClick={onClose} aria-label="Fechar" className="-mr-2 w-11 h-11 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors duration-fast">
             <X size={20} className="text-gray-500" />
           </button>
         </div>
@@ -242,7 +248,7 @@ export function DependenteModal({ dependente, onClose }: Props) {
             </>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

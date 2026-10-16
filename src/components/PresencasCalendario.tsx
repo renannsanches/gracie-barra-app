@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmDialog";
 import { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, CalendarDays, Dumbbell, X, Loader2 } from "lucide-react";
 
@@ -96,7 +97,7 @@ export function PresencasCalendario({ presencas, pessoas = [], responsavelId = "
   }
 
   async function handleExcluir(id: string) {
-    if (!confirm("Excluir esta presença?")) return;
+    if (!(await confirmar({ titulo: "Excluir esta presença?", confirmar: "Excluir", destrutivo: true }))) return;
     setExcluindo(id);
     try {
       await onExcluirPresenca?.(id);

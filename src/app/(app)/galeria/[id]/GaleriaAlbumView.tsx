@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import Image from "next/image";
 import { X, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import type { Foto, Album } from "@/lib/types";
 
 interface Props {
@@ -24,22 +25,11 @@ export function GaleriaAlbumView({ album, fotos }: Props) {
     setLightboxIndex((i) => (i === null ? null : (i + 1) % fotos.length));
   }, [fotos.length]);
 
-  useEffect(() => {
-    if (lightboxIndex === null) return;
-
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
-      if (e.key === "ArrowLeft") prev();
-      if (e.key === "ArrowRight") next();
-    }
-
-    window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-    };
-  }, [lightboxIndex, close, prev, next]);
+  // Esc, foco e scroll-lock ficam a cargo do Radix; as setas navegam entre fotos
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "ArrowLeft") prev();
+    if (e.key === "ArrowRight") next();
+  }
 
   const fotoAtiva = lightboxIndex !== null ? fotos[lightboxIndex] : null;
 
@@ -76,11 +66,16 @@ export function GaleriaAlbumView({ album, fotos }: Props) {
         </div>
       )}
 
+      <DialogPrimitive.Root open={fotoAtiva !== null} onOpenChange={(aberto) => { if (!aberto) close(); }}>
       {fotoAtiva && lightboxIndex !== null && (
-        <div
-          className="fixed inset-0 z-50 bg-black/95 flex flex-col"
+        <DialogPrimitive.Portal>
+        <DialogPrimitive.Content
+          aria-describedby={undefined}
+          onKeyDown={onKeyDown}
           onClick={close}
+          className="fixed inset-0 z-50 bg-black/95 flex flex-col pt-safe pb-safe focus:outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-base"
         >
+          <DialogPrimitive.Title className="sr-only">{album.titulo}</DialogPrimitive.Title>
           <div className="flex items-center justify-between px-4 py-3 shrink-0" onClick={(e) => e.stopPropagation()}>
             <p className="text-white/60 text-sm">
               {lightboxIndex + 1} / {fotos.length}
@@ -91,7 +86,7 @@ export function GaleriaAlbumView({ album, fotos }: Props) {
             <button
               type="button"
               onClick={close}
-              className="p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+              className="w-11 h-11 flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors duration-fast"
               aria-label="Fechar"
             >
               <X size={20} />
@@ -103,7 +98,7 @@ export function GaleriaAlbumView({ album, fotos }: Props) {
               <button
                 type="button"
                 onClick={prev}
-                className="absolute left-2 z-10 p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                className="absolute left-2 z-10 w-12 h-12 flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
                 aria-label="Anterior"
               >
                 <ChevronLeft size={32} />
@@ -125,7 +120,7 @@ export function GaleriaAlbumView({ album, fotos }: Props) {
               <button
                 type="button"
                 onClick={next}
-                className="absolute right-2 z-10 p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                className="absolute right-2 z-10 w-12 h-12 flex items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
                 aria-label="Próxima"
               >
                 <ChevronRight size={32} />
@@ -161,8 +156,10 @@ export function GaleriaAlbumView({ album, fotos }: Props) {
               ))}
             </div>
           )}
-        </div>
+        </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
       )}
+      </DialogPrimitive.Root>
     </>
   );
 }

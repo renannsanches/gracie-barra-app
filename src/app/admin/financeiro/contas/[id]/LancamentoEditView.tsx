@@ -1,5 +1,8 @@
 "use client";
 
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { confirmar } from "@/components/ConfirmDialog";
 import { useState, useMemo, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -111,7 +114,8 @@ export function LancamentoEditView({ lancamento: l, grupo, fornecedores, cliente
     setBusy(true);
     const r = await marcarLancamentoPago(l.id, payFormaId || null, payData);
     setBusy(false);
-    if (!r.ok) { window.alert(r.erro ?? "Erro."); return; }
+    if (!r.ok) { toast.error(r.erro ?? "Erro ao marcar pago."); return; }
+    toast.success("Marcado como pago");
     setShowPay(false);
     startTransition(() => router.refresh());
   }
@@ -120,31 +124,41 @@ export function LancamentoEditView({ lancamento: l, grupo, fornecedores, cliente
     setBusy(true);
     const r = await desmarcarLancamentoPago(l.id);
     setBusy(false);
-    if (!r.ok) { window.alert(r.erro ?? "Erro."); return; }
+    if (!r.ok) { toast.error(r.erro ?? "Erro ao desmarcar."); return; }
+    toast.success("Pagamento revertido");
     startTransition(() => router.refresh());
   }
 
   async function handleCancelar(grupoTodo: boolean) {
-    const msg = grupoTodo
-      ? `Cancelar todas as ${grupo.filter((g) => g.status !== "pago").length} parcelas pendentes do grupo?`
-      : "Cancelar esta parcela?";
-    if (!window.confirm(msg)) return;
+    const ok = await confirmar({
+      titulo: grupoTodo
+        ? `Cancelar as ${grupo.filter((g) => g.status !== "pago").length} parcelas pendentes do grupo?`
+        : "Cancelar esta parcela?",
+      confirmar: grupoTodo ? "Cancelar parcelas" : "Cancelar parcela",
+      cancelar: "Voltar",
+      destrutivo: true,
+    });
+    if (!ok) return;
     setBusy(true);
     const r = await cancelarLancamento(l.id, grupoTodo);
     setBusy(false);
-    if (!r.ok) { window.alert(r.erro ?? "Erro."); return; }
+    if (!r.ok) { toast.error(r.erro ?? "Erro ao cancelar."); return; }
+    toast.success(grupoTodo ? "Parcelas canceladas" : "Parcela cancelada");
     startTransition(() => router.refresh());
   }
 
   async function handleApagar(grupoTodo: boolean) {
-    const msg = grupoTodo
-      ? `Apagar TODAS as ${grupo.length} parcelas? Esta acção é irreversível.`
-      : "Apagar este lançamento? Esta acção é irreversível.";
-    if (!window.confirm(msg)) return;
+    const ok = await confirmar({
+      titulo: grupoTodo ? `Apagar todas as ${grupo.length} parcelas?` : "Apagar este lançamento?",
+      descricao: "Esta acção é irreversível.",
+      destrutivo: true,
+    });
+    if (!ok) return;
     setBusy(true);
     const r = await apagarLancamento(l.id, grupoTodo);
     setBusy(false);
-    if (!r.ok) { window.alert(r.erro ?? "Erro."); return; }
+    if (!r.ok) { toast.error(r.erro ?? "Erro ao apagar."); return; }
+    toast.success(grupoTodo ? "Parcelas apagadas" : "Lançamento apagado");
     router.push("/admin/financeiro/contas");
     startTransition(() => router.refresh());
   }
@@ -331,35 +345,32 @@ export function LancamentoEditView({ lancamento: l, grupo, fornecedores, cliente
       </div>
 
       {/* Modal marcar pago */}
-      {showPay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => !busy && setShowPay(false)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
-            <div className="p-6">
-              <h2 className="font-bold text-gray-900 text-lg mb-4">Marcar como pago</h2>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Data do pagamento</label>
-                  <input type="date" value={payData} onChange={(e) => setPayData(e.target.value)} className={inputClass} disabled={busy} />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Forma de pagamento</label>
-                  <select value={payFormaId} onChange={(e) => setPayFormaId(e.target.value)} className={inputClass} disabled={busy}>
-                    <option value="">— (não registar)</option>
-                    {formasPagamento.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                  </select>
-                </div>
+      <Dialog open={showPay} onOpenChange={(aberto) => { if (!aberto && !busy) setShowPay(false); }}>
+        <DialogContent showClose={false} aria-describedby={undefined} className="p-0 max-w-md">
+          <div className="p-6">
+            <DialogTitle className="font-bold text-gray-900 text-lg mb-4">Marcar como pago</DialogTitle>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700">Data do pagamento</label>
+                <input type="date" value={payData} onChange={(e) => setPayData(e.target.value)} className={inputClass} disabled={busy} />
               </div>
-              <div className="flex gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowPay(false)} className="flex-1" disabled={busy}>Cancelar</Button>
-                <Button onClick={handleMarcarPago} className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={busy}>
-                  {busy ? "A guardar…" : "Confirmar"}
-                </Button>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700">Forma de pagamento</label>
+                <select value={payFormaId} onChange={(e) => setPayFormaId(e.target.value)} className={inputClass} disabled={busy}>
+                  <option value="">— (não registar)</option>
+                  {formasPagamento.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                </select>
               </div>
             </div>
+            <div className="flex gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setShowPay(false)} className="flex-1" disabled={busy}>Cancelar</Button>
+              <Button onClick={handleMarcarPago} className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled={busy}>
+                {busy ? "A guardar…" : "Confirmar"}
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

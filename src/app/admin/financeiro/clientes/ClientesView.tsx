@@ -1,5 +1,8 @@
 "use client";
 
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { confirmar } from "@/components/ConfirmDialog";
 import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, UserCheck, Search } from "lucide-react";
@@ -73,16 +76,18 @@ export function ClientesView({ clientes }: Props) {
       : await criarCliente({ nome, nif, email, telefone, notas });
     setSubmitting(false);
     if (!r.ok) { setErro(r.erro ?? "Erro inesperado."); return; }
+    toast.success(editTarget ? "Cliente actualizado" : "Cliente criado");
     closeModal();
     startTransition(() => router.refresh());
   }
 
   async function handleDelete(c: Fornecedor) {
-    if (!window.confirm(`Apagar cliente "${c.nome}"?`)) return;
+    if (!(await confirmar({ titulo: `Apagar o cliente "${c.nome}"?`, destrutivo: true }))) return;
     setDeletingId(c.id);
     const r = await apagarCliente(c.id);
     setDeletingId(null);
-    if (!r.ok) { window.alert(r.erro ?? "Erro ao apagar."); return; }
+    if (!r.ok) { toast.error(r.erro ?? "Erro ao apagar."); return; }
+    toast.success("Cliente apagado");
     startTransition(() => router.refresh());
   }
 
@@ -160,62 +165,59 @@ export function ClientesView({ clientes }: Props) {
         </div>
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg">
-            <div className="p-6 max-h-[85vh] overflow-y-auto">
-              <h2 className="font-bold text-gray-900 text-lg mb-4">{editTarget ? "Editar cliente" : "Novo cliente"}</h2>
-              <form onSubmit={handleSubmit} className="space-y-3">
+      <Dialog open={showModal} onOpenChange={(aberto) => { if (!aberto) closeModal(); }}>
+        <DialogContent showClose={false} aria-describedby={undefined} className="p-0 max-w-lg">
+          <div className="p-6 max-h-[85vh] overflow-y-auto">
+            <DialogTitle className="font-bold text-gray-900 text-lg mb-4">{editTarget ? "Editar cliente" : "Novo cliente"}</DialogTitle>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700">Nome *</label>
+                <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Associação Desportiva X" className="rounded-xl" disabled={submitting} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Nome *</label>
-                  <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Associação Desportiva X" className="rounded-xl" disabled={submitting} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">NIF</label>
-                    <Input value={nif} onChange={(e) => setNif(e.target.value)} placeholder="123456789" className="rounded-xl" disabled={submitting} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Telefone</label>
-                    <PhoneInput value={telefone || undefined} onChange={(v) => setTelefone(v ?? "")} disabled={submitting} />
-                  </div>
+                  <label className="text-sm font-medium text-gray-700">NIF</label>
+                  <Input value={nif} onChange={(e) => setNif(e.target.value)} placeholder="123456789" className="rounded-xl" disabled={submitting} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Email</label>
-                  <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="rounded-xl" disabled={submitting} />
+                  <label className="text-sm font-medium text-gray-700">Telefone</label>
+                  <PhoneInput value={telefone || undefined} onChange={(v) => setTelefone(v ?? "")} disabled={submitting} />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Notas</label>
-                  <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} disabled={submitting} className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gb-blue/30 focus:border-gb-blue resize-none disabled:opacity-60" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700">Email</label>
+                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="rounded-xl" disabled={submitting} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700">Notas</label>
+                <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} disabled={submitting} className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gb-blue/30 focus:border-gb-blue resize-none disabled:opacity-60" />
+              </div>
+              {editTarget && (
+                <div className="flex items-center justify-between gap-4 p-3 rounded-xl border border-gray-100 bg-gray-50">
+                  <p className="text-sm font-medium text-gray-800">Activo</p>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={ativo}
+                    onClick={() => setAtivo((v) => !v)}
+                    disabled={submitting}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${ativo ? "bg-gb-blue" : "bg-gray-200"}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${ativo ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
                 </div>
-                {editTarget && (
-                  <div className="flex items-center justify-between gap-4 p-3 rounded-xl border border-gray-100 bg-gray-50">
-                    <p className="text-sm font-medium text-gray-800">Activo</p>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={ativo}
-                      onClick={() => setAtivo((v) => !v)}
-                      disabled={submitting}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${ativo ? "bg-gb-blue" : "bg-gray-200"}`}
-                    >
-                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${ativo ? "translate-x-5" : "translate-x-0"}`} />
-                    </button>
-                  </div>
-                )}
-                {erro && <p className="text-sm text-red-600">{erro}</p>}
-                <div className="flex gap-2 pt-1">
-                  <Button type="button" variant="outline" onClick={closeModal} className="flex-1" disabled={submitting}>Cancelar</Button>
-                  <Button type="submit" className="flex-1 bg-gb-blue hover:bg-gb-blue-dark text-white" disabled={submitting}>
-                    {submitting ? "A guardar…" : editTarget ? "Guardar" : "Criar"}
-                  </Button>
-                </div>
-              </form>
-            </div>
+              )}
+              {erro && <p className="text-sm text-red-600">{erro}</p>}
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" onClick={closeModal} className="flex-1" disabled={submitting}>Cancelar</Button>
+                <Button type="submit" className="flex-1 bg-gb-blue hover:bg-gb-blue-dark text-white" disabled={submitting}>
+                  {submitting ? "A guardar…" : editTarget ? "Guardar" : "Criar"}
+                </Button>
+              </div>
+            </form>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

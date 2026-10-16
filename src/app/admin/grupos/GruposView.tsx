@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+import { confirmar } from "@/components/ConfirmDialog";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -122,7 +124,7 @@ export function GruposView({ grupos: gruposServidor, contagens }: Props) {
   }
 
   async function handleApagar(g: GrupoAluno) {
-    if (!window.confirm(`Apagar o grupo "${g.nome}"?`)) return;
+    if (!(await confirmar({ titulo: `Apagar o grupo "${g.nome}"?`, destrutivo: true }))) return;
     setErroLinha(null);
     setOcupadoId(g.id);
     const r = await apagarGrupo(g.id);
@@ -132,6 +134,7 @@ export function GruposView({ grupos: gruposServidor, contagens }: Props) {
       return;
     }
     setGrupos((prev) => prev.filter((x) => x.id !== g.id));
+    toast.success("Grupo apagado");
     refresh();
   }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { DetalheMensalidade } from "@/components/ValorMensalidade";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -193,7 +194,6 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
 
   const [editando, setEditando] = useState(false);
   const [salvando, setSalvando] = useState(false);
-  const [salvoOk, setSalvoOk] = useState(false);
   const [salvoErro, setSalvoErro] = useState("");
   const [form, setForm] = useState({
     nome:      profileProp?.nome_completo ?? "",
@@ -326,8 +326,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
       }
 
       setEditando(false);
-      setSalvoOk(true);
-      setTimeout(() => setSalvoOk(false), 3000);
+      toast.success("Dados guardados");
     } catch (err) {
       setSalvoErro(err instanceof Error ? err.message : "Erro ao salvar.");
     } finally {
@@ -715,12 +714,6 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
           }
         >
           <div className="space-y-1">
-            {salvoOk && (
-              <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-                <Check size={16} className="text-green-600 shrink-0" />
-                <p className="text-green-700 text-sm font-medium">Dados salvos com sucesso!</p>
-              </div>
-            )}
 
             {editando ? (
               <div className="space-y-4 pt-1">

@@ -1,5 +1,8 @@
 "use client";
 
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { confirmar } from "@/components/ConfirmDialog";
 import { useState, useMemo, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -158,7 +161,8 @@ export function ContasView({ lancamentos, fornecedores, clientes, alunos, catego
     setPaying(true);
     const r = await marcarLancamentoPago(payTarget.id, payFormaId || null, payData);
     setPaying(false);
-    if (!r.ok) { window.alert(r.erro ?? "Erro ao marcar pago."); return; }
+    if (!r.ok) { toast.error(r.erro ?? "Erro ao marcar pago."); return; }
+    toast.success("Lançamento marcado como pago");
     setPayTarget(null);
     startTransition(() => router.refresh());
   }
@@ -170,13 +174,13 @@ export function ContasView({ lancamentos, fornecedores, clientes, alunos, catego
     startTransition(() => router.refresh());
   }
 
-  function handleClickDelete(l: LancamentoComRefs) {
+  async function handleClickDelete(l: LancamentoComRefs) {
     if (l.grupo_id) {
       // Parcelado → modal com escolha
       setDeleteTarget(l);
     } else {
       // Único → confirmação simples
-      if (!window.confirm("Apagar este lançamento? Esta acção é irreversível.")) return;
+      if (!(await confirmar({ titulo: "Apagar este lançamento?", descricao: "Esta acção é irreversível.", destrutivo: true }))) return;
       execDelete(l.id, false);
     }
   }
@@ -186,7 +190,8 @@ export function ContasView({ lancamentos, fornecedores, clientes, alunos, catego
     const r = await apagarLancamento(id, grupo);
     setDeleting(false);
     setDeleteTarget(null);
-    if (!r.ok) { window.alert(r.erro ?? "Erro ao apagar."); return; }
+    if (!r.ok) { toast.error(r.erro ?? "Erro ao apagar."); return; }
+    toast.success(grupo ? "Parcelas apagadas" : "Lançamento apagado");
     startTransition(() => router.refresh());
   }
 
@@ -449,12 +454,11 @@ export function ContasView({ lancamentos, fornecedores, clientes, alunos, catego
       </div>
 
       {/* Modal apagar parcela */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => !deleting && setDeleteTarget(null)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm">
+      <Dialog open={deleteTarget !== null} onOpenChange={(aberto) => { if (!aberto && !deleting) setDeleteTarget(null); }}>
+        {deleteTarget && (
+          <DialogContent showClose={false} aria-describedby={undefined} className="p-0 max-w-sm">
             <div className="p-6">
-              <h2 className="font-bold text-gray-900 text-lg mb-1">Apagar lançamento</h2>
+              <DialogTitle className="font-bold text-gray-900 text-lg mb-1">Apagar lançamento</DialogTitle>
               <p className="text-sm text-gray-500 mb-1">
                 <span className="font-medium text-gray-800">{deleteTarget.descricao}</span>
               </p>
@@ -488,17 +492,16 @@ export function ContasView({ lancamentos, fornecedores, clientes, alunos, catego
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        )}
+      </Dialog>
 
       {/* Modal marcar pago */}
-      {payTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => !paying && setPayTarget(null)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+      <Dialog open={payTarget !== null} onOpenChange={(aberto) => { if (!aberto && !paying) setPayTarget(null); }}>
+        {payTarget && (
+          <DialogContent showClose={false} aria-describedby={undefined} className="p-0 max-w-md">
             <div className="p-6">
-              <h2 className="font-bold text-gray-900 text-lg mb-1">Marcar como pago</h2>
+              <DialogTitle className="font-bold text-gray-900 text-lg mb-1">Marcar como pago</DialogTitle>
               <p className="text-sm text-gray-500 mb-4">{payTarget.descricao} • {formatEUR(Number(payTarget.valor))}</p>
               <div className="space-y-3">
                 <div className="space-y-1.5">
@@ -520,9 +523,9 @@ export function ContasView({ lancamentos, fornecedores, clientes, alunos, catego
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }

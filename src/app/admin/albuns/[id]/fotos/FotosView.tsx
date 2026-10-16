@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+import { confirmar } from "@/components/ConfirmDialog";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -54,11 +56,13 @@ export function FotosView({ album, fotos: initialFotos }: Props) {
   }
 
   async function handleDelete(foto: Foto) {
-    if (!window.confirm("Apagar esta foto? Esta ação não pode ser desfeita.")) return;
+    if (!(await confirmar({ titulo: "Apagar esta foto?", descricao: "Esta ação não pode ser desfeita.", destrutivo: true }))) return;
     setDeletingId(foto.id);
-    await apagarFoto(foto.id, foto.url, album.id);
-    if (capaUrl === foto.url) setCapaUrl(null);
+    const r = await apagarFoto(foto.id, foto.url, album.id);
     setDeletingId(null);
+    if (!r.ok) { toast.error(r.erro ?? "Não foi possível apagar a foto."); return; }
+    if (capaUrl === foto.url) setCapaUrl(null);
+    toast.success("Foto apagada");
     startTransition(() => router.refresh());
   }
 

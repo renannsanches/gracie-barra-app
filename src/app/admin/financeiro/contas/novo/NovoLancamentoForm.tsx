@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { useState, useMemo, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -81,7 +82,7 @@ export function NovoLancamentoForm({ fornecedores, clientes, alunos, categorias 
       ? await criarFornecedor({ nome: novoDestinatarioNome.trim(), tipo: "fornecedor" })
       : await criarCliente({ nome: novoDestinatarioNome.trim() });
     setCriandoDestinatario(false);
-    if (!r.ok) { window.alert(r.erro ?? "Erro ao criar."); return; }
+    if (!r.ok) { toast.error(r.erro ?? "Erro ao criar."); return; }
     setDestinatario(`f:${r.id!}`);
     setNovoDestinatarioNome("");
     startTransition(() => router.refresh());

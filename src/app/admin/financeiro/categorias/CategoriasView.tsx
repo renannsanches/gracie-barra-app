@@ -1,5 +1,8 @@
 "use client";
 
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { confirmar } from "@/components/ConfirmDialog";
 import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, ListTree } from "lucide-react";
@@ -96,19 +99,21 @@ export function CategoriasView({ categorias }: Props) {
       setErro(result.erro ?? "Erro inesperado.");
       return;
     }
+    toast.success(editTarget ? "Categoria actualizada" : "Categoria criada");
     closeModal();
     startTransition(() => router.refresh());
   }
 
   async function handleDelete(c: CategoriaFinanceira) {
-    if (!window.confirm(`Apagar "${c.nome}"?`)) return;
+    if (!(await confirmar({ titulo: `Apagar "${c.nome}"?`, destrutivo: true }))) return;
     setDeletingId(c.id);
     const r = await apagarCategoria(c.id);
     setDeletingId(null);
     if (!r.ok) {
-      window.alert(r.erro ?? "Erro ao apagar.");
+      toast.error(r.erro ?? "Erro ao apagar.");
       return;
     }
+    toast.success("Categoria apagada");
     startTransition(() => router.refresh());
   }
 
@@ -192,52 +197,49 @@ export function CategoriasView({ categorias }: Props) {
         </div>
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
-            <div className="p-6">
-              <h2 className="font-bold text-gray-900 text-lg mb-1">
-                {editTarget ? "Editar categoria" : parentTarget ? `Nova subcategoria de "${parentTarget.nome}"` : "Nova categoria"}
-              </h2>
-              <p className="text-xs text-gray-400 mb-4">
-                {editTarget ? "Não é possível alterar o tipo ou pai depois de criar." : "Tipo (despesa/receita) é herdado do pai."}
-              </p>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Nome</label>
-                  <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Aluguer" className="rounded-xl" disabled={submitting} />
-                </div>
-                {editTarget && (
-                  <div className="flex items-center justify-between gap-4 p-3 rounded-xl border border-gray-100 bg-gray-50">
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">Activa</p>
-                      <p className="text-xs text-gray-400">Inactiva = não aparece nos selectores de lançamento</p>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={ativa}
-                      onClick={() => setAtiva((v) => !v)}
-                      disabled={submitting}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${ativa ? "bg-gb-blue" : "bg-gray-200"}`}
-                    >
-                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${ativa ? "translate-x-5" : "translate-x-0"}`} />
-                    </button>
+      <Dialog open={showModal} onOpenChange={(aberto) => { if (!aberto) closeModal(); }}>
+        <DialogContent showClose={false} aria-describedby={undefined} className="p-0 max-w-md">
+          <div className="p-6">
+            <DialogTitle className="font-bold text-gray-900 text-lg mb-1">
+              {editTarget ? "Editar categoria" : parentTarget ? `Nova subcategoria de "${parentTarget.nome}"` : "Nova categoria"}
+            </DialogTitle>
+            <p className="text-xs text-gray-400 mb-4">
+              {editTarget ? "Não é possível alterar o tipo ou pai depois de criar." : "Tipo (despesa/receita) é herdado do pai."}
+            </p>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700">Nome</label>
+                <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Aluguer" className="rounded-xl" disabled={submitting} />
+              </div>
+              {editTarget && (
+                <div className="flex items-center justify-between gap-4 p-3 rounded-xl border border-gray-100 bg-gray-50">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Activa</p>
+                    <p className="text-xs text-gray-400">Inactiva = não aparece nos selectores de lançamento</p>
                   </div>
-                )}
-                {erro && <p className="text-sm text-red-600">{erro}</p>}
-                <div className="flex gap-2 pt-1">
-                  <Button type="button" variant="outline" onClick={closeModal} className="flex-1" disabled={submitting}>Cancelar</Button>
-                  <Button type="submit" className="flex-1 bg-gb-blue hover:bg-gb-blue-dark text-white" disabled={submitting}>
-                    {submitting ? "A guardar…" : editTarget ? "Guardar" : "Criar"}
-                  </Button>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={ativa}
+                    onClick={() => setAtiva((v) => !v)}
+                    disabled={submitting}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${ativa ? "bg-gb-blue" : "bg-gray-200"}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${ativa ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
                 </div>
-              </form>
-            </div>
+              )}
+              {erro && <p className="text-sm text-red-600">{erro}</p>}
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" onClick={closeModal} className="flex-1" disabled={submitting}>Cancelar</Button>
+                <Button type="submit" className="flex-1 bg-gb-blue hover:bg-gb-blue-dark text-white" disabled={submitting}>
+                  {submitting ? "A guardar…" : editTarget ? "Guardar" : "Criar"}
+                </Button>
+              </div>
+            </form>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
