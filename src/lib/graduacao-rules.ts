@@ -174,6 +174,34 @@ export function calcularSemanasQualificadas(dias: string[], fromDate: string): n
   return count;
 }
 
+// ── Ordem da lista "Aptos a Graduar" ──────────────────────────────────────────
+
+/** Alunos fixados numa posição da lista (id → índice 0-based). */
+const APTOS_POSICAO_FIXA: Record<string, number> = {
+  "d71d8851-800d-466e-9b7f-640a337e9a5e": 1, // Noah Alves de Miranda → 2.º
+};
+
+/**
+ * Ordena por semanas qualificadas acima do necessário (maior primeiro) e depois
+ * encaixa os alunos fixados na posição pedida (limitada ao tamanho da lista).
+ */
+export function ordenarAptosGraduar<
+  T extends { id: string; semanasQualificadas: number; semanasNecessarias: number },
+>(aptos: T[]): T[] {
+  const sobra = (a: T) => a.semanasQualificadas - a.semanasNecessarias;
+  const livres = aptos
+    .filter((a) => !(a.id in APTOS_POSICAO_FIXA))
+    .sort((a, b) => sobra(b) - sobra(a));
+  const fixos = aptos
+    .filter((a) => a.id in APTOS_POSICAO_FIXA)
+    .sort((a, b) => APTOS_POSICAO_FIXA[a.id] - APTOS_POSICAO_FIXA[b.id]);
+
+  for (const f of fixos) {
+    livres.splice(Math.min(APTOS_POSICAO_FIXA[f.id], livres.length), 0, f);
+  }
+  return livres;
+}
+
 // ── Resultado principal ───────────────────────────────────────────────────────
 
 export interface ElegibilidadeResult {
