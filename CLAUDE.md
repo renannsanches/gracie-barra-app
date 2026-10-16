@@ -234,12 +234,14 @@ Aluno abre /presenca
 
 Tablet lê QR
   → @zxing/browser (dynamic import, ssr:false)
-  → Server Action: registrar_presenca_por_token(token)
-    → RPC verifica: token válido? não expirado?
-    → RPC verifica: bloqueio financeiro? (helper verificar_bloqueio_financeiro — bloqueia se atrasado ≥10 dias)
-    → RPC verifica: reserva confirmada para hoje? (bloqueia se não reservou)
-    → RPC verifica: cooldown 1h? (bloqueia re-entrada)
-    → Insere em presencas (sem índice único: pode haver 2 aulas no mesmo dia)
+  → supabase.rpc("registrar_presenca_por_token", { p_token }) no cliente
+    → RPC verifica: token existe? não usado? não expirado? (senão devolve sucesso=false)
+    → RPC verifica: bloqueio financeiro? (verificar_bloqueio_financeiro ≥10 dias → RAISE 'mensalidade_bloqueada')
+    → Marca o token como usado e insere uma presença por aluno do QR
+    → Devolve jsonb { sucesso, mensagem, alunos: [{ aluno_nome, aluno_foto, aluno_faixa, aluno_graus }] }
+    ⚠ A versão em produção NÃO verifica reserva nem cooldown (as migrations do repo
+      dizem o contrário — estão desactualizadas). O único intervalo é o do /presenca
+      (30 min, no cliente). Ver a definição real com pg_get_functiondef.
     → Retorna nome, foto, faixa, aula
   → Tablet exibe confirmação verde 3s
 
