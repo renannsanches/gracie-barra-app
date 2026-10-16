@@ -384,23 +384,27 @@ ActionResult = { ok: boolean; erro?: string }  // retorno padrão de Server Acti
 | `Medalha` | Medalha redonda (bronze/prata/ouro) — número nos marcos de aulas e sequências, ícone nas especiais |
 | `NovaConquistaModal` | Modal em `/perfil` com medalhas ainda não vistas (próprio + dependentes); não aparece com o aviso de graduação nem com mensalidade ≥2 dias em atraso |
 | `GraduacaoAptosModal` | Modal 2x por semana (1º acesso a partir de segunda e a partir de quinta, hora de Lisboa) para admin/professor quando há ≥1 aluno apto a graduar; janela vista guardada em `user_metadata.aviso_graduacao_janela` (por conta, não por dispositivo); renderizado em `/perfil` |
+| `BottomNav` | Barra inferior do grupo `(app)`: Início · Aulas · Presença (centro) · Histórico · Avisos; ponto de avisos por ler (compara o último aviso publicado com `localStorage.avisos_last_seen`) |
+| `PageHeader` | Header escuro das páginas do aluno (título, ícone, voltar opcional, safe area). Tabs da barra inferior não têm "voltar" |
+| `skeletons` + `ui/skeleton` | Blocos para os `loading.tsx` — `AppPageSkeleton`, `CardListSkeleton`, `AdminPageSkeleton` |
 
 ---
 
 ## 10. Cores e design
 
+Tokens em `src/app/globals.css` como canais RGB (`--brand: 204 0 0`) → o Tailwind gera `bg-brand/10` etc. **Nada de `oklch()`**: o tablet é Safari 15 (só suporta a partir do 15.4).
+
 ```javascript
-// tailwind.config.ts — prefixo gb-
-gb: {
-  blue:         "#CC0000",   // Vermelho GB (nome histórico mantido)
-  "blue-dark":  "#990000",
-  "blue-light": "#E31E24",
-  black:        "#0A0A0A",
-  white:        "#FFFFFF",
-  gray:         "#F5F5F5",   // Background padrão
-  "gray-dark":  "#6B7280",
-}
+// tailwind.config.ts — preferir os semânticos em código novo
+brand / brand-dark / brand-light   // #CC0000 / #990000 / #E31E24
+ink        // #0A0A0A — headers escuros
+canvas     // #F5F5F5 — fundo das páginas
+surface    // #FFFFFF — cards
+success / warning / destructive
+// gb-blue, gb-black, gb-gray… continuam como aliases (gb-blue é o vermelho, nome histórico)
 ```
+
+Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-sheet`, `pb-bottom-nav`; `duration-fast`/`duration-base` + `ease-out-expo`. O viewport usa `viewportFit: "cover"` e **não bloqueia o zoom** — em ecrãs táteis os campos ficam ≥16px para o iOS não fazer zoom ao focar.
 
 **Theme color PWA:** `#ED1C24` · **Fonte principal:** SF Pro Display (local woff2) + Geist · **Locale:** pt-PT · **Interface:** português europeu · **Código:** inglês · **Mobile-first**
 
@@ -413,6 +417,9 @@ gb: {
 - `dynamic(() => import(...), { ssr: false })` — **apenas em Client Components** para `@zxing/browser`
 - Server Actions retornam `{ ok: boolean; erro?: string }` e chamam `revalidatePath()` após mutations
 - Imagens de upload comprimidas para WebP no cliente antes do upload
+- Cada rota tem `loading.tsx` com skeleton do formato real (header com o título já conhecido) — rota nova = `loading.tsx` novo
+- Navegação interna com `<Link>` (prefetch), não `router.push` em botões
+- Plano da Fase 15 em `docs/plano-fluidez-ui.md`
 - `window.confirm()` para confirmações destrutivas (débito UX a resolver na Fase 15)
 - Sem sistema de toasts — feedback inline nos componentes (débito UX a resolver na Fase 15)
 
@@ -498,7 +505,7 @@ gb: {
 
 | Fase | Funcionalidade | Prioridade |
 |------|---------------|------------|
-| 15 | **UI/UX Polishing** — toast system, modais, skeletons, micro-interacções | — |
+| 15 | **UI/UX Polishing** — feito: tokens, safe areas, zoom, skeletons, barra inferior. Falta: toasts, modais/confirmações, micro-interacções, consistência de cores (`docs/plano-fluidez-ui.md`) | — |
 
 ---
 

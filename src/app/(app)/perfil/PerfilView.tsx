@@ -404,7 +404,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
 
   return (
     <div className="min-h-screen flex flex-col bg-gb-gray">
-      <div className="bg-[#1a1a1a] px-5 pt-10 pb-6">
+      <div className="bg-[#1a1a1a] px-5 pt-header pb-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
@@ -515,50 +515,44 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
         </div>
       </div>
 
-      <div className="flex-1 px-4 pt-4 space-y-3 pb-8">
+      <div className="flex-1 px-4 pt-4 space-y-3 pb-bottom-nav">
         <div className="grid grid-cols-2 gap-2.5">
           <ActionCard
-            onClick={() => router.push("/presenca")}
+            href="/presenca"
             primary
             icon={<QrCode size={20} className="text-white" />}
             label="Registrar Presença"
           />
           <ActionCard
-            onClick={() => router.push("/presencas")}
+            href="/presencas"
             icon={<CalendarDays size={20} className="text-gray-500" />}
             label="Ver Histórico de Presenças"
           />
           <ActionCard
-            onClick={() => router.push("/aulas")}
+            href="/aulas"
             icon={<BookOpen size={20} className="text-gray-500" />}
             label="Reservar Aula"
           />
           <ActionCard
-            onClick={() => router.push("/avisos")}
+            href="/avisos"
             icon={<Megaphone size={20} className="text-gray-500" />}
             label="Avisos"
           />
           <ActionCard
-            onClick={() => router.push("/galeria")}
+            href="/galeria"
             icon={<Images size={20} className="text-gray-500" />}
             label="Galeria"
           />
           {(profile.perfil === "admin" || profile.perfil === "professor") && (
             <ActionCard
-              onClick={() => router.push("/admin")}
+              href="/admin"
               icon={<ShieldCheck size={20} className="text-gray-500" />}
               label="Dashboard"
             />
           )}
         </div>
 
-        {gamificacao.length > 0 && (
-          <CardGamificacao
-            pessoas={gamificacao}
-            onConquistas={() => router.push("/conquistas")}
-            onRanking={() => router.push("/ranking")}
-          />
-        )}
+        {gamificacao.length > 0 && <CardGamificacao pessoas={gamificacao} />}
 
         {/* Faixa + Stats — hidden for pure responsavel */}
         {profile?.perfil !== "responsavel" && <AccordionCard
@@ -1039,15 +1033,7 @@ function AccordionCard({
   );
 }
 
-function CardGamificacao({
-  pessoas,
-  onConquistas,
-  onRanking,
-}: {
-  pessoas: ResumoGamificacao[];
-  onConquistas: () => void;
-  onRanking: () => void;
-}) {
+function CardGamificacao({ pessoas }: { pessoas: ResumoGamificacao[] }) {
   const sozinho = pessoas.length === 1;
   return (
     <div className="bg-white border border-gray-100 rounded-xl p-3.5" data-testid="card-gamificacao">
@@ -1081,43 +1067,41 @@ function CardGamificacao({
         ))}
       </div>
       <div className="grid grid-cols-2 gap-2 mt-3">
-        <button
-          type="button"
-          onClick={onRanking}
-          className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gb-gray text-[13px] font-medium text-gray-800 active:scale-[0.97] transition-all"
+        <Link
+          href="/ranking"
+          className="flex items-center justify-center gap-1.5 h-11 rounded-lg bg-gb-gray text-[13px] font-medium text-gray-800 active:scale-[0.97] transition-transform duration-fast"
         >
           <Trophy size={15} className="text-gray-500" />
           Ranking
-        </button>
-        <button
-          type="button"
-          onClick={onConquistas}
-          className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gb-gray text-[13px] font-medium text-gray-800 active:scale-[0.97] transition-all"
+        </Link>
+        <Link
+          href="/conquistas"
+          className="flex items-center justify-center gap-1.5 h-11 rounded-lg bg-gb-gray text-[13px] font-medium text-gray-800 active:scale-[0.97] transition-transform duration-fast"
         >
           <Medal size={15} className="text-gray-500" />
           Conquistas
-        </button>
+        </Link>
       </div>
     </div>
   );
 }
 
 function ActionCard({
-  onClick,
+  href,
   icon,
   label,
   primary,
 }: {
-  onClick: () => void;
+  href: string;
   icon: React.ReactNode;
   label: string;
   primary?: boolean;
 }) {
+  // <Link> (e não router.push) para o Next fazer prefetch — o destino abre logo
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-xl p-4 flex flex-col gap-2.5 active:scale-[0.97] transition-all text-left ${
+    <Link
+      href={href}
+      className={`rounded-xl p-4 flex flex-col gap-2.5 active:scale-[0.97] transition-transform duration-fast ease-out-expo text-left ${
         primary
           ? "bg-[#c8102e] border-0"
           : "bg-white border border-gray-100"
@@ -1131,7 +1115,7 @@ function ActionCard({
       <p className={`text-[13px] font-medium leading-tight ${primary ? "text-white" : "text-gray-800"}`}>
         {label}
       </p>
-    </button>
+    </Link>
   );
 }
 

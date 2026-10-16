@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Users, Check, X, Clock, ChevronDown } from "lucide-react";
+import { Loader2, Users, Check, X, Clock, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/PageHeader";
 import type { StatusAula, StatusReserva, CategoriaFaixa } from "@/lib/types";
 import { reservar, cancelarMinhaReserva } from "./aulas-actions";
 import { getTurmaTag } from "@/lib/turma-tags";
@@ -190,7 +190,6 @@ export function AulasView({
   nomesModalidade,
   modalidadePadraoId,
 }: Props) {
-  const router = useRouter();
   const [aulas, setAulas] = useState(aulasProp);
   const [reservasPorAluno, setReservasPorAluno] = useState(reservasProp);
   const [reservantesPorAula, setReservantesPorAula] = useState(reservantesProp);
@@ -334,27 +333,13 @@ export function AulasView({
 
   return (
     <div className="min-h-screen flex flex-col bg-gb-gray">
-      <div className="bg-gb-black px-5 pt-10 pb-5">
-        <div className="flex items-center justify-between mb-5">
-          <button
-            type="button"
-            onClick={() => router.push("/perfil")}
-            className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Perfil
-          </button>
-          <div className="flex items-center gap-2">
-            <img src="/logo.webp" alt="Gracie Barra" className="w-7 h-7 object-contain" />
-            <span className="text-white font-bold text-xs tracking-wide">GRACIE BARRA</span>
-          </div>
-        </div>
-
-        <h1 className="text-white font-bold text-xl mb-1">Aulas</h1>
-        <p className="text-white/50 text-xs capitalize">{selecionadoCategoria}</p>
+      <PageHeader
+        title="Aulas"
+        subtitle={<span className="text-xs capitalize">{selecionadoCategoria}</span>}
+      >
 
         {dependentes.length > 0 && (
-          <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-none">
             {podeTreinar && (
               <button
                 type="button"
@@ -387,7 +372,7 @@ export function AulasView({
           </div>
         )}
 
-        <div className="flex gap-2 mt-4 overflow-x-auto pb-1 scrollbar-hide">
+        <div className="flex gap-2 mt-4 overflow-x-auto pb-1 scrollbar-none">
           {dias.map(({ iso, date }) => {
             const isToday   = iso === dias[0].iso;
             const isActive  = iso === diaAtivo;
@@ -431,9 +416,9 @@ export function AulasView({
             );
           })}
         </div>
-      </div>
+      </PageHeader>
 
-      <div className="flex-1 px-4 py-4 pb-8 space-y-3">
+      <div className="flex-1 px-4 py-4 pb-bottom-nav space-y-3">
         {erro && (
           <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{erro}</div>
         )}

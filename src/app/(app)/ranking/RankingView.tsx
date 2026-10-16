@@ -2,8 +2,9 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, EyeOff, Trophy } from "lucide-react";
+import { EyeOff, Trophy } from "lucide-react";
 import { FaixaBJJ } from "@/components/FaixaBJJ";
+import { PageHeader } from "@/components/PageHeader";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { ordenarRanking, type GrupoRanking } from "@/lib/gamificacao";
@@ -68,27 +69,12 @@ export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, gru
 
   return (
     <div className="min-h-screen flex flex-col bg-gb-gray">
-      <div className="bg-gb-black px-6 pt-10 pb-6">
-        <div className="flex items-center justify-between mb-6">
-          <button
-            type="button"
-            onClick={() => router.push("/perfil")}
-            className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Perfil
-          </button>
-          <div className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.webp" alt="Gracie Barra" className="w-7 h-7 object-contain" />
-            <span className="text-white font-bold text-xs tracking-wide">GRACIE BARRA</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Trophy size={20} className="text-gb-blue" />
-          <h1 className="text-white font-bold text-xl">Ranking de presenças</h1>
-        </div>
-        <p className="text-white/50 text-sm mt-0.5">Quem mais treinou — cada aula conta 1</p>
+      <PageHeader
+        title="Ranking de presenças"
+        icon={<Trophy size={20} />}
+        back={{ href: "/perfil", label: "Início" }}
+        subtitle="Quem mais treinou — cada aula conta 1"
+      >
 
         <div className="mt-5 grid grid-cols-2 gap-2">
           <Segmentos
@@ -108,9 +94,9 @@ export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, gru
             ]}
           />
         </div>
-      </div>
+      </PageHeader>
 
-      <div className="flex-1 px-4 py-5 pb-8 space-y-3">
+      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-3">
         {eu && oculto && (
           <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-3" data-testid="ranking-oculto">
             <EyeOff size={18} className="text-gray-400 mt-0.5 shrink-0" />

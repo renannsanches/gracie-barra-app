@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Calendar, Loader2, Users, Check, X } from "lucide-react";
+import { Calendar, Loader2, Users, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/PageHeader";
 import type { StatusAula, StatusReserva, CategoriaFaixa } from "@/lib/types";
 import { reservar, cancelarMinhaReserva } from "./turmas-actions";
 import { getTurmaTag } from "@/lib/turma-tags";
@@ -35,7 +35,6 @@ function formatarHorario(h: string) { return h.slice(0, 5); }
 interface Props { aulas: AulaParaAluno[]; }
 
 export function TurmasAlunoView({ aulas: aulasProp }: Props) {
-  const router = useRouter();
   const [aulas, setAulas]   = useState(aulasProp);
   const [acao, setAcao]     = useState<string | null>(null);
   const [erro, setErro]     = useState("");
@@ -93,31 +92,15 @@ export function TurmasAlunoView({ aulas: aulasProp }: Props) {
 
   return (
     <div className="min-h-screen flex flex-col bg-gb-gray">
-      {/* Header */}
-      <div className="bg-gb-black px-6 pt-10 pb-6">
-        <div className="flex items-center justify-between mb-6">
-          <button
-            type="button"
-            onClick={() => router.push("/perfil")}
-            className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Perfil
-          </button>
-          <div className="flex items-center gap-2">
-            <img src="/logo.webp" alt="Gracie Barra" className="w-7 h-7 object-contain" />
-            <span className="text-white font-bold text-xs tracking-wide">GRACIE BARRA</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Calendar size={20} className="text-gb-blue" />
-          <h1 className="text-white font-bold text-xl">Turmas</h1>
-        </div>
-        <p className="text-white/50 text-sm mt-0.5">Próximas 3 semanas</p>
-      </div>
+      <PageHeader
+        title="Turmas"
+        icon={<Calendar size={20} />}
+        back={{ href: "/perfil", label: "Início" }}
+        subtitle="Próximas 3 semanas"
+      />
 
       {/* Content */}
-      <div className="flex-1 px-4 py-5 pb-8 space-y-4">
+      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-4">
         {erro && (
           <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
             {erro}

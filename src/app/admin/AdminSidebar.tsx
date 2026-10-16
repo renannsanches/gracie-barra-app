@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Users, Layers, Shapes, Megaphone, Images, LayoutDashboard, LogOut, CalendarDays, DollarSign, FileSpreadsheet } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -21,6 +22,13 @@ const NAV_ITEMS = [
 export function AdminSidebar({ perfil }: { perfil: "admin" | "professor" }) {
   const pathname = usePathname();
   const router = useRouter();
+  const mobileNavRef = useRef<HTMLElement>(null);
+
+  // Mobile: a barra tem 9 itens e faz scroll horizontal — trazer o activo para a vista
+  useEffect(() => {
+    const ativo = mobileNavRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    ativo?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [pathname]);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -52,6 +60,7 @@ export function AdminSidebar({ perfil }: { perfil: "admin" | "professor" }) {
               <Link
                 key={href}
                 href={disabled ? "#" : href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
                   active
@@ -91,32 +100,33 @@ export function AdminSidebar({ perfil }: { perfil: "admin" | "professor" }) {
       </aside>
 
       {/* ── Mobile top bar ── */}
-      <header className="md:hidden sticky top-0 z-30 bg-gb-black border-b border-white/10">
+      <header className="md:hidden sticky top-0 z-30 bg-gb-black border-b border-white/10 pt-safe">
         {/* Top row: logo + back to profile */}
-        <div className="px-4 py-2.5 flex items-center justify-between">
+        <div className="px-4 py-1.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img src="/logo.webp" alt="Gracie Barra" className="w-7 h-7 object-contain" />
             <span className="text-white font-bold text-sm tracking-wide">Admin</span>
           </div>
           <Link
             href="/perfil"
-            className="flex items-center gap-1.5 text-white/60 hover:text-white text-xs font-medium transition-colors"
+            className="-mr-2 flex items-center gap-1.5 h-11 px-2 text-white/60 hover:text-white text-xs font-medium transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
             Perfil
           </Link>
         </div>
         {/* Scrollable nav row */}
-        <nav className="flex items-center gap-1 overflow-x-auto px-3 pb-2 scrollbar-none">
+        <nav ref={mobileNavRef} className="flex items-center gap-1 overflow-x-auto px-3 pb-2 scrollbar-none">
           {NAV_ITEMS.filter((i) => !i.disabled && (perfil === "admin" || (i.href !== "/admin/financeiro" && i.href !== "/admin/relatorios"))).map(({ href, label, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link
                 key={href}
                 href={href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                  active ? "bg-gb-blue text-white" : "text-white/50 hover:text-white"
+                  "flex flex-col items-center justify-center shrink-0 min-h-11 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-fast",
+                  active ? "bg-gb-blue text-white" : "text-white/50 hover:text-white active:bg-white/10"
                 )}
               >
                 <Icon size={16} />

@@ -1,6 +1,9 @@
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
 
+// Cor a partir de um token "R G B" do globals.css — permite bg-brand/10 etc.
+const rgb = (token: string) => `rgb(var(${token}) / <alpha-value>)`;
+
 const config: Config = {
   darkMode: ["class"],
   content: [
@@ -10,8 +13,8 @@ const config: Config = {
   ],
   theme: {
     extend: {
-  colors: {
-        // Mapeamento para as variáveis do globals.css
+      colors: {
+        // Variáveis shadcn (componentes em src/components/ui)
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",
@@ -21,14 +24,26 @@ const config: Config = {
           DEFAULT: "var(--primary)",
           foreground: "var(--primary-foreground)",
         },
-        // Suas cores customizadas Gracie Barra
+        // Tokens semânticos — preferir estes em código novo
+        brand: {
+          DEFAULT: rgb("--brand"),
+          dark: rgb("--brand-dark"),
+          light: rgb("--brand-light"),
+        },
+        ink: rgb("--ink"),
+        canvas: rgb("--canvas"),
+        surface: rgb("--surface"),
+        success: rgb("--success"),
+        warning: rgb("--warning"),
+        destructive: rgb("--destructive"),
+        // Nomes históricos (gb-blue é o vermelho da marca) — aliases dos tokens acima
         gb: {
-          blue: "#CC0000",
-          "blue-dark": "#990000",
-          "blue-light": "#E31E24",
-          black: "#0A0A0A",
+          blue: rgb("--brand"),
+          "blue-dark": rgb("--brand-dark"),
+          "blue-light": rgb("--brand-light"),
+          black: rgb("--ink"),
           white: "#FFFFFF",
-          gray: "#F5F5F5",
+          gray: rgb("--canvas"),
           "gray-dark": "#6B7280",
         },
       },
@@ -40,6 +55,13 @@ const config: Config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      transitionTimingFunction: {
+        "out-expo": "var(--ease-out)",
+      },
+      transitionDuration: {
+        fast: "var(--dur-fast)",
+        base: "var(--dur-base)",
       },
     },
   },
