@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { CheckCircle2, XCircle, Loader2, SwitchCamera, ArrowLeft, Search, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
-import type { CorFaixa } from "@/lib/types";
+import { interpretarResultadoQr, type AlunoInfo, type ErroInfo } from "./resultado-qr";
 import {
   buscarAlunos,
   buscarAulasDisponiveis,
@@ -15,18 +15,6 @@ import {
 
 type Estado = "camera" | "processando" | "sucesso" | "erro" | "manual";
 
-interface AlunoInfo {
-  nome_completo: string;
-  foto_url: string | null;
-  cor_faixa: CorFaixa | null;
-  graus: number;
-}
-
-interface ErroInfo {
-  titulo: string;
-  mensagem: string;
-}
-
 export default function TabletScanner() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
@@ -36,7 +24,7 @@ export default function TabletScanner() {
   const [cameraOk, setCameraOk] = useState(false);
   const [cameraErro, setCameraErro] = useState("");
   const [cameraFrontal, setCameraFrontal] = useState(true);
-  const [alunoInfo, setAlunoInfo] = useState<AlunoInfo | null>(null);
+  const [alunosInfo, setAlunosInfo] = useState<AlunoInfo[]>([]);
   const [erroInfo, setErroInfo] = useState<ErroInfo | null>(null);
 
   // Manual attendance state
@@ -52,7 +40,7 @@ export default function TabletScanner() {
   const voltarCamera = useCallback(() => {
     processandoRef.current = false;
     setEstado("camera");
-    setAlunoInfo(null);
+    setAlunosInfo([]);
     setErroInfo(null);
   }, []);
 
@@ -68,54 +56,15 @@ export default function TabletScanner() {
           p_token: token,
         });
 
-        if (error) {
-          const msg = (error.message ?? "").toLowerCase();
-          const code = error.code ?? "";
-
-          let titulo = "Não Registrado";
-          let mensagem = "Não foi possível registrar a presença.";
-
-          if (msg.includes("mensalidade_bloqueada") || msg.includes("falar com simone")) {
-            titulo = "Presença Não Registada";
-            mensagem = "Não foi possível registar presença. Falar com Simone.";
-          } else if (msg.includes("expir") || msg.includes("expired")) {
-            titulo = "QR Code Expirado";
-            mensagem = "O código expirou. Peça ao aluno gerar um novo.";
-          } else if (
-            code === "23505" ||
-            msg.includes("já registr") ||
-            msg.includes("already") ||
-            msg.includes("duplicate")
-          ) {
-            titulo = "Já Registrado";
-            mensagem = "Presença já registrada hoje para este aluno.";
-          } else if (
-            msg.includes("inválid") ||
-            msg.includes("invalid") ||
-            msg.includes("não encontr") ||
-            msg.includes("not found")
-          ) {
-            titulo = "QR Code Inválido";
-            mensagem = "Código não reconhecido. Peça ao aluno gerar um novo.";
-          }
-
-          setErroInfo({ titulo, mensagem });
+        const resultado = interpretarResultadoQr(data, error);
+        if (!resultado.ok) {
+          setErroInfo(resultado.erro);
           setEstado("erro");
           setTimeout(voltarCamera, 3000);
           return;
         }
 
-        // RPC returns TABLE → array; pick first row
-        const row = Array.isArray(data) ? data[0] : data;
-        if (row?.sucesso && row.aluno_nome) {
-          setAlunoInfo({
-            nome_completo: row.aluno_nome,
-            foto_url:      row.aluno_foto  ?? null,
-            cor_faixa:     row.aluno_faixa ?? null,
-            graus:         row.aluno_graus ?? 0,
-          });
-        }
-
+        setAlunosInfo(resultado.alunos);
         setEstado("sucesso");
         setTimeout(voltarCamera, 5000);
       } catch {
@@ -319,34 +268,29 @@ export default function TabletScanner() {
           <h1 className="text-white font-black text-5xl tracking-tight mb-1">PRESENÇA</h1>
           <h2 className="text-white font-black text-5xl tracking-tight mb-10">REGISTRADA!</h2>
 
-          {alunoInfo ? (
+          {alunosInfo.length === 1 ? (
             <div className="bg-white/20 backdrop-blur-sm rounded-3xl p-8 flex flex-col items-center gap-5 w-full max-w-md border border-white/30">
-              {/* Avatar */}
-              <div className="w-28 h-28 rounded-full overflow-hidden bg-white/30 border-4 border-white/50 flex items-center justify-center">
-                {alunoInfo.foto_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={alunoInfo.foto_url}
-                    alt={alunoInfo.nome_completo}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-white font-black text-4xl">
-                    {alunoInfo.nome_completo
-                      .split(" ")
-                      .slice(0, 2)
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()}
-                  </span>
-                )}
-              </div>
+              <AvatarAluno aluno={alunosInfo[0]} grande />
               <p className="text-white font-bold text-3xl text-center leading-tight">
-                {alunoInfo.nome_completo}
+                {alunosInfo[0].nome_completo}
               </p>
-              {alunoInfo.cor_faixa && (
-                <FaixaBJJ faixa={alunoInfo.cor_faixa} graus={alunoInfo.graus} categoria={inferCategoria(alunoInfo.cor_faixa)} tamanho="lg" showLabel />
+              {alunosInfo[0].cor_faixa && (
+                <FaixaBJJ faixa={alunosInfo[0].cor_faixa} graus={alunosInfo[0].graus} categoria={inferCategoria(alunosInfo[0].cor_faixa)} tamanho="lg" showLabel />
               )}
+            </div>
+          ) : alunosInfo.length > 1 ? (
+            <div className="bg-white/20 backdrop-blur-sm rounded-3xl p-5 flex flex-col gap-4 w-full max-w-md border border-white/30">
+              {alunosInfo.map((a, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <AvatarAluno aluno={a} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-bold text-xl leading-tight truncate">{a.nome_completo}</p>
+                    {a.cor_faixa && (
+                      <FaixaBJJ faixa={a.cor_faixa} graus={a.graus} categoria={inferCategoria(a.cor_faixa)} tamanho="sm" />
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="bg-white/20 rounded-3xl px-10 py-6 text-center border border-white/30">
@@ -528,6 +472,30 @@ export default function TabletScanner() {
             </div>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+function AvatarAluno({ aluno, grande = false }: { aluno: AlunoInfo; grande?: boolean }) {
+  return (
+    <div
+      className={`rounded-full overflow-hidden bg-white/30 border-white/50 flex items-center justify-center shrink-0 ${
+        grande ? "w-28 h-28 border-4" : "w-16 h-16 border-2"
+      }`}
+    >
+      {aluno.foto_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={aluno.foto_url} alt={aluno.nome_completo} className="w-full h-full object-cover" />
+      ) : (
+        <span className={`text-white font-black ${grande ? "text-4xl" : "text-xl"}`}>
+          {aluno.nome_completo
+            .split(" ")
+            .slice(0, 2)
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()}
+        </span>
       )}
     </div>
   );
