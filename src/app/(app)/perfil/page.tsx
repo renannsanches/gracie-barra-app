@@ -47,7 +47,8 @@ export default async function PerfilPage() {
       .select("*")
       .eq("aluno_id", user.id)
       .order("mes_referencia", { ascending: false }),
-    supabase
+    // Admin client: o nome do professor está noutro perfil, que o RLS não deixa o aluno ler
+    createAdminClient()
       .from("historico_graduacoes")
       .select("*, professor:profiles!historico_graduacoes_graduado_por_fkey(nome_completo)")
       .eq("aluno_id", user.id)
