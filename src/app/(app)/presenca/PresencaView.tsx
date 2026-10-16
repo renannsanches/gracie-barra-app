@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { QrCode, RefreshCw, Loader2, Clock, ArrowLeft, CheckCircle2, Check } from "lucide-react";
+import { QrCode, RefreshCw, Loader2, Clock, ArrowLeft, CheckCircle2, Check, Flame } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import type { Profile, DependentePerfil } from "@/lib/types";
+import { Medalha } from "@/components/Medalha";
+import { CONQUISTAS_POR_CODIGO } from "@/lib/gamificacao";
+import { sincronizarMinhasConquistas, type PosTreino } from "../conquistas/conquistas-actions";
 
 interface PresencaViewProps {
   profile: Profile;
@@ -25,6 +28,7 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
   const [minutosRestantes, setMinutosRestantes] = useState(0);
   const [modalAberto, setModalAberto] = useState(false);
   const [selecionados, setSelecionados] = useState<string[]>([]);
+  const [posTreino, setPosTreino] = useState<PosTreino | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -110,6 +114,10 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
           limparPolling();
           setEstado("confirmado");
           iniciarBloqueio(new Date(data.registrado_em));
+          // Medalhas novas e sequência de quem treinou
+          void sincronizarMinhasConquistas(alunoIds).then((r) => {
+            if (r.ok) setPosTreino(r.posTreino);
+          });
         }
       } catch {
         // ignora erros de polling silenciosamente
@@ -307,6 +315,7 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
               <p className="text-green-600 font-black text-3xl leading-tight">Registrada!</p>
               <p className="text-gray-500 text-lg mt-3 font-medium">Bom treino! 🥋</p>
             </div>
+            {posTreino && <ResumoPosTreino posTreino={posTreino} />}
             <Button
               onClick={() => router.push("/perfil")}
               variant="outline"
@@ -331,6 +340,7 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
                 </span>
               </p>
             </div>
+            {posTreino && <ResumoPosTreino posTreino={posTreino} />}
             <Button
               onClick={() => router.push("/perfil")}
               variant="outline"
@@ -460,6 +470,39 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
               </Button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Sequência de cada pessoa que treinou e medalhas ganhas com esta aula. */
+function ResumoPosTreino({ posTreino }: { posTreino: PosTreino }) {
+  const varias = posTreino.sequencias.length > 1;
+  return (
+    <div className="w-full bg-white rounded-2xl border border-gray-100 p-4 space-y-3" data-testid="pos-treino">
+      {posTreino.sequencias.map((s) => (
+        <div key={s.alunoId} className="flex items-center gap-2 text-[14px] text-gray-700">
+          <Flame size={18} className={s.atual > 0 ? "text-orange-500" : "text-gray-300"} />
+          <span>
+            {varias && <span className="font-semibold">{s.nome}: </span>}
+            {s.atual > 0
+              ? <>Sequência de <span className="font-bold text-gray-900">{s.atual} semana{s.atual !== 1 ? "s" : ""}</span></>
+              : <>Esta semana: <span className="font-bold text-gray-900">{Math.min(s.semanaAulas, 2)}/2</span> aulas para a sequência</>}
+          </span>
+        </div>
+      ))}
+      {posTreino.novas.length > 0 && (
+        <div className="border-t border-gray-100 pt-3 space-y-2">
+          {posTreino.novas.map((n) => (
+            <div key={n.id} className="flex items-center gap-3 animate-in fade-in zoom-in-95 duration-500">
+              <Medalha codigo={n.codigo} tamanho="sm" />
+              <p className="text-[14px] text-gray-800">
+                <span className="font-semibold">Nova medalha:</span> {CONQUISTAS_POR_CODIGO[n.codigo]?.titulo}
+                {varias && <span className="text-gray-500"> ({posTreino.sequencias.find((s) => s.alunoId === n.aluno_id)?.nome})</span>}
+              </p>
+            </div>
+          ))}
         </div>
       )}
     </div>

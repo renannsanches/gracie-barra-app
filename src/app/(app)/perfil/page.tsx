@@ -7,6 +7,10 @@ import type { Profile, Mensalidade, HistoricoGraduacao, DependentePerfil, CorFai
 import { PerfilView } from "./PerfilView";
 import { GraduacaoAptosModal } from "@/components/GraduacaoAptosModal";
 import { CHAVE_AVISO_GRADUACAO, janelaAvisoGraduacao } from "@/lib/aviso-graduacao";
+import { NovaConquistaModal, type ConquistaPorVer } from "@/components/NovaConquistaModal";
+import { carregarEstadoGamificacao } from "@/lib/conquistas-sync";
+import { getDiasAtraso, getMaiorAtraso } from "@/lib/mensalidade-status";
+import type { ResumoGamificacao } from "./PerfilView";
 
 interface AptosGraduarAluno {
   id: string;
@@ -189,9 +193,51 @@ export default async function PerfilPage() {
     aptosGraduar.length > 0 &&
     user.user_metadata?.[CHAVE_AVISO_GRADUACAO] !== janelaAviso;
 
+  // Gamificação: sequência e medalhas do próprio (se treina) e dos dependentes.
+  // Uma falha aqui não pode partir a página principal da app.
+  const pessoasGamificacao = [
+    ...(p?.perfil !== "responsavel" ? [{ id: user.id, nome: "Eu" }] : []),
+    ...dependentes.map((d) => ({ id: d.id, nome: d.nome_completo.split(" ")[0] })),
+  ];
+  let gamificacao: ResumoGamificacao[] = [];
+  let conquistasPorVer: ConquistaPorVer[] = [];
+  try {
+    const ids = pessoasGamificacao.map((x) => x.id);
+    const [estado, { data: conquistas }] = await Promise.all([
+      carregarEstadoGamificacao(createAdminClient(), pessoasGamificacao),
+      supabase.from("conquistas").select("id, aluno_id, codigo, vista_em").in("aluno_id", ids),
+    ]);
+    gamificacao = pessoasGamificacao.map((x) => ({
+      id: x.id,
+      nome: x.nome,
+      sequencia: estado[x.id]?.sequencia.atual ?? 0,
+      semanaAulas: estado[x.id]?.sequencia.semanaAtual.aulas ?? 0,
+      medalhas: (conquistas ?? []).filter((c) => c.aluno_id === x.id).length,
+    }));
+    conquistasPorVer = (conquistas ?? [])
+      .filter((c) => !c.vista_em)
+      .map((c) => ({
+        id: c.id as string,
+        codigo: c.codigo as string,
+        dependente: c.aluno_id === user.id ? undefined : pessoasGamificacao.find((x) => x.id === c.aluno_id)?.nome,
+      }));
+  } catch (e) {
+    console.error("[perfil] gamificação", e);
+  }
+
+  // Não empilhar com o aviso de graduação nem com o de mensalidade em atraso (≥2 dias)
+  const hoje = new Date();
+  const atrasoMensalidade = Math.max(
+    getMaiorAtraso((mensalidades ?? []) as Mensalidade[], hoje),
+    ...dependentes.flatMap((d) => d.mensalidades.map((m) => getDiasAtraso(m, hoje))),
+  );
+  const mostrarNovaConquista =
+    conquistasPorVer.length > 0 && !mostrarAvisoGraduacao && atrasoMensalidade < 2;
+
   return (
     <>
       {mostrarAvisoGraduacao && <GraduacaoAptosModal janela={janelaAviso} />}
+      {mostrarNovaConquista && <NovaConquistaModal conquistas={conquistasPorVer} />}
       <PerfilView
         profile={p}
         email={user.email ?? ""}
@@ -203,6 +249,7 @@ export default async function PerfilPage() {
         avisosNotif={avisosNotif}
         dependentes={dependentes}
         aptosGraduar={aptosGraduar}
+        gamificacao={gamificacao}
       />
     </>
   );
