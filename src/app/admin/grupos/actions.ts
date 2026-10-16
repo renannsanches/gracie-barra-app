@@ -87,14 +87,15 @@ export async function apagarGrupo(id: string): Promise<ActionResult> {
   const { data: grupo } = await admin.from("grupos_alunos").select("padrao").eq("id", id).single();
   if (grupo?.padrao) return { ok: false, erro: "O grupo padrão não pode ser apagado." };
 
+  // O local de alunos e turmas vem das modalidades: com modalidades, não se apaga
   const { count } = await admin
-    .from("profiles")
+    .from("modalidades")
     .select("id", { count: "exact", head: true })
     .eq("grupo_id", id);
   if ((count ?? 0) > 0) {
     return {
       ok: false,
-      erro: `Grupo tem ${count} aluno${count === 1 ? "" : "s"}. Desativa em vez de apagar.`,
+      erro: `Este local tem ${count} modalidade${count === 1 ? "" : "s"}. Desativa em vez de apagar.`,
     };
   }
 

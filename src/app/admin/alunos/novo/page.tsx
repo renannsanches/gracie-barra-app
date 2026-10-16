@@ -2,12 +2,13 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listarGrupos } from "@/lib/grupos";
+import { listarModalidades } from "@/lib/modalidades";
 import { NovoAlunoForm } from "./NovoAlunoForm";
 
 export default async function NovoAlunoPage() {
   const supabase = createAdminClient();
 
-  const [{ data }, grupos] = await Promise.all([
+  const [{ data }, grupos, modalidades] = await Promise.all([
     supabase
       .from("profiles")
       .select("id, nome_completo")
@@ -15,6 +16,7 @@ export default async function NovoAlunoPage() {
       .eq("status", "ativo")
       .order("nome_completo"),
     listarGrupos(supabase),
+    listarModalidades(supabase),
   ]);
 
   const alunosComLogin = (data ?? []) as { id: string; nome_completo: string }[];
@@ -38,7 +40,7 @@ export default async function NovoAlunoPage() {
         </p>
       </div>
 
-      <NovoAlunoForm alunosComLogin={alunosComLogin} grupos={grupos} />
+      <NovoAlunoForm alunosComLogin={alunosComLogin} grupos={grupos} modalidades={modalidades} />
     </div>
   );
 }

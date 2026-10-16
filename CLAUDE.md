@@ -44,6 +44,7 @@ Fluxo: ramo novo → PR para `master` em `renannsanches/gracie-barra-app` → pr
 npm run dev      # servidor local em http://localhost:3000
 npm run build    # build de produção (verifica tipos TypeScript; o Next 16 já não corre lint)
 npm run lint     # ESLint 9 (eslint.config.mjs) — 0 erros; avisos de código legado
+npm test         # testes unitários (vitest) — lógica pura em src/**/*.test.ts
 
 # Testes E2E (requer servidor a correr: npm run dev ou npm run start)
 npm run test:e2e          # correr todos os testes E2E
@@ -70,6 +71,9 @@ npm run test:e2e:report   # ver relatório HTML do último run
 | `cadastro.spec.ts` | Redirecionamentos de auth + fluxo de cadastro com utilizador fresh |
 | `presenca.spec.ts` | Geração de QR Code + countdown + expiração |
 | `financeiro.spec.ts` | Marcar mensalidade como paga + desmarcar (admin) |
+| `gamificacao.spec.ts` | Card no /perfil, /conquistas, abas do /ranking (aluno de teste fica oculto do ranking) |
+
+A BD dos testes é a de produção: o `global-setup` põe `ocultar_ranking = true` nos utilizadores de teste para não aparecerem no ranking real.
 
 **Troubleshooting:**
 - `global-setup` falha: verificar que `.env.local` tem todos os `PLAYWRIGHT_*` vars
@@ -147,6 +151,8 @@ PLAYWRIGHT_ADMIN_PASSWORD=<strong-random>
 /avisos                 → mural de avisos publicados pela academia
 /galeria                → lista de álbuns de fotos
 /galeria/[id]           → álbum com lightbox (prev/next, teclado, thumbnails)
+/ranking                → ranking de aulas (mês e ano, Adultos/Kids); o aluno pode ocultar-se
+/conquistas             → sequência semanal e medalhas (próprio e dependentes)
 /offline                → página de fallback PWA sem rede
 
 /tablet                 → scanner QR permanente (câmera aberta, frontal por defeito)
@@ -156,7 +162,8 @@ PLAYWRIGHT_ADMIN_PASSWORD=<strong-random>
 /admin/alunos           → lista de alunos com filtros (grupo, perfil, faixa, categoria) e pesquisa; aceita ?grupo=<id>
 /admin/alunos/novo      → formulário de novo aluno
 /admin/alunos/[id]      → ficha completa: dados, fotos, mensalidades, presenças, graduações, dependentes
-/admin/grupos           → grupos de alunos (ex.: Academia, Colégio): criar, renomear, ativar/desativar, apagar vazio
+/admin/grupos           → locais de treino (Academia, Colégio…): criar, renomear, ativar/desativar; contagens vêm das modalidades
+/admin/modalidades      → modalidades (Jiu-Jitsu, Capoeira…): valor sugerido adulto/menores de 16, ativar/desativar, apagar sem uso
 /admin/turmas           → lista de turmas
 /admin/turmas/nova      → criar turma
 /admin/turmas/[id]      → editar turma + gerir aulas + ver reservas + marcar presenças
@@ -227,12 +234,14 @@ Aluno abre /presenca
 
 Tablet lê QR
   → @zxing/browser (dynamic import, ssr:false)
-  → Server Action: registrar_presenca_por_token(token)
-    → RPC verifica: token válido? não expirado?
-    → RPC verifica: bloqueio financeiro? (helper verificar_bloqueio_financeiro — bloqueia se atrasado ≥10 dias)
-    → RPC verifica: reserva confirmada para hoje? (bloqueia se não reservou)
-    → RPC verifica: cooldown 30min? (bloqueia re-entrada)
-    → Insere em presencas (índice único por aluno+data)
+  → supabase.rpc("registrar_presenca_por_token", { p_token }) no cliente
+    → RPC verifica: token existe? não usado? não expirado? (senão devolve sucesso=false)
+    → RPC verifica: bloqueio financeiro? (verificar_bloqueio_financeiro ≥10 dias → RAISE 'mensalidade_bloqueada')
+    → Marca o token como usado e insere uma presença por aluno do QR
+    → Devolve jsonb { sucesso, mensagem, alunos: [{ aluno_nome, aluno_foto, aluno_faixa, aluno_graus }] }
+    ⚠ A versão em produção NÃO verifica reserva nem cooldown (as migrations do repo
+      dizem o contrário — estão desactualizadas). O único intervalo é o do /presenca
+      (30 min, no cliente). Ver a definição real com pg_get_functiondef.
     → Retorna nome, foto, faixa, aula
   → Tablet exibe confirmação verde 3s
 
@@ -273,7 +282,7 @@ Ao concluir cadastro:
 | Tabela | Descrição |
 |--------|-----------|
 | `profiles` | Perfil de cada utilizador (aluno, professor, admin, tablet, responsavel) |
-| `presencas` | Registo de presença (1 por aluno por dia, índice único) |
+| `presencas` | Registo de presença — 1 linha por aula; pode haver 2 no mesmo dia (o índice único por dia foi removido; cooldown de 1h) |
 | `qr_tokens` | Tokens temporários de 60s para validar presença |
 | `mensalidades` | Mensalidades por aluno (mês referência, vencimento, valor, status) |
 | `turmas` | Definição de turmas (dia, hora, recorrência, lotação, categoria, professor) |
@@ -284,7 +293,11 @@ Ao concluir cadastro:
 | `avisos` | Avisos publicados pela academia (fixado, publicado, timestamps) |
 | `albuns` | Álbuns de fotos (título, capa, autor) |
 | `fotos` | Fotos dentro de álbuns (URL no Storage, legenda) |
-| `grupos_alunos` | Grupos de alunos (nome, ativo, padrao). O grupo `padrao` recebe os registos feitos em `/cadastro`; não pode ser desativado nem apagado |
+| `conquistas` | Medalhas ganhas (`codigo`, `referencia` = mês nas repetíveis, `conquistada_em`, `vista_em`, `notificada_em`). Só o servidor grava (service_role) |
+| `grupos_alunos` | Locais de treino (nome, ativo, padrao). Cada modalidade pertence a um local; o(s) local(is) do aluno são derivados das suas modalidades (`profiles.grupo_id` está obsoleto — não usar) |
+| `modalidades` | Catálogo (nome, valor, valor_infantil, ativo, padrao, `grupo_id` = local, `desconta_noutro_local`). Nome único por local. Padrão (Jiu-Jitsu Academia) = registos da app |
+| `aluno_modalidades` | "Plano" do aluno: modalidades + valor próprio + `cobrar` (false = pago diretamente no local, fora da app) |
+| `aluno_descontos` | Descontos mensais do aluno (descricao, valor, `origem_modalidade_id` quando automático). Mensalidade = Σ linhas cobradas − Σ descontos |
 
 ### Campos chave de `profiles`
 
@@ -304,7 +317,8 @@ iban: string | null
 nif: string | null
 aulas_manual: number      // contador de presenças importadas manualmente (fichinhas físicas)
 sem_login: boolean        // true para dependentes (filhos sem conta de auth)
-grupo_id: string | null   // FK grupos_alunos — 1 grupo por pessoa que treina (não responsáveis)
+ocultar_ranking: boolean  // aluno fora do ranking (e do Top 3); muda por server action
+grupo_id: string | null   // OBSOLETO — o local vem das modalidades (aluno_modalidades → modalidades.grupo_id)
 ```
 
 ### RPCs (funções Postgres)
@@ -315,6 +329,11 @@ grupo_id: string | null   // FK grupos_alunos — 1 grupo por pessoa que treina 
 | `registrar_presenca_por_token(p_token)` | Valida token, verifica financeiro + reserva + cooldown, insere em `presencas` |
 | `verificar_bloqueio_financeiro(p_aluno_id)` | Helper que retorna `true` se aluno tem mensalidade atrasada ≥10 dias; usado em QR, presença manual e reservas |
 | `limpar_tokens_expirados()` | Remove tokens expirados (manutenção periódica) |
+| `dias_treino_alunos(p_aluno_ids)` | Datas (Lisboa) de cada aula por aluno, 1 linha por aluno — só service_role |
+| `ranking_presencas(p_inicio, p_fim)` | Aulas por aluno activo num período, sem os ocultos — só service_role |
+| `semanas_com_treino()` | Segundas-feiras com alguma presença na academia (semanas de pausa não quebram sequências) — só service_role |
+
+**Trigger `tg_profiles_proteger_colunas`:** um aluno (role `authenticated`, não staff) só pode alterar `nome_completo`, `telefone`, `data_nascimento` e `foto_url` do próprio perfil. Tudo o resto passa por server actions com o admin client.
 
 ### Storage (Supabase)
 
@@ -362,6 +381,8 @@ ActionResult = { ok: boolean; erro?: string }  // retorno padrão de Server Acti
 | `ServiceWorkerUpdater` | Recarrega página quando novo SW disponível (desactivado em dev) |
 | `MensalidadeVencidaBanner` | Banner âmbar fixo no topo quando mensalidade (própria ou de dependente) está atrasada ≥5 dias |
 | `MensalidadeAtrasoModal` | Modal central 1x/dia (localStorage) quando atraso ≥2 dias; botão "Falar com Simone" abre WhatsApp com mensagem pré-preenchida |
+| `Medalha` | Medalha redonda (bronze/prata/ouro) — número nos marcos de aulas e sequências, ícone nas especiais |
+| `NovaConquistaModal` | Modal em `/perfil` com medalhas ainda não vistas (próprio + dependentes); não aparece com o aviso de graduação nem com mensalidade ≥2 dias em atraso |
 | `GraduacaoAptosModal` | Modal 2x por semana (1º acesso a partir de segunda e a partir de quinta, hora de Lisboa) para admin/professor quando há ≥1 aluno apto a graduar; janela vista guardada em `user_metadata.aviso_graduacao_janela` (por conta, não por dispositivo); renderizado em `/perfil` |
 
 ---
@@ -421,7 +442,7 @@ gb: {
 
 | Débito | Impacto | Prioridade |
 |--------|---------|------------|
-| Testes E2E só cobrem 3 fluxos — sem testes unitários | Risco em refactors | Média |
+| Testes E2E só cobrem 4 fluxos; testes unitários só para a gamificação | Risco em refactors | Média |
 | Cadastro sem rollback transaccional | Perfis parciais se mensalidades falharem | Média |
 | Uploads de Storage não atómicos | Ficheiros órfãos se DB falhar a seguir | Média |
 | Race condition na capacidade de aulas | Exceder lotação com utilizadores simultâneos | Baixa (academia pequena) |
@@ -468,13 +489,15 @@ gb: {
 | — | **Modal de mensalidade em atraso** | Atraso ≥2 dias (próprio ou de dependente) → modal 1x/dia no layout `(app)` com WhatsApp da Simone; some quando a mensalidade é paga |
 | — | **Modal de aptos a graduar (2x/semana)** | Admin/professor vêem em `/perfil`, no 1º acesso a partir de segunda e de quinta, aviso de que há alunos aptos (só se houver ≥1); controlo por conta em `user_metadata` |
 | — | **Grupos de alunos** | `/admin/grupos` (CRUD inline); campo Grupo em novo aluno e ficha (todos os perfis menos responsável); filtro por grupo em Cadastros e Financeiro (totais seguem o filtro); `/cadastro` atribui o grupo padrão |
+| — | **Modalidades** | `/admin/modalidades`; card Modalidades na ficha (valor por aluno, total, "Atualizar pendentes" quando muda); `mensalidades.itens` (jsonb) guarda a composição e `valor` continua a ser o total; detalhe "JJ 50 € · Capoeira 20 €" no Financeiro, ficha, perfil do aluno e relatórios; `turmas.modalidade_id` filtra `/aulas` e é validado em `reservar` |
+| — | **Colégio e descontos** | Modalidade "Jiu-Jitsu · Colégio" 13 € com `desconta_noutro_local`: ao juntar uma modalidade de outro local, o editor passa o Colégio a "pago no colégio" (`cobrar=false`) e cria "Desconto aluno do Colégio −13 €" (editável); ao sair, reverte. Ficha mostra "Onde treina"; filtros de grupo (Cadastros, Financeiro) usam locais derivados; descontos manuais no editor |
+| 17 | **Gamificação** | `/ranking` (mês/ano, Adultos/Kids pela regra da graduação, empates 1,1,3, opção de ocultar); `/conquistas` (sequência = semanas seg–dom com ≥2 aulas, semana sem ninguém na academia é pausa; medalhas de aulas 10–500, sequências 4–52, Mês perfeito, Top 3 do mês desde 2026-10, 1/2/3 anos). Regras em `src/lib/gamificacao.ts` (testadas com vitest); gravação em `src/lib/conquistas-sync.ts` — depois do QR (ecrã de confirmação), na presença manual do tablet (`after`) e no cron diário `type=conquistas` (`?dry=1` só conta). Push agrupado por pessoa; backfill antigo não gera push |
 
 ### ❌ Por implementar
 
 | Fase | Funcionalidade | Prioridade |
 |------|---------------|------------|
 | 15 | **UI/UX Polishing** — toast system, modais, skeletons, micro-interacções | — |
-| 17 | **Gamificação** — ranking de presenças, streaks, badges | — |
 
 ---
 

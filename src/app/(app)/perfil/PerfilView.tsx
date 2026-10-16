@@ -1,11 +1,13 @@
 "use client";
 
+import { DetalheMensalidade } from "@/components/ValorMensalidade";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   User, Phone, Calendar, Mail, LogOut, ShieldCheck,
   Award, QrCode, Camera, Loader2, Check, X, Pencil, CalendarDays, CreditCard, BookOpen, Megaphone, Images, Users, ChevronRight, ChevronDown, Bell, Star,
+  Flame, Trophy, Medal,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
@@ -120,6 +122,14 @@ interface AptosGraduarAluno {
   semanasNecessarias: number;
 }
 
+export interface ResumoGamificacao {
+  id: string;
+  nome: string;
+  sequencia: number;
+  semanaAulas: number;
+  medalhas: number;
+}
+
 interface PerfilViewProps {
   profile: Profile | null;
   email: string;
@@ -131,9 +141,10 @@ interface PerfilViewProps {
   avisosNotif: { id: string; titulo: string; created_at: string }[];
   dependentes: DependentePerfil[];
   aptosGraduar: AptosGraduarAluno[];
+  gamificacao: ResumoGamificacao[];
 }
 
-export function PerfilView({ profile: profileProp, email, mensalidades, historicoGraduacoes, totalAulas, aulasMes, ultimoTreino, avisosNotif, dependentes, aptosGraduar }: PerfilViewProps) {
+export function PerfilView({ profile: profileProp, email, mensalidades, historicoGraduacoes, totalAulas, aulasMes, ultimoTreino, avisosNotif, dependentes, aptosGraduar, gamificacao }: PerfilViewProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const depFileInputRef = useRef<HTMLInputElement>(null);
@@ -541,6 +552,14 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
           )}
         </div>
 
+        {gamificacao.length > 0 && (
+          <CardGamificacao
+            pessoas={gamificacao}
+            onConquistas={() => router.push("/conquistas")}
+            onRanking={() => router.push("/ranking")}
+          />
+        )}
+
         {/* Faixa + Stats — hidden for pure responsavel */}
         {profile?.perfil !== "responsavel" && <AccordionCard
           open={faixaOpen}
@@ -836,6 +855,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-[14px] font-medium text-gray-900">{m.valor != null ? formatarMoeda(m.valor) : "—"}</p>
+                    {m.valor != null && <DetalheMensalidade valor={m.valor} itens={m.itens} className="text-[11px]" />}
                     <span className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded-full mt-1 ${
                       ef === "pago"
                         ? "bg-emerald-500/15 text-emerald-600"
@@ -1014,6 +1034,69 @@ function AccordionCard({
         <div className="px-4 pb-4 border-t border-gray-100 pt-3">
           {children}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CardGamificacao({
+  pessoas,
+  onConquistas,
+  onRanking,
+}: {
+  pessoas: ResumoGamificacao[];
+  onConquistas: () => void;
+  onRanking: () => void;
+}) {
+  const sozinho = pessoas.length === 1;
+  return (
+    <div className="bg-white border border-gray-100 rounded-xl p-3.5" data-testid="card-gamificacao">
+      <div className="space-y-2">
+        {pessoas.slice(0, 3).map((x) => (
+          <div key={x.id} className="flex items-center gap-3">
+            <div
+              className={`rounded-lg flex items-center justify-center shrink-0 ${sozinho ? "w-10 h-10" : "w-8 h-8"} ${
+                x.sequencia > 0 ? "bg-orange-50 text-orange-500" : "bg-gray-100 text-gray-300"
+              }`}
+            >
+              <Flame size={sozinho ? 20 : 16} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] font-semibold text-gray-900 truncate">
+                {!sozinho && <span className="text-gray-500 font-medium">{x.nome} · </span>}
+                {x.sequencia === 1 ? "1 semana seguida" : `${x.sequencia} semanas seguidas`}
+              </p>
+              {sozinho && (
+                <p className="text-[12px] text-gray-500">
+                  Esta semana: {Math.min(x.semanaAulas, 2)}/2 aulas · {x.medalhas} medalha{x.medalhas !== 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
+            {!sozinho && (
+              <span className="text-[12px] text-gray-500 shrink-0 flex items-center gap-1">
+                {x.medalhas} <Medal size={12} />
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2 mt-3">
+        <button
+          type="button"
+          onClick={onRanking}
+          className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gb-gray text-[13px] font-medium text-gray-800 active:scale-[0.97] transition-all"
+        >
+          <Trophy size={15} className="text-gray-500" />
+          Ranking
+        </button>
+        <button
+          type="button"
+          onClick={onConquistas}
+          className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-gb-gray text-[13px] font-medium text-gray-800 active:scale-[0.97] transition-all"
+        >
+          <Medal size={15} className="text-gray-500" />
+          Conquistas
+        </button>
       </div>
     </div>
   );

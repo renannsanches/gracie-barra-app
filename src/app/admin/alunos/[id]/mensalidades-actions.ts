@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
+import { planoDoAluno } from "@/lib/modalidades";
 import type { ActionResult, Mensalidade } from "@/lib/types";
 
 interface GerarResult extends ActionResult {
@@ -81,6 +82,9 @@ export async function criarPrimeiraMensalidade(
 
   if (existe) return { ok: false, erro: "Mensalidade para esse mês já existe." };
 
+  // Composição = plano do aluno; se o admin escrever outro valor, a diferença aparece como "Ajuste"
+  const plano = await planoDoAluno(admin, alunoId);
+
   const { data: nova, error } = await admin
     .from("mensalidades")
     .insert({
@@ -88,6 +92,7 @@ export async function criarPrimeiraMensalidade(
       mes_referencia:  dados.mes_referencia,
       data_vencimento: dados.data_vencimento,
       valor:           dados.valor,
+      itens:           plano.itens.length > 0 ? plano.itens : null,
       status:          "pendente",
     })
     .select()
@@ -133,13 +138,19 @@ export async function gerarProximoMes(alunoId: string): Promise<GerarResult> {
   const diaReal       = Math.min(diaVenc, ultimoDiaMes);
   const dataVenc      = `${proximoAno}-${String(proximoMes).padStart(2, "0")}-${String(diaReal).padStart(2, "0")}`;
 
+  // Valor vem das modalidades actuais do aluno; sem modalidades, repete a última mensalidade
+  const plano = await planoDoAluno(admin, alunoId);
+  // Plano com linhas (mesmo que todas pagas fora) manda; sem plano, repete a última
+  const temPlano = plano.linhas.length > 0;
+
   const { data: nova, error } = await admin
     .from("mensalidades")
     .insert({
       aluno_id:        alunoId,
       mes_referencia:  mesRef,
       data_vencimento: dataVenc,
-      valor:           ultima.valor,
+      valor:           temPlano ? plano.total : ultima.valor,
+      itens:           temPlano ? plano.itens : ultima.itens,
       status:          "pendente",
     })
     .select()

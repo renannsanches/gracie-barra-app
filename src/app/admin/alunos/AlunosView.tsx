@@ -6,7 +6,8 @@ import { Search, UserPlus, ChevronRight, User, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { labelCorFaixa } from "@/lib/utils";
-import type { Profile, CorFaixa, StatusAluno, CategoriaFaixa, GrupoAluno } from "@/lib/types";
+import { rotuloModalidade } from "@/lib/modalidades";
+import type { Profile, CorFaixa, StatusAluno, CategoriaFaixa, GrupoAluno, Modalidade } from "@/lib/types";
 
 const FAIXA_BG: Record<CorFaixa, string> = {
   branca:         "bg-white border border-gray-300",
@@ -52,9 +53,15 @@ interface Props {
   responsaveisMap: Record<string, string>;
   grupos: GrupoAluno[];
   grupoInicial: string;
+  modalidades: Modalidade[];
+  /** aluno_id → ids das modalidades em que está inscrito */
+  modalidadesPorAluno: Record<string, string[]>;
+  modalidadeInicial: string;
 }
 
-export function AlunosView({ alunos, responsaveisMap, grupos, grupoInicial }: Props) {
+export function AlunosView({
+  alunos, responsaveisMap, grupos, grupoInicial, modalidades, modalidadesPorAluno, modalidadeInicial,
+}: Props) {
   const [lista, setLista] = useState<Profile[]>(alunos);
   const [busca, setBusca] = useState("");
   const [tabAtiva, setTabAtiva] = useState<"ativos" | "inativos">("ativos");
@@ -62,6 +69,7 @@ export function AlunosView({ alunos, responsaveisMap, grupos, grupoInicial }: Pr
   const [filtroCategoria, setFiltroCategoria] = useState<CategoriaFaixa | "">("");
   const [filtroPerfil, setFiltroPerfil] = useState<string>("");
   const [filtroGrupo, setFiltroGrupo] = useState<string>(grupoInicial);
+  const [filtroModalidade, setFiltroModalidade] = useState<string>(modalidadeInicial);
   const [pagina, setPagina] = useState(1);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
@@ -89,6 +97,16 @@ export function AlunosView({ alunos, responsaveisMap, grupos, grupoInicial }: Pr
     }
   }
 
+  // Onde treina: locais (grupos) das modalidades de cada aluno — pode ser mais de um
+  const gruposPorAluno = useMemo(() => {
+    const localDe = new Map(modalidades.map((m) => [m.id, m.grupo_id]));
+    const mapa: Record<string, string[]> = {};
+    for (const [alunoId, ids] of Object.entries(modalidadesPorAluno)) {
+      mapa[alunoId] = [...new Set(ids.map((id) => localDe.get(id)).filter((g): g is string => !!g))];
+    }
+    return mapa;
+  }, [modalidades, modalidadesPorAluno]);
+
   const filtrados = useMemo(() => {
     const q = busca.toLowerCase().trim();
     return lista.filter((a) => {
@@ -99,14 +117,16 @@ export function AlunosView({ alunos, responsaveisMap, grupos, grupoInicial }: Pr
         if (a.status !== "inativo" && a.status !== "trancado") return false;
       }
       if (filtroPerfil && a.perfil !== filtroPerfil) return false;
+      const gruposDoAluno = gruposPorAluno[a.id] ?? [];
       if (filtroGrupo === SEM_GRUPO) {
-        if (a.perfil === "responsavel" || a.grupo_id) return false;
-      } else if (filtroGrupo && a.grupo_id !== filtroGrupo) return false;
+        if (a.perfil === "responsavel" || gruposDoAluno.length > 0) return false;
+      } else if (filtroGrupo && !gruposDoAluno.includes(filtroGrupo)) return false;
+      if (filtroModalidade && !(modalidadesPorAluno[a.id] ?? []).includes(filtroModalidade)) return false;
       if (filtroFaixa && a.faixa !== filtroFaixa) return false;
       if (filtroCategoria && a.categoria !== filtroCategoria) return false;
       return true;
     });
-  }, [lista, busca, tabAtiva, filtroPerfil, filtroGrupo, filtroFaixa, filtroCategoria]);
+  }, [lista, busca, tabAtiva, filtroPerfil, filtroGrupo, gruposPorAluno, filtroModalidade, modalidadesPorAluno, filtroFaixa, filtroCategoria]);
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
   const paginaAtual = Math.min(pagina, totalPaginas);
@@ -116,10 +136,21 @@ export function AlunosView({ alunos, responsaveisMap, grupos, grupoInicial }: Pr
 
   const selectClass = "h-9 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gb-blue/30 focus:border-gb-blue";
 
+  // Chip só para modalidades "extra" (ex.: "Capoeira"): nem a padrão, nem a mesma modalidade
+  // noutro local (Jiu-Jitsu do Colégio já aparece no chip do local) — evita ruído em 150 linhas
+  const modalidadesExtra = useMemo(() => {
+    const padrao = modalidades.find((m) => m.padrao);
+    return new Map(
+      modalidades
+        .filter((m) => !m.padrao && m.nome.trim().toLowerCase() !== padrao?.nome.trim().toLowerCase())
+        .map((m) => [m.id, m.nome]),
+    );
+  }, [modalidades]);
   const nomeGrupo = useMemo(() => new Map(grupos.map((g) => [g.id, g.nome])), [grupos]);
+  const mostrarLocais = grupos.length > 1;
   const haAlunosSemGrupo = useMemo(
-    () => lista.some((a) => a.perfil !== "responsavel" && !a.grupo_id),
-    [lista],
+    () => lista.some((a) => a.perfil !== "responsavel" && (gruposPorAluno[a.id] ?? []).length === 0),
+    [lista, gruposPorAluno],
   );
 
   // Collect unique belts present in the list for the filter dropdown
@@ -176,6 +207,21 @@ export function AlunosView({ alunos, responsaveisMap, grupos, grupoInicial }: Pr
           />
         </div>
 
+        {modalidades.length > 1 && (
+          <select
+            title="Filtrar por modalidade"
+            aria-label="Filtrar por modalidade"
+            value={filtroModalidade}
+            onChange={(e) => { setFiltroModalidade(e.target.value); resetPagina(); }}
+            className={selectClass}
+          >
+            <option value="">Todas as modalidades</option>
+            {modalidades.map((m) => (
+              <option key={m.id} value={m.id}>{rotuloModalidade(m, grupos)}{m.ativo ? "" : " (inativa)"}</option>
+            ))}
+          </select>
+        )}
+
         {grupos.length > 0 && (
           <select
             title="Filtrar por grupo"
@@ -188,7 +234,7 @@ export function AlunosView({ alunos, responsaveisMap, grupos, grupoInicial }: Pr
             {grupos.map((g) => (
               <option key={g.id} value={g.id}>{g.nome}{g.ativo ? "" : " (inativo)"}</option>
             ))}
-            {haAlunosSemGrupo && <option value={SEM_GRUPO}>Sem grupo</option>}
+            {haAlunosSemGrupo && <option value={SEM_GRUPO}>Sem modalidades</option>}
           </select>
         )}
 
@@ -280,11 +326,16 @@ export function AlunosView({ alunos, responsaveisMap, grupos, grupoInicial }: Pr
                       </span>
                     )}
                     <span className="text-xs text-gray-400 capitalize">{a.categoria}</span>
-                    {a.grupo_id && nomeGrupo.has(a.grupo_id) && (
-                      <span className="rounded-full bg-gray-100 px-2 py-px text-xs text-gray-600">
-                        {nomeGrupo.get(a.grupo_id)}
+                    {(modalidadesPorAluno[a.id] ?? []).filter((id) => modalidadesExtra.has(id)).map((id) => (
+                      <span key={id} className="rounded-full bg-gb-blue/10 px-2 py-px text-xs font-medium text-gb-blue">
+                        {modalidadesExtra.get(id)}
                       </span>
-                    )}
+                    ))}
+                    {mostrarLocais && (gruposPorAluno[a.id] ?? []).filter((g) => nomeGrupo.has(g)).map((g) => (
+                      <span key={g} className="rounded-full bg-gray-100 px-2 py-px text-xs text-gray-600">
+                        {nomeGrupo.get(g)}
+                      </span>
+                    ))}
                   </div>
                 </Link>
 

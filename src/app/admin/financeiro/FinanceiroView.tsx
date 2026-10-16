@@ -3,15 +3,20 @@
 import { useState, useMemo, useTransition } from "react";
 import { marcarPago, desmarcarPago } from "./actions";
 import { getEffectiveStatus } from "@/lib/mensalidade-status";
-import type { GrupoAluno, Mensalidade, StatusMensalidade } from "@/lib/types";
+import type { GrupoAluno, Mensalidade, Modalidade, StatusMensalidade } from "@/lib/types";
+import { DetalheMensalidade } from "@/components/ValorMensalidade";
+import { descreverItens, rotuloModalidade } from "@/lib/modalidades";
 
 type MensalidadeComAluno = Mensalidade & {
-  profiles: { nome_completo: string; grupo_id: string | null } | null;
+  profiles: { nome_completo: string } | null;
 };
 
 interface Props {
   mensalidades: MensalidadeComAluno[];
   grupos: GrupoAluno[];
+  modalidades: Modalidade[];
+  /** aluno_id → locais (grupos) onde treina, derivados das modalidades */
+  gruposPorAluno: Record<string, string[]>;
 }
 
 function statusBadge(s: StatusMensalidade) {
@@ -39,7 +44,7 @@ const hoje = new Date();
 const MES_ATUAL = String(hoje.getMonth() + 1).padStart(2, "0");
 const ANO_ATUAL = String(hoje.getFullYear());
 
-export function FinanceiroView({ mensalidades, grupos }: Props) {
+export function FinanceiroView({ mensalidades, grupos, modalidades, gruposPorAluno }: Props) {
   const [busca, setBusca] = useState("");
   const [filtroMes, setFiltroMes] = useState(MES_ATUAL);
   const [filtroAno, setFiltroAno] = useState(ANO_ATUAL);
@@ -47,6 +52,7 @@ export function FinanceiroView({ mensalidades, grupos }: Props) {
   const [dataFim, setDataFim] = useState("");
   const [statusFiltro, setStatusFiltro] = useState<"" | StatusMensalidade>("");
   const [filtroGrupo, setFiltroGrupo] = useState("");
+  const [filtroModalidade, setFiltroModalidade] = useState("");
   const [pending, startTransition] = useTransition();
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
@@ -63,7 +69,8 @@ export function FinanceiroView({ mensalidades, grupos }: Props) {
       const nome = m.profiles?.nome_completo ?? "";
       if (busca && !nome.toLowerCase().includes(busca.toLowerCase())) return false;
       if (statusFiltro && getEffectiveStatus(m) !== statusFiltro) return false;
-      if (filtroGrupo && m.profiles?.grupo_id !== filtroGrupo) return false;
+      if (filtroGrupo && !(gruposPorAluno[m.aluno_id] ?? []).includes(filtroGrupo)) return false;
+      if (filtroModalidade && !m.itens?.some((i) => i.modalidade_id === filtroModalidade)) return false;
       if (temPeriodo) {
         if (dataInicio && m.data_vencimento < dataInicio) return false;
         if (dataFim && m.data_vencimento > dataFim) return false;
@@ -73,10 +80,24 @@ export function FinanceiroView({ mensalidades, grupos }: Props) {
       }
       return true;
     });
-  }, [mensalidades, busca, filtroAno, filtroMes, statusFiltro, filtroGrupo, dataInicio, dataFim, temPeriodo]);
+  }, [mensalidades, busca, filtroAno, filtroMes, statusFiltro, filtroGrupo, gruposPorAluno, filtroModalidade, dataInicio, dataFim, temPeriodo]);
 
   const totalPago = filtered.filter((m) => m.status === "pago").reduce((s, m) => s + m.valor, 0);
   const totalPendente = filtered.filter((m) => m.status !== "pago").reduce((s, m) => s + m.valor, 0);
+
+  // De onde vem o dinheiro: soma por modalidade do conjunto filtrado (+ ajustes manuais)
+  const porModalidade = useMemo(() => {
+    const somas = new Map<string, number>();
+    const somar = (nome: string, v: number) => somas.set(nome, (somas.get(nome) ?? 0) + v);
+    for (const m of filtered) {
+      const { linhas, ajuste } = descreverItens(m.valor, m.itens);
+      if (linhas.length === 0) somar("Sem detalhe", Number(m.valor));
+      for (const l of linhas) somar(l.tipo === "desconto" ? "Descontos" : l.nome, l.valor);
+      if (ajuste !== 0) somar("Ajustes", ajuste);
+    }
+    return [...somas.entries()].sort((a, b) => b[1] - a[1]);
+  }, [filtered]);
+  const eur = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "EUR" });
 
   function handleMarcar(id: string) {
     setLoadingId(id);
@@ -113,6 +134,13 @@ export function FinanceiroView({ mensalidades, grupos }: Props) {
           </span>
         </div>
       </div>
+
+      {porModalidade.length > 1 && (
+        <p className="text-sm text-gray-600">
+          <span className="font-medium text-gray-900">Por modalidade:</span>{" "}
+          {porModalidade.map(([nome, v]) => `${nome} ${eur(v)}`).join(" · ")}
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-2 items-center">
         <input
@@ -166,6 +194,20 @@ export function FinanceiroView({ mensalidades, grupos }: Props) {
           <option value="pago">Pago</option>
           <option value="atrasado">Atrasado</option>
         </select>
+        {modalidades.length > 1 && (
+          <select
+            title="Filtrar por modalidade"
+            aria-label="Filtrar por modalidade"
+            value={filtroModalidade}
+            onChange={(e) => setFiltroModalidade(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">Todas as modalidades</option>
+            {modalidades.map((mo) => (
+              <option key={mo.id} value={mo.id}>{rotuloModalidade(mo, grupos)}{mo.ativo ? "" : " (inativa)"}</option>
+            ))}
+          </select>
+        )}
         {grupos.length > 0 && (
           <select
             title="Filtrar por grupo"
@@ -245,6 +287,7 @@ export function FinanceiroView({ mensalidades, grupos }: Props) {
                     <td className="px-4 py-3 text-gray-600">{formatData(m.data_vencimento)}</td>
                     <td className="px-4 py-3 text-gray-900 text-right font-medium">
                       {m.valor.toLocaleString("pt-BR", { style: "currency", currency: "EUR" })}
+                      <DetalheMensalidade valor={m.valor} itens={m.itens} />
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>

@@ -9,6 +9,14 @@ type GuardResult = GuardOk | GuardFail;
 const ADMIN_ROLES = ["admin", "professor"];
 const TABLET_ROLES = ["admin", "professor", "tablet"];
 
+/** Só exige sessão. Quem chama verifica a posse dos dados (próprio ou dependente). */
+export async function requireUser(): Promise<GuardResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, erro: "Não autenticado." };
+  return { ok: true, userId: user.id };
+}
+
 export async function requireAdmin(): Promise<GuardResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
