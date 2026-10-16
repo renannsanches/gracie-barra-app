@@ -6,7 +6,7 @@ import {
 import Link from "next/link";
 import { FaixaBJJ } from "@/components/FaixaBJJ";
 import type { CorFaixa, CategoriaFaixa, HistoricoGraduacao } from "@/lib/types";
-import { calcularElegibilidade } from "@/lib/graduacao-rules";
+import { calcularElegibilidade, ordenarAptosGraduar } from "@/lib/graduacao-rules";
 import { fetchAllPresencasDias } from "@/lib/fetch-all-presencas";
 import { PresencasChart } from "./PresencasChart";
 import type { ChartDataPoint } from "./PresencasChart";
@@ -201,7 +201,7 @@ async function getDashboardData(isAdmin: boolean) {
   const trintaAtrasStr = `${trintaAtras.getFullYear()}-${String(trintaAtras.getMonth() + 1).padStart(2, "0")}-${String(trintaAtras.getDate()).padStart(2, "0")}`;
 
   let sumiram: SumidoAluno[] = [];
-  const aptosGraduar: AptosGraduarAluno[] = [];
+  let aptosGraduar: AptosGraduarAluno[] = [];
 
   if (activeIds.length > 0) {
     const [presencasAtivos, { data: historicoAtivos }] = await Promise.all([
@@ -282,10 +282,7 @@ async function getDashboardData(isAdmin: boolean) {
       }
     }
 
-    aptosGraduar.sort((a, b) =>
-      (b.semanasQualificadas - b.semanasNecessarias) -
-      (a.semanasQualificadas - a.semanasNecessarias)
-    );
+    aptosGraduar = ordenarAptosGraduar(aptosGraduar);
   }
 
   return {

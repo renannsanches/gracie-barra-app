@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { calcularElegibilidade } from "@/lib/graduacao-rules";
+import { calcularElegibilidade, ordenarAptosGraduar } from "@/lib/graduacao-rules";
 import { fetchAllPresencasDias } from "@/lib/fetch-all-presencas";
 import type { Profile, Mensalidade, HistoricoGraduacao, DependentePerfil, CorFaixa, CategoriaFaixa } from "@/lib/types";
 import { PerfilView } from "./PerfilView";
@@ -119,7 +119,7 @@ export default async function PerfilPage() {
   }
 
   const isAdminOrProfessor = p?.perfil === "admin" || p?.perfil === "professor";
-  const aptosGraduar: AptosGraduarAluno[] = [];
+  let aptosGraduar: AptosGraduarAluno[] = [];
 
   if (isAdminOrProfessor) {
     const admin = createAdminClient();
@@ -181,10 +181,7 @@ export default async function PerfilPage() {
         }
       }
 
-      aptosGraduar.sort((a, b) =>
-        (b.semanasQualificadas - b.semanasNecessarias) -
-        (a.semanasQualificadas - a.semanasNecessarias)
-      );
+      aptosGraduar = ordenarAptosGraduar(aptosGraduar);
     }
   }
 
