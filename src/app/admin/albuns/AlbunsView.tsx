@@ -1,5 +1,8 @@
 "use client";
 
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { confirmar } from "@/components/ConfirmDialog";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -73,15 +76,18 @@ export function AlbunsView({ albuns, covers }: Props) {
       setErro(result.erro ?? "Erro inesperado.");
       return;
     }
+    toast.success(editTarget ? "Álbum actualizado" : "Álbum criado");
     closeModal();
     startTransition(() => router.refresh());
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm("Apagar este álbum e todas as suas fotos? Esta ação não pode ser desfeita.")) return;
+    if (!(await confirmar({ titulo: "Apagar este álbum?", descricao: "Todas as fotos do álbum também são apagadas. Esta ação não pode ser desfeita.", destrutivo: true }))) return;
     setDeletingId(id);
-    await apagarAlbum(id);
+    const r = await apagarAlbum(id);
     setDeletingId(null);
+    if (!r.ok) { toast.error(r.erro ?? "Não foi possível apagar o álbum."); return; }
+    toast.success("Álbum apagado");
     startTransition(() => router.refresh());
   }
 
@@ -176,62 +182,59 @@ export function AlbunsView({ albuns, covers }: Props) {
         </div>
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg">
-            <div className="p-6">
-              <h2 className="font-bold text-gray-900 text-lg mb-4">
-                {editTarget ? "Editar Álbum" : "Novo Álbum"}
-              </h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">
-                    Título <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    value={titulo}
-                    onChange={(e) => setTitulo(e.target.value)}
-                    placeholder="Nome do álbum"
-                    className="rounded-xl"
-                    disabled={submitting}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Descrição</label>
-                  <textarea
-                    value={descricao}
-                    onChange={(e) => setDescricao(e.target.value)}
-                    placeholder="Descrição opcional…"
-                    rows={3}
-                    disabled={submitting}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gb-blue/30 focus:border-gb-blue resize-none disabled:opacity-60"
-                  />
-                </div>
-                {erro && <p className="text-sm text-red-600">{erro}</p>}
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={closeModal}
-                    className="flex-1"
-                    disabled={submitting}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1 bg-gb-blue hover:bg-gb-blue-dark text-white"
-                    disabled={submitting}
-                  >
-                    {submitting ? "A guardar…" : editTarget ? "Guardar" : "Criar"}
-                  </Button>
-                </div>
-              </form>
-            </div>
+      <Dialog open={showModal} onOpenChange={(aberto) => { if (!aberto) closeModal(); }}>
+        <DialogContent showClose={false} aria-describedby={undefined} className="p-0 max-w-lg">
+          <div className="p-6">
+            <DialogTitle className="font-bold text-gray-900 text-lg mb-4">
+              {editTarget ? "Editar Álbum" : "Novo Álbum"}
+            </DialogTitle>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700">
+                  Título <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={titulo}
+                  onChange={(e) => setTitulo(e.target.value)}
+                  placeholder="Nome do álbum"
+                  className="rounded-xl"
+                  disabled={submitting}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700">Descrição</label>
+                <textarea
+                  value={descricao}
+                  onChange={(e) => setDescricao(e.target.value)}
+                  placeholder="Descrição opcional…"
+                  rows={3}
+                  disabled={submitting}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gb-blue/30 focus:border-gb-blue resize-none disabled:opacity-60"
+                />
+              </div>
+              {erro && <p className="text-sm text-red-600">{erro}</p>}
+              <div className="flex gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeModal}
+                  className="flex-1"
+                  disabled={submitting}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 bg-gb-blue hover:bg-gb-blue-dark text-white"
+                  disabled={submitting}
+                >
+                  {submitting ? "A guardar…" : editTarget ? "Guardar" : "Criar"}
+                </Button>
+              </div>
+            </form>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

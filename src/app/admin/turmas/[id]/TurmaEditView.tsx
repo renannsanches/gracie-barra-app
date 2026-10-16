@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+import { confirmar } from "@/components/ConfirmDialog";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -95,7 +97,6 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp,
 
   const [turma, setTurma]       = useState(turmaProp);
   const [salvando, setSalvando] = useState(false);
-  const [salvoOk, setSalvoOk]   = useState(false);
   const [salvoErro, setSalvoErro] = useState("");
 
   const [toggleSalvando, setToggleSalvando] = useState(false);
@@ -151,7 +152,7 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp,
 
   async function handleSalvar() {
     if (!form.nome.trim()) { setSalvoErro("Nome é obrigatório."); return; }
-    setSalvando(true); setSalvoErro(""); setSalvoOk(false);
+    setSalvando(true); setSalvoErro("");
     const result = await salvarTurma(turma.id, {
       nome:           form.nome.trim(),
       dia_semana:     Number(form.dia_semana),
@@ -176,8 +177,7 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp,
         professor_id:   form.professor_id || null,
         modalidade_id:  form.modalidade_id,
       }));
-      setSalvoOk(true);
-      setTimeout(() => setSalvoOk(false), 3000);
+      toast.success("Turma guardada");
     }
     setSalvando(false);
   }
@@ -236,14 +236,19 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp,
   }
 
   async function handleExcluirAula(aula: AulaComContagem) {
-    const msg = aula.reservas_confirmadas > 0
-      ? `Esta aula tem ${aula.reservas_confirmadas} reserva(s). Excluir irá removê-las permanentemente. Confirmar?`
-      : "Excluir esta aula permanentemente?";
-    if (!confirm(msg)) return;
+    const ok = await confirmar({
+      titulo: "Excluir esta aula?",
+      descricao: aula.reservas_confirmadas > 0
+        ? `Esta aula tem ${aula.reservas_confirmadas} reserva(s), que também serão removidas permanentemente.`
+        : "Esta ação não pode ser desfeita.",
+      confirmar: "Excluir",
+      destrutivo: true,
+    });
+    if (!ok) return;
     setExcluindoAula(aula.id);
     const result = await excluirAula(aula.id, turma.id);
     if (!result.ok) {
-      alert(result.erro ?? "Erro ao excluir.");
+      toast.error(result.erro ?? "Erro ao excluir.");
     } else {
       setAulas((prev) => prev.filter((a) => a.id !== aula.id));
       if (expandedAula === aula.id) setExpandedAula(null);
@@ -260,7 +265,8 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp,
     setSalvandoAula(true);
     const result = await atualizarAula(aulaId, turma.id, { horario: editHorario + ":00" });
     setSalvandoAula(false);
-    if (!result.ok) { alert(result.erro ?? "Erro ao salvar."); return; }
+    if (!result.ok) { toast.error(result.erro ?? "Erro ao salvar."); return; }
+    toast.success("Horário actualizado");
     setEditandoAula(null);
     setAulas((prev) => prev.map((a) => a.id === aulaId ? { ...a, horario: editHorario + ":00" } : a));
   }
@@ -494,7 +500,7 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp,
   const isDiario        = turma.recorrencia === "diario";
 
   async function handleExcluirTurma() {
-    if (!confirm(`Excluir a turma "${turma.nome}" permanentemente?`)) return;
+    if (!(await confirmar({ titulo: `Excluir a turma "${turma.nome}"?`, descricao: "A turma é apagada permanentemente.", confirmar: "Excluir", destrutivo: true }))) return;
     setExcluindoTurma(true);
     setExcluirTurmaErro("");
     const result = await excluirTurma(turma.id);
@@ -527,12 +533,6 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp,
           Dados da turma
         </h2>
 
-        {salvoOk && (
-          <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-            <Check size={15} className="text-green-600 shrink-0" />
-            <p className="text-green-700 text-sm font-medium">Salvo com sucesso!</p>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2 space-y-1.5">

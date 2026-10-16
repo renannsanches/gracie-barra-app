@@ -6,6 +6,7 @@ import { QrCode, RefreshCw, Loader2, Clock, CheckCircle2, Check, Flame } from "l
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { Profile, DependentePerfil } from "@/lib/types";
 import { Medalha } from "@/components/Medalha";
 import { CONQUISTAS_POR_CODIGO } from "@/lib/gamificacao";
@@ -371,13 +372,10 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
         )}
       </div>
 
-      {modalAberto && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setModalAberto(false)} />
-          <div className="relative bg-white w-full max-w-lg rounded-t-3xl px-5 pt-5 pb-sheet">
-            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
-            <h2 className="font-bold text-gray-900 text-lg mb-1">Registrar presença para quem?</h2>
-            <p className="text-sm text-gray-400 mb-5">Selecione quem vai treinar hoje</p>
+      <Dialog open={modalAberto} onOpenChange={setModalAberto}>
+        <DialogContent variant="sheet" showClose={false}>
+            <DialogTitle className="mb-1">Registrar presença para quem?</DialogTitle>
+            <DialogDescription className="text-gray-400 mb-5">Selecione quem vai treinar hoje</DialogDescription>
 
             <div className="space-y-3 mb-6">
               {podeTreinar && (
@@ -453,9 +451,8 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
                 Cancelar
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

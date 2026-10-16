@@ -1,5 +1,7 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmDialog";
+import { toast } from "sonner";
 import { useState, useMemo, useCallback } from "react";
 import { Loader2, Users, Check, X, Clock, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -195,7 +197,6 @@ export function AulasView({
   const [reservantesPorAula, setReservantesPorAula] = useState(reservantesProp);
   const [selecionadoId, setSelecionadoId] = useState(podeTreinar ? userId : (dependentes[0]?.id ?? userId));
   const [acao, setAcao] = useState<string | null>(null);
-  const [erro, setErro] = useState("");
   const [expandidoId, setExpandidoId] = useState<string | null>(null);
 
   const selecionadoCategoria: CategoriaFaixa = selecionadoId === userId
@@ -264,62 +265,67 @@ export function AulasView({
 
   function handleSelecionado(id: string) {
     setSelecionadoId(id);
-    setErro("");
+  }
+
+  // UI optimista: o estado muda logo ao toque e é revertido se o servidor recusar.
+  // `acao` desactiva os outros botões enquanto a resposta não chega.
+  function aplicarReserva(pessoaId: string, aulaId: string, reservaId: string, reservante: ReservanteDaAula) {
+    setAulas((prev) =>
+      prev.map((a) => (a.id === aulaId ? { ...a, reservas_confirmadas: a.reservas_confirmadas + 1 } : a)),
+    );
+    setReservasPorAluno((prev) => ({
+      ...prev,
+      [pessoaId]: { ...(prev[pessoaId] ?? {}), [aulaId]: { id: reservaId, status: "confirmada" } },
+    }));
+    setReservantesPorAula((prev) => ({ ...prev, [aulaId]: [...(prev[aulaId] ?? []), reservante] }));
+  }
+
+  function removerReserva(pessoaId: string, aulaId: string) {
+    setAulas((prev) =>
+      prev.map((a) => (a.id === aulaId ? { ...a, reservas_confirmadas: Math.max(0, a.reservas_confirmadas - 1) } : a)),
+    );
+    setReservasPorAluno((prev) => {
+      const novo = { ...(prev[pessoaId] ?? {}) };
+      delete novo[aulaId];
+      return { ...prev, [pessoaId]: novo };
+    });
+    setReservantesPorAula((prev) => ({
+      ...prev,
+      [aulaId]: (prev[aulaId] ?? []).filter((r) => r.id !== pessoaId),
+    }));
   }
 
   async function handleReservar(aulaId: string) {
+    const pessoaId = selecionadoId;
     setAcao(aulaId);
-    setErro("");
-    const result = await reservar(aulaId, selecionadoId);
+    aplicarReserva(pessoaId, aulaId, "", { id: pessoaId, ...getSelecionadoInfo() });
+    const result = await reservar(aulaId, pessoaId);
     if (!result.ok) {
-      setErro(result.erro ?? "Erro ao reservar.");
+      removerReserva(pessoaId, aulaId);
+      toast.error(result.erro ?? "Erro ao reservar.");
     } else {
-      const { nome_completo, foto_url } = getSelecionadoInfo();
-      setAulas((prev) =>
-        prev.map((a) =>
-          a.id === aulaId ? { ...a, reservas_confirmadas: a.reservas_confirmadas + 1 } : a,
-        ),
-      );
       setReservasPorAluno((prev) => ({
         ...prev,
-        [selecionadoId]: {
-          ...(prev[selecionadoId] ?? {}),
-          [aulaId]: { id: result.reservaId!, status: "confirmada" },
-        },
+        [pessoaId]: { ...(prev[pessoaId] ?? {}), [aulaId]: { id: result.reservaId!, status: "confirmada" } },
       }));
-      setReservantesPorAula((prev) => ({
-        ...prev,
-        [aulaId]: [
-          ...(prev[aulaId] ?? []),
-          { id: selecionadoId, nome_completo, foto_url },
-        ],
-      }));
+      toast.success("Reserva confirmada");
     }
     setAcao(null);
   }
 
   async function handleCancelar(reservaId: string, aulaId: string) {
-    if (!confirm("Cancelar a reserva nesta aula?")) return;
+    if (!(await confirmar({ titulo: "Cancelar a reserva nesta aula?", confirmar: "Cancelar reserva", cancelar: "Manter", destrutivo: true }))) return;
+    const pessoaId = selecionadoId;
+    const reservante =
+      reservantesPorAula[aulaId]?.find((r) => r.id === pessoaId) ?? { id: pessoaId, ...getSelecionadoInfo() };
     setAcao(reservaId);
-    setErro("");
-    const result = await cancelarMinhaReserva(reservaId, selecionadoId);
+    removerReserva(pessoaId, aulaId);
+    const result = await cancelarMinhaReserva(reservaId, pessoaId);
     if (!result.ok) {
-      setErro(result.erro ?? "Erro ao cancelar.");
+      aplicarReserva(pessoaId, aulaId, reservaId, reservante);
+      toast.error(result.erro ?? "Erro ao cancelar.");
     } else {
-      setAulas((prev) =>
-        prev.map((a) =>
-          a.id === aulaId ? { ...a, reservas_confirmadas: Math.max(0, a.reservas_confirmadas - 1) } : a,
-        ),
-      );
-      setReservasPorAluno((prev) => {
-        const novo = { ...(prev[selecionadoId] ?? {}) };
-        delete novo[aulaId];
-        return { ...prev, [selecionadoId]: novo };
-      });
-      setReservantesPorAula((prev) => ({
-        ...prev,
-        [aulaId]: (prev[aulaId] ?? []).filter((r) => r.id !== selecionadoId),
-      }));
+      toast.success("Reserva cancelada");
     }
     setAcao(null);
   }
@@ -419,9 +425,6 @@ export function AulasView({
       </PageHeader>
 
       <div className="flex-1 px-4 py-4 pb-bottom-nav space-y-3">
-        {erro && (
-          <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{erro}</div>
-        )}
 
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">
           {diaAtivoNome}
@@ -542,7 +545,7 @@ export function AulasView({
                   {!reservada && !lotado && (
                     bloqueado ? (
                       <div className="flex-1 space-y-1.5">
-                        <div className="h-9 rounded-xl bg-amber-50 border border-amber-200 text-amber-400 text-sm flex items-center justify-center font-medium cursor-not-allowed select-none">
+                        <div className="h-11 rounded-xl bg-amber-50 border border-amber-200 text-amber-400 text-sm flex items-center justify-center font-medium cursor-not-allowed select-none">
                           Reservar
                         </div>
                         <p className="text-[11px] text-amber-600 text-center leading-tight">
@@ -554,7 +557,7 @@ export function AulasView({
                         type="button"
                         onClick={() => handleReservar(aula.id)}
                         disabled={!!acao}
-                        className="flex-1 h-9 rounded-xl bg-gb-blue text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-gb-blue-dark transition-colors disabled:opacity-50"
+                        className="flex-1 h-11 rounded-xl bg-gb-blue text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-gb-blue-dark transition-[background-color,transform] duration-fast active:scale-[0.98] disabled:opacity-50"
                       >
                         {isLoadingAula ? <Loader2 size={15} className="animate-spin" /> : null}
                         Reservar
@@ -566,14 +569,14 @@ export function AulasView({
                       type="button"
                       onClick={() => handleCancelar(minhaReservaId!, aula.id)}
                       disabled={!!acao}
-                      className="flex-1 h-9 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium flex items-center justify-center gap-2 hover:bg-red-100 transition-colors disabled:opacity-50"
+                      className="flex-1 h-11 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium flex items-center justify-center gap-2 hover:bg-red-100 transition-[background-color,transform] duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
                       {isLoadingCancel ? <Loader2 size={15} className="animate-spin" /> : <X size={14} />}
                       Cancelar reserva
                     </button>
                   )}
                   {lotado && !reservada && (
-                    <div className="flex-1 h-9 rounded-xl bg-gray-100 text-gray-400 text-sm flex items-center justify-center font-medium">
+                    <div className="flex-1 h-11 rounded-xl bg-gray-100 text-gray-400 text-sm flex items-center justify-center font-medium">
                       Sem vagas
                     </div>
                   )}

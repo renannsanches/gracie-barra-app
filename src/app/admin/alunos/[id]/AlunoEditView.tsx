@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+import { confirmar } from "@/components/ConfirmDialog";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -146,7 +148,6 @@ export function AlunoEditView({
   const [uploadingFoto, setUploadingFoto] = useState(false);
   const [uploadFotoErro, setUploadFotoErro] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const [salvoOk, setSalvoOk] = useState(false);
   const [salvoErro, setSalvoErro] = useState("");
   const [form, setForm] = useState({
     nome_completo:   aluno.nome_completo,
@@ -265,7 +266,7 @@ export function AlunoEditView({
 
   async function handleSalvar() {
     if (!form.nome_completo.trim()) { setSalvoErro("Nome não pode estar vazio."); return; }
-    setSalvando(true); setSalvoErro(""); setSalvoOk(false);
+    setSalvando(true); setSalvoErro("");
     const salvandoResponsavel = form.perfil === "responsavel";
     const faixaFinal: CorFaixa | null = salvandoResponsavel ? null : (form.faixa as CorFaixa);
     const grausFinal = salvandoResponsavel ? 0 : Number(form.graus);
@@ -299,8 +300,7 @@ export function AlunoEditView({
         status:          statusAluno,
         perfil:          form.perfil as PerfilUsuario,
       }));
-      setSalvoOk(true);
-      setTimeout(() => setSalvoOk(false), 3000);
+      toast.success("Dados do aluno guardados");
     } catch (err) {
       setSalvoErro(err instanceof Error ? err.message : "Erro ao salvar.");
     } finally {
@@ -375,16 +375,17 @@ export function AlunoEditView({
   }
 
   async function handleExcluirGraduacao(id: string) {
-    if (!confirm("Eliminar esta graduação do histórico?")) return;
+    if (!(await confirmar({ titulo: "Eliminar esta graduação do histórico?", confirmar: "Eliminar", destrutivo: true }))) return;
     try {
       const result = await excluirGraduacao(id, aluno.id);
       if (result.ok) {
         setGraduacoes((prev) => prev.filter((g) => g.id !== id));
+        toast.success("Graduação eliminada");
       } else {
-        alert(result.erro || "Não foi possível eliminar a graduação. Tenta novamente.");
+        toast.error(result.erro || "Não foi possível eliminar a graduação. Tenta novamente.");
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro de rede. Verifica a ligação e tenta novamente.");
+      toast.error(err instanceof Error ? err.message : "Erro de rede. Verifica a ligação e tenta novamente.");
     }
   }
 
@@ -408,7 +409,7 @@ export function AlunoEditView({
   }
 
   async function handleDesmarcarPago(mensalidadeId: string) {
-    if (!confirm("Reverter pagamento para pendente?")) return;
+    if (!(await confirmar({ titulo: "Reverter pagamento para pendente?", confirmar: "Reverter" }))) return;
     setAcao(`${mensalidadeId}-desmarcar`); setAcaoErro("");
     try {
       const result = await serverDesmarcarPago(mensalidadeId, aluno.id);
@@ -509,7 +510,7 @@ export function AlunoEditView({
   }
 
   async function handleExcluirMensalidade(mensalidadeId: string) {
-    if (!confirm("Excluir esta mensalidade? Esta ação não pode ser revertida.")) return;
+    if (!(await confirmar({ titulo: "Excluir esta mensalidade?", descricao: "Esta ação não pode ser revertida.", confirmar: "Excluir", destrutivo: true }))) return;
     setAcao(`${mensalidadeId}-excluir`); setAcaoErro("");
     try {
       const result = await serverExcluirMensalidade(mensalidadeId, aluno.id);
@@ -754,12 +755,6 @@ export function AlunoEditView({
           Dados do aluno
         </h2>
 
-        {salvoOk && (
-          <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-            <Check size={15} className="text-green-600 shrink-0" />
-            <p className="text-green-700 text-sm font-medium">Salvo com sucesso!</p>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {email && (

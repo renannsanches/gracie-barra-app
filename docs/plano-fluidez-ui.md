@@ -70,7 +70,7 @@
 
 Cada fase = 1 PR para `master` em `renannsanches/gracie-barra-app`, com preview Vercel verificado a 375 px.
 
-> **Estado (2026-10-16):** Fases 0 e 1 implementadas no ramo `feat/ui-fluidez`. Fases 2–4 por fazer.
+> **Estado (2026-10-16):** Fases 0 e 1 no ramo `feat/ui-fluidez` (PR #61); Fase 2 em `feat/ui-feedback-dialogos`. Fases 3–4 por fazer.
 
 ### Fase 0 — Fundações · ~2–3 h ✅
 1. Tokens acima em `globals.css` + `tailwind.config.ts` (apagar o bloco shadcn neutro duplicado).
@@ -89,11 +89,12 @@ Cada fase = 1 PR para `master` em `renannsanches/gracie-barra-app`, com preview 
    Os atalhos do Início passaram de `router.push` para `<Link>` (prefetch).
 4. Admin mobile: a barra horizontal de 8 itens faz scroll até ao item activo ao abrir.
 
-### Fase 2 — Feedback e diálogos · ~5–6 h
-1. `sonner` + `<Toaster>` no layout raiz → `toast.success` / `toast.error` nas Server Actions (avisos, financeiro, alunos, reservas).
-2. `<ConfirmDialog>` (Radix AlertDialog, já incluído no pacote `radix-ui`) → substituir os 37 `confirm`/`alert`.
-3. Migrar os 15 modais para `<Dialog>` / `<Sheet side="bottom">` partilhados: focus trap, Esc, scroll-lock, scrim 50 %, animação 200 ms.
-4. UI optimista (`useOptimistic`, React 19) em **reservar/cancelar aula** e **marcar mensalidade paga**.
+### Fase 2 — Feedback e diálogos · ~5–6 h ✅
+1. `sonner` + `<FeedbackHosts>` nos layouts `(app)` e `admin` (não no `/tablet`). Toasts no topo, abaixo do notch → `toast.success` / `toast.error` em apagar/criar/editar (avisos, álbuns, fotos, financeiro, grupos, modalidades, alunos, turmas, perfil) e reservas. Erros de formulário continuam junto ao formulário.
+2. `confirmar()` imperativo (Radix AlertDialog) → substituiu os 38 `confirm`/`alert`. Foco inicial em "Cancelar".
+3. `<Dialog>` partilhado (`variant="center" | "sheet"`) → 16 modais migrados (9 admin, 7 aluno, incl. lightbox da galeria em ecrã inteiro).
+4. UI optimista: `useOptimistic` em marcar/desmarcar pago (financeiro); reservar/cancelar aula aplica e reverte se o servidor recusar.
+   Também: `apagarAviso`/`apagarAlbum`/`apagarFoto` deixaram de falhar em silêncio.
 
 ### Fase 3 — Micro-interacções · ~2–3 h
 1. Feedback de toque em cards e linhas clicáveis (opacidade/escala, 80–150 ms).

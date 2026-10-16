@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+import { confirmar } from "@/components/ConfirmDialog";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -174,7 +176,7 @@ export function ModalidadesView({ modalidades: doServidor, contagens, grupos }: 
   }
 
   async function handleApagar(m: Modalidade) {
-    if (!window.confirm(`Apagar a modalidade "${m.nome}"?`)) return;
+    if (!(await confirmar({ titulo: `Apagar a modalidade "${m.nome}"?`, destrutivo: true }))) return;
     setErroLinha(null);
     setOcupadoId(m.id);
     const r = await apagarModalidade(m.id);
@@ -184,6 +186,7 @@ export function ModalidadesView({ modalidades: doServidor, contagens, grupos }: 
       return;
     }
     setModalidades((prev) => prev.filter((x) => x.id !== m.id));
+    toast.success("Modalidade apagada");
     refresh();
   }
 

@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { X } from "lucide-react";
 import { Medalha } from "@/components/Medalha";
 import { CONQUISTAS_POR_CODIGO } from "@/lib/gamificacao";
 import { marcarConquistasVistas } from "@/app/(app)/conquistas/conquistas-actions";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 export interface ConquistaPorVer {
   id: string;
@@ -30,16 +30,7 @@ export function NovaConquistaModal({ conquistas }: { conquistas: ConquistaPorVer
     void marcarConquistasVistas(lista.map((c) => c.id));
   }, [lista]);
 
-  useEffect(() => {
-    if (!aberto) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setAberto(false);
-    }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [aberto]);
-
-  if (!aberto) return null;
+  if (lista.length === 0) return null;
 
   const fechar = () => setAberto(false);
   const uma = lista.length === 1 ? lista[0] : null;
@@ -61,26 +52,8 @@ export function NovaConquistaModal({ conquistas }: { conquistas: ConquistaPorVer
   }
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center px-4"
-      onClick={fechar}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="nova-conquista-titulo"
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 pt-8 animate-in fade-in zoom-in-95 duration-300"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          onClick={fechar}
-          className="absolute top-3 right-3 w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
-          aria-label="Fechar"
-        >
-          <X size={14} />
-        </button>
-
+    <Dialog open={aberto} onOpenChange={setAberto}>
+      <DialogContent className="max-w-sm pt-8">
         <div className="flex justify-center items-center gap-2">
           {uma ? (
             <Medalha codigo={uma.codigo} tamanho="lg" className="animate-in zoom-in-50 spin-in-12 duration-500" />
@@ -103,10 +76,8 @@ export function NovaConquistaModal({ conquistas }: { conquistas: ConquistaPorVer
           )}
         </div>
 
-        <h2 id="nova-conquista-titulo" className="mt-5 text-center text-[19px] font-bold text-gray-900">
-          {titulo}
-        </h2>
-        <p className="mt-2 text-center text-[14px] leading-snug text-gray-600">{texto}</p>
+        <DialogTitle className="mt-5 text-center text-[19px]">{titulo}</DialogTitle>
+        <DialogDescription className="mt-2 text-center text-[14px] leading-snug text-gray-600">{texto}</DialogDescription>
 
         <button
           type="button"
@@ -114,18 +85,18 @@ export function NovaConquistaModal({ conquistas }: { conquistas: ConquistaPorVer
             fechar();
             router.push("/conquistas");
           }}
-          className="mt-6 w-full py-3 rounded-xl bg-gb-blue hover:bg-gb-blue-dark text-white text-[15px] font-semibold transition-colors"
+          className="mt-6 w-full py-3 rounded-xl bg-gb-blue hover:bg-gb-blue-dark text-white text-[15px] font-semibold transition-colors duration-fast active:scale-[0.98]"
         >
           Ver conquistas
         </button>
         <button
           type="button"
           onClick={fechar}
-          className="mt-2 w-full py-2 text-[14px] text-gray-500 hover:text-gray-700"
+          className="mt-2 w-full h-11 text-[14px] text-gray-500 hover:text-gray-700"
         >
           Fechar
         </button>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

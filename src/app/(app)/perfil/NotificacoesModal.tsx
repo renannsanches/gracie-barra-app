@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { X, CreditCard, Megaphone, BellOff } from "lucide-react";
 import type { Mensalidade } from "@/lib/types";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface AvisoItem {
   id: string;
@@ -84,14 +85,6 @@ export function NotificacoesModal({ mensalidades, avisos, onClose }: Props) {
     localStorage.setItem("notificacoes_last_seen", new Date().toISOString());
   }, []);
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [onClose]);
-
   const notifMensalidades = derivarNotifMensalidades(mensalidades);
 
   const notifAvisos: NotifItem[] = avisos.slice(0, 3).map((a) => ({
@@ -108,24 +101,20 @@ export function NotificacoesModal({ mensalidades, avisos, onClose }: Props) {
     .slice(0, 5);
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-16 px-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open onOpenChange={(aberto) => { if (!aberto) onClose(); }}>
+      <DialogContent showClose={false} aria-describedby={undefined} className="p-0 max-w-sm overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <h2 className="text-[15px] font-semibold text-gray-900">Notificações</h2>
+        <div className="flex items-center justify-between pl-4 pr-1 py-1 border-b border-gray-100">
+          <DialogTitle className="text-[15px] font-semibold">Notificações</DialogTitle>
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+            className="w-11 h-11 flex items-center justify-center"
             aria-label="Fechar"
           >
-            <X size={14} />
+            <span className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors duration-fast">
+              <X size={14} />
+            </span>
           </button>
         </div>
 
@@ -166,7 +155,7 @@ export function NotificacoesModal({ mensalidades, avisos, onClose }: Props) {
             ))
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
