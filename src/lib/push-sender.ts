@@ -1,6 +1,7 @@
 import webpush from "web-push";
 import { createAdminClient } from "./supabase/admin";
 import { calcularElegibilidade } from "./graduacao-rules";
+import { CONQUISTAS_POR_CODIGO } from "./gamificacao";
 import type { CorFaixa } from "./types";
 
 webpush.setVapidDetails(
@@ -37,6 +38,31 @@ async function getSubscriptions(userIds: string[]): Promise<PushSubscriptionRow[
     .select("endpoint, p256dh, auth")
     .in("user_id", userIds);
   return data ?? [];
+}
+
+/**
+ * Dependentes sem login não têm subscrição própria: devolve dependente_id → responsavel_id
+ * para notificar o responsável. Quem não estiver no mapa é notificado directamente.
+ */
+async function mapearDependentesParaResponsaveis(
+  admin: ReturnType<typeof createAdminClient>,
+  alunoIds: string[],
+): Promise<Record<string, string>> {
+  const idMap: Record<string, string> = {};
+  if (alunoIds.length === 0) return idMap;
+  const { data: semLoginProfiles } = await admin
+    .from("profiles")
+    .select("id")
+    .in("id", alunoIds)
+    .eq("sem_login", true);
+  if (semLoginProfiles?.length) {
+    const { data: deps } = await admin
+      .from("dependentes")
+      .select("dependente_id, responsavel_id")
+      .in("dependente_id", semLoginProfiles.map((p) => p.id));
+    for (const d of deps ?? []) idMap[d.dependente_id] = d.responsavel_id;
+  }
+  return idMap;
 }
 
 function toDateStr(d: Date): string {
@@ -143,21 +169,10 @@ export async function sendPushMensalidade() {
   if (aEnviar.length === 0) return;
 
   // dependentes (sem_login) → notificar o responsável
-  const allAlunoIds = [...new Set(aEnviar.map((p) => p.alunoId))];
-  const { data: semLoginProfiles } = await admin
-    .from("profiles")
-    .select("id")
-    .in("id", allAlunoIds)
-    .eq("sem_login", true);
-
-  const idMap: Record<string, string> = {};
-  if (semLoginProfiles?.length) {
-    const { data: deps } = await admin
-      .from("dependentes")
-      .select("dependente_id, responsavel_id")
-      .in("dependente_id", semLoginProfiles.map((p) => p.id));
-    for (const d of deps ?? []) idMap[d.dependente_id] = d.responsavel_id;
-  }
+  const idMap = await mapearDependentesParaResponsaveis(
+    admin,
+    [...new Set(aEnviar.map((p) => p.alunoId))],
+  );
 
   // agrupa por tipo → conjunto de userIds resolvidos
   const porTipo: Record<TipoNotifMens, Set<string>> = {
@@ -312,5 +327,63 @@ export async function sendPushGraduacao() {
       body: `${nome} está apto para ser promovido. Verifica o perfil.`,
       url: `/admin/alunos/${aluno.id}`,
     });
+  }
+}
+
+/**
+ * Medalhas ganhas que o aluno ainda não viu na app: 1 push por pessoa (dependentes → responsável).
+ * Marca notificada_em em todas, mesmo sem subscrição, para não repetir no dia seguinte.
+ */
+export async function sendPushConquistas() {
+  const admin = createAdminClient();
+  const { data: rows } = await admin
+    .from("conquistas")
+    .select("id, aluno_id, codigo")
+    .is("vista_em", null)
+    .is("notificada_em", null)
+    .limit(1000);
+  if (!rows || rows.length === 0) return;
+
+  const alunoIds = [...new Set(rows.map((r) => r.aluno_id as string))];
+  const [idMap, { data: perfis }] = await Promise.all([
+    mapearDependentesParaResponsaveis(admin, alunoIds),
+    admin.from("profiles").select("id, nome_completo").in("id", alunoIds),
+  ]);
+  const primeiroNome: Record<string, string> = Object.fromEntries(
+    (perfis ?? []).map((p) => [p.id, (p.nome_completo as string).split(" ")[0]]),
+  );
+
+  // destinatário → medalhas (com o nome do dependente, quando é o caso)
+  const porDestino = new Map<string, { codigo: string; dependente?: string }[]>();
+  for (const r of rows) {
+    const destino = idMap[r.aluno_id] ?? r.aluno_id;
+    const lista = porDestino.get(destino) ?? [];
+    lista.push({ codigo: r.codigo, dependente: idMap[r.aluno_id] ? primeiroNome[r.aluno_id] : undefined });
+    porDestino.set(destino, lista);
+  }
+
+  const { data: subs } = await admin
+    .from("push_subscriptions")
+    .select("user_id, endpoint, p256dh, auth")
+    .in("user_id", [...porDestino.keys()]);
+
+  for (const [destino, medalhas] of porDestino) {
+    const subsDestino = (subs ?? []).filter((s) => s.user_id === destino);
+    if (subsDestino.length === 0) continue;
+    const quem = [...new Set(medalhas.map((m) => m.dependente).filter(Boolean))];
+    const titulo = CONQUISTAS_POR_CODIGO[medalhas[0].codigo]?.titulo ?? "Nova medalha";
+    const body =
+      medalhas.length === 1
+        ? `${medalhas[0].dependente ? `${medalhas[0].dependente}: ` : ""}${titulo}`
+        : quem.length > 0
+          ? `${medalhas.length} novas medalhas (${quem.join(", ")}). Vê na app!`
+          : `Ganhaste ${medalhas.length} medalhas. Vê na app!`;
+    await sendToSubscriptions(subsDestino, { title: "Nova medalha! 🏅", body, url: "/conquistas" });
+  }
+
+  const ids = rows.map((r) => r.id as string);
+  const agora = new Date().toISOString();
+  for (let i = 0; i < ids.length; i += 200) {
+    await admin.from("conquistas").update({ notificada_em: agora }).in("id", ids.slice(i, i + 200));
   }
 }

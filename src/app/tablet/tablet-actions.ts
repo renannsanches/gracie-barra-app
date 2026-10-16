@@ -1,7 +1,9 @@
 "use server";
 
+import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireTablet } from "@/lib/auth-guard";
+import { sincronizarConquistas } from "@/lib/conquistas-sync";
 import type { CorFaixa } from "@/lib/types";
 
 export interface AlunoOpcao {
@@ -91,7 +93,7 @@ export async function registrarPresencaManual(
     return { ok: false, erro: "Não foi possível registar presença. Falar com Simone." };
   }
 
-  const umaHoraAtras = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { data: recente } = await admin
     .from("presencas")
     .select("id")
@@ -108,6 +110,13 @@ export async function registrarPresencaManual(
     .insert({ aluno_id: alunoId, registrado_em: new Date().toISOString() });
 
   if (error) return { ok: false, erro: error.message };
+
+  // Medalhas novas (marcos, sequências) — depois da resposta, para não atrasar o tablet
+  after(() =>
+    sincronizarConquistas(createAdminClient(), { alunoIds: [alunoId] }).catch((e) =>
+      console.error("[tablet] sincronizarConquistas", e),
+    ),
+  );
 
   const { data: aluno } = await admin
     .from("profiles")
