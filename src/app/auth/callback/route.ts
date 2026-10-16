@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import * as Sentry from "@sentry/nextjs";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -35,6 +36,9 @@ export async function GET(request: NextRequest) {
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`);
     }
+    Sentry.captureMessage("auth/callback: exchangeCodeForSession failed", {
+      extra: { error: error.message, code: error.code },
+    });
   }
 
   if (token_hash && type) {
@@ -42,6 +46,15 @@ export async function GET(request: NextRequest) {
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`);
     }
+    Sentry.captureMessage("auth/callback: verifyOtp failed", {
+      extra: { error: error.message, code: error.code, type },
+    });
+  }
+
+  if (!code && !(token_hash && type)) {
+    Sentry.captureMessage("auth/callback: no recognizable auth params", {
+      extra: { searchParams: Object.fromEntries(searchParams) },
+    });
   }
 
   return NextResponse.redirect(`${origin}/login?erro=confirmacao`);
