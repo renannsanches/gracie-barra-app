@@ -2,8 +2,8 @@ type Props = { texto: string };
 
 export function MensalidadeVencidaBanner({ texto }: Props) {
   return (
-    <div className="sticky top-0 z-50 w-full bg-amber-50 border-b border-amber-200 px-4 py-3 shadow-sm">
-      <div className="max-w-screen-md mx-auto flex items-center gap-3">
+    <div className="sticky top-0 z-50 w-full bg-amber-50 border-b border-amber-200 shadow-sm pt-safe">
+      <div className="max-w-screen-md mx-auto flex items-center gap-3 px-4 py-3">
         <div
           className="shrink-0 w-9 h-9 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-lg leading-none"
           aria-hidden="true"

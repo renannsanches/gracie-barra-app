@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Flame, Medal as MedalIcon, Trophy } from "lucide-react";
+import { Flame, Medal as MedalIcon, Trophy } from "lucide-react";
 import { Medalha } from "@/components/Medalha";
+import { PageHeader } from "@/components/PageHeader";
 import { Switch } from "@/components/ui/switch";
 import { cn, formatarData } from "@/lib/utils";
 import { CONQUISTAS, progressoConquista, type GrupoConquista } from "@/lib/gamificacao";
@@ -27,7 +28,6 @@ const GRUPOS: { grupo: GrupoConquista; titulo: string }[] = [
 ];
 
 export function ConquistasView({ pessoas }: { pessoas: PessoaConquistas[] }) {
-  const router = useRouter();
   const [selId, setSelId] = useState(pessoas[0]?.id ?? "");
   const pessoa = pessoas.find((p) => p.id === selId) ?? pessoas[0];
 
@@ -39,27 +39,12 @@ export function ConquistasView({ pessoas }: { pessoas: PessoaConquistas[] }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-gb-gray">
-      <div className="bg-gb-black px-6 pt-10 pb-6">
-        <div className="flex items-center justify-between mb-6">
-          <button
-            type="button"
-            onClick={() => router.push("/perfil")}
-            className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Perfil
-          </button>
-          <div className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.webp" alt="Gracie Barra" className="w-7 h-7 object-contain" />
-            <span className="text-white font-bold text-xs tracking-wide">GRACIE BARRA</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <MedalIcon size={20} className="text-gb-blue" />
-          <h1 className="text-white font-bold text-xl">Conquistas</h1>
-        </div>
-        <p className="text-white/50 text-sm mt-0.5">Sequências de treino e medalhas</p>
+      <PageHeader
+        title="Conquistas"
+        icon={<MedalIcon size={20} />}
+        back={{ href: "/perfil", label: "Início" }}
+        subtitle="Sequências de treino e medalhas"
+      >
 
         {pessoas.length > 1 && (
           <div className="mt-5 flex gap-2 overflow-x-auto -mx-1 px-1">
@@ -78,9 +63,9 @@ export function ConquistasView({ pessoas }: { pessoas: PessoaConquistas[] }) {
             ))}
           </div>
         )}
-      </div>
+      </PageHeader>
 
-      <div className="flex-1 px-4 py-5 pb-8 space-y-3">
+      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-3">
         {!pessoa ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-[14px] text-gray-500">
             Sem alunos associados a esta conta.

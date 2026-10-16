@@ -1,0 +1,10 @@
+import { Calendar } from "lucide-react";
+import { AppPageSkeleton, CardListSkeleton } from "@/components/skeletons";
+
+export default function Loading() {
+  return (
+    <AppPageSkeleton title="Turmas" icon={<Calendar size={20} />} back={{ href: "/perfil", label: "Início" }}>
+      <CardListSkeleton count={4} />
+    </AppPageSkeleton>
+  );
+}

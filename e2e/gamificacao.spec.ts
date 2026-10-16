@@ -9,8 +9,9 @@ test.describe("Gamificação", () => {
     await page.goto("/perfil");
     const card = page.getByTestId("card-gamificacao");
     await expect(card).toBeVisible({ timeout: 10_000 });
-    await expect(card.getByRole("button", { name: "Ranking" })).toBeVisible();
-    await expect(card.getByRole("button", { name: "Conquistas" })).toBeVisible();
+    // Atalhos são <Link> (prefetch) — role "link"
+    await expect(card.getByRole("link", { name: "Ranking" })).toBeVisible();
+    await expect(card.getByRole("link", { name: "Conquistas" })).toBeVisible();
   });
 
   test("/conquistas mostra sequência e grupos de medalhas", async ({ page }) => {

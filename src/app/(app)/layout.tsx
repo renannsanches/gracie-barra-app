@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { MensalidadeVencidaBanner } from "@/components/MensalidadeVencidaBanner";
 import { MensalidadeAtrasoModal } from "@/components/MensalidadeAtrasoModal";
+import { BottomNav } from "@/components/BottomNav";
 import { getDiasAtraso, getMaiorAtraso } from "@/lib/mensalidade-status";
 import type { Mensalidade } from "@/lib/types";
 
@@ -26,7 +27,7 @@ export default async function AppLayout({
 
   if (!user) return <>{children}</>;
 
-  const [{ data: selfMensalidades }, { data: dependentesData }] =
+  const [{ data: selfMensalidades }, { data: dependentesData }, { data: ultimoAviso }] =
     await Promise.all([
       supabase
         .from("mensalidades")
@@ -38,6 +39,14 @@ export default async function AppLayout({
           "dependente:profiles!dependentes_dependente_id_fkey(id, nome_completo)",
         )
         .eq("responsavel_id", user.id),
+      // Para o ponto de "avisos por ler" na barra inferior
+      supabase
+        .from("avisos")
+        .select("created_at")
+        .eq("publicado", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
   const today = new Date();
@@ -99,6 +108,7 @@ export default async function AppLayout({
       {banner}
       {modal}
       {children}
+      <BottomNav ultimoAvisoEm={ultimoAviso?.created_at ?? null} />
     </>
   );
 }

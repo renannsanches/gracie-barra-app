@@ -2,6 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Tokens de design.
+ * Cores em canais RGB ("R G B") para o Tailwind gerar modificadores de opacidade
+ * (ex.: bg-brand/10). Nada de oklch(): o tablet da recepção é Safari 15, que só
+ * o suporta a partir do 15.4 — antes disso o valor é inválido e as bordas caem
+ * para currentColor.
+ */
+@layer base {
+  :root {
+    /* Marca */
+    --brand: 204 0 0;          /* #CC0000 */
+    --brand-dark: 153 0 0;     /* #990000 */
+    --brand-light: 227 30 36;  /* #E31E24 */
+    --ink: 10 10 10;           /* #0A0A0A — headers escuros */
+    --canvas: 245 245 245;     /* #F5F5F5 — fundo das páginas */
+    --surface: 255 255 255;    /* cards */
+
+    /* Estado */
+    --success: 22 163 74;      /* #16A34A */
+    --warning: 217 119 6;      /* #D97706 */
+    --destructive: 220 38 38;  /* #DC2626 */
+
+    /* Variáveis shadcn (mantidas para os componentes ui/) */
+    --background: #FFFFFF;
+    --foreground: #0A0A0A;
+    --primary: #CC0000;
+    --primary-foreground: #FFFFFF;
+    --muted-foreground: #737373;
+    --border: #E5E5E5;
+    --input: #E5E5E5;
+    --ring: #CC0000;
+
+    --radius: 0.75rem;
+
+    /* Movimento */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --dur-fast: 150ms;
+    --dur-base: 220ms;
+
+    /* Barra de navegação inferior (aluno) */
+    --bottom-nav-h: 4rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sf-pro), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /*
+   * O zoom deixou de estar bloqueado no viewport (WCAG 1.4.4). Em ecrãs táteis
+   * o iOS faz zoom automático ao focar campos com letra < 16px — por isso os
+   * campos nunca descem abaixo de 16px aí. No desktop mantêm o tamanho do design.
+   */
+  @media (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+    select,
+    textarea {
+      font-size: max(16px, 1em);
+    }
+  }
+}
+
 @layer utilities {
   .scrollbar-none {
     scrollbar-width: none;
@@ -10,20 +81,38 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
-}
 
-:root {
-  --radius: 0.75rem;
-}
-
-body {
-  font-family: var(--font-sf-pro), system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Safe areas (notch / home indicator) — o PWA usa statusBarStyle black-translucent */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* Header escuro do topo: 40px de respiro, ou mais se o notch o exigir */
+  .pt-header {
+    padding-top: max(2.5rem, calc(env(safe-area-inset-top, 0px) + 1rem));
+  }
+  /* Bottom sheet: 32px de respiro + home indicator */
+  .pb-sheet {
+    padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+  }
+  /* Espaço para o conteúdo não ficar tapado pela barra inferior */
+  .pb-bottom-nav {
+    padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 1.5rem);
+  }
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* InstallPrompt: sobe acima da barra inferior nas páginas que a têm */
+.install-prompt {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+}
+html:has([data-bottom-nav]) .install-prompt {
+  bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 0.75rem);
 }
 
 @keyframes scanLine {
@@ -60,85 +149,21 @@ body {
   outline: none;
 }
 
-@layer base {
-  .theme {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
+/*
+ * Movimento reduzido: corta animações e transições decorativas.
+ * Os spinners continuam a rodar — são feedback de carregamento, não decoração.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
-  :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
-  }
-  .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-  }
-* {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
+  .animate-spin {
+    animation-duration: 1s !important;
+    animation-iteration-count: infinite !important;
   }
 }

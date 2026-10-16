@@ -87,7 +87,9 @@ export const viewport: Viewport = {
   themeColor: "#ED1C24",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // Sem maximumScale: o zoom tem de ficar disponível (WCAG 1.4.4). O zoom
+  // automático do iOS ao focar campos é evitado no globals.css (campos ≥ 16px).
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

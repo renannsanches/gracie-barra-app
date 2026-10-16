@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { QrCode, RefreshCw, Loader2, Clock, ArrowLeft, CheckCircle2, Check, Flame } from "lucide-react";
+import { QrCode, RefreshCw, Loader2, Clock, CheckCircle2, Check, Flame } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
 import type { Profile, DependentePerfil } from "@/lib/types";
 import { Medalha } from "@/components/Medalha";
 import { CONQUISTAS_POR_CODIGO } from "@/lib/gamificacao";
@@ -223,26 +224,9 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
 
   return (
     <div className="min-h-screen flex flex-col bg-gb-gray">
-      <div className="bg-gb-black px-6 pt-10 pb-6">
-        <div className="flex items-center justify-between mb-6">
-          <button
-            type="button"
-            onClick={() => router.push("/perfil")}
-            className="flex items-center gap-1.5 text-white/60 hover:text-white text-sm transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Perfil
-          </button>
-          <div className="flex items-center gap-2">
-            <img src="/logo.webp" alt="Gracie Barra" className="w-7 h-7 object-contain" />
-            <span className="text-white font-bold text-xs tracking-wide">GRACIE BARRA</span>
-          </div>
-        </div>
-        <h1 className="text-white font-bold text-xl">Registrar Presença</h1>
-        <p className="text-white/60 text-sm mt-0.5">Olá, {primeiroNome}!</p>
-      </div>
+      <PageHeader title="Registrar Presença" subtitle={`Olá, ${primeiroNome}!`} />
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-10">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 pt-10 pb-bottom-nav">
 
         {estado === "carregando" && (
           <Loader2 size={40} className="animate-spin text-gb-blue" />
@@ -390,7 +374,7 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
       {modalAberto && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setModalAberto(false)} />
-          <div className="relative bg-white w-full max-w-lg rounded-t-3xl px-5 pt-5 pb-8">
+          <div className="relative bg-white w-full max-w-lg rounded-t-3xl px-5 pt-5 pb-sheet">
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
             <h2 className="font-bold text-gray-900 text-lg mb-1">Registrar presença para quem?</h2>
             <p className="text-sm text-gray-400 mb-5">Selecione quem vai treinar hoje</p>
