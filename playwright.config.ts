@@ -26,7 +26,7 @@ export default defineConfig({
         storageState: "./e2e/.auth/aluno.json",
         ...devices["Pixel 5"],  // Android = chromium, already installed
       },
-      testMatch: ["**/cadastro.spec.ts", "**/presenca.spec.ts"],
+      testMatch: ["**/cadastro.spec.ts", "**/presenca.spec.ts", "**/gamificacao.spec.ts"],
     },
     {
       name: "admin",

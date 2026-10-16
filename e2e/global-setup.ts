@@ -63,6 +63,8 @@ async function ensureUser(
       graus: 0,
       categoria: "adulto",
       sem_login: false,
+      // A BD de testes é a de produção: utilizadores de teste fora do ranking
+      ocultar_ranking: true,
     },
     { onConflict: "id" }
   );
