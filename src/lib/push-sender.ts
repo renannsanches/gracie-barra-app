@@ -2,6 +2,7 @@ import webpush from "web-push";
 import { createAdminClient } from "./supabase/admin";
 import { calcularElegibilidade } from "./graduacao-rules";
 import { CONQUISTAS_POR_CODIGO } from "./gamificacao";
+import { pushAtivo } from "./push-ativo";
 import type { CorFaixa } from "./types";
 
 webpush.setVapidDetails(
@@ -20,6 +21,10 @@ async function sendToSubscriptions(
   subs: PushSubscriptionRow[],
   payload: { title: string; body: string; url: string },
 ) {
+  if (!pushAtivo(process.env.VERCEL_ENV)) {
+    console.info(`[push] desligado fora de produção: ${subs.length} envio(s) — "${payload.title}"`);
+    return;
+  }
   await Promise.allSettled(
     subs.map((sub) =>
       webpush.sendNotification(
