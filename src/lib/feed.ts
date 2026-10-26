@@ -67,10 +67,15 @@ export function contarCaracteres(texto: string): number {
   return [...texto].length;
 }
 
+// O Postgres rejeita o caracter NUL em colunas text — tira-se antes de validar
+function limparTexto(texto: string): string {
+  return texto.split("\u0000").join("").trim();
+}
+
 export function validarComentario(
   texto: string,
 ): { ok: true; texto: string } | { ok: false; erro: string } {
-  const limpo = texto.trim();
+  const limpo = limparTexto(texto);
   if (!limpo) return { ok: false, erro: "Escreve um comentário." };
   if (contarCaracteres(limpo) > LIMITE_COMENTARIO) {
     return { ok: false, erro: `Máximo de ${LIMITE_COMENTARIO} caracteres.` };
@@ -83,7 +88,7 @@ export function validarPost(
   texto: string,
   nFotos: number,
 ): { ok: true; texto: string } | { ok: false; erro: string } {
-  const limpo = texto.trim();
+  const limpo = limparTexto(texto);
   if (nFotos > LIMITE_FOTOS) {
     return { ok: false, erro: `Máximo de ${LIMITE_FOTOS} fotos por publicação.` };
   }
@@ -181,7 +186,14 @@ export function codificarCursor(criadoEm: string, id: string): string {
   return btoa(binario).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-// Nunca lança: devolve null se não descodificar, não tiver 2 partes ou a data for inválida
+// Os dois valores descodificados são metidos num filtro `.or()` do PostgREST, e o cursor vem do
+// cliente — por isso só passam formas que não conseguem partir o filtro:
+// - criadoEm: timestamp ISO-8601 (o Postgres devolve "2026-10-26T12:00:00.123456+00:00");
+// - id: não vazio, sem vírgula, parênteses nem espaços (não exige UUID).
+const FORMA_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}(:?\d{2})?)$/;
+const FORMA_ID = /^[^,()\s]+$/;
+
+// Nunca lança: devolve null se não descodificar, não tiver 2 partes ou os valores forem inválidos
 export function descodificarCursor(c: string): { criadoEm: string; id: string } | null {
   try {
     const b64 = c.replace(/-/g, "+").replace(/_/g, "/");
@@ -191,7 +203,8 @@ export function descodificarCursor(c: string): { criadoEm: string; id: string } 
     const partes = texto.split("|");
     if (partes.length !== 2) return null;
     const [criadoEm, id] = partes;
-    if (!criadoEm || !id || Number.isNaN(Date.parse(criadoEm))) return null;
+    if (!FORMA_TIMESTAMP.test(criadoEm) || Number.isNaN(Date.parse(criadoEm))) return null;
+    if (!FORMA_ID.test(id)) return null;
     return { criadoEm, id };
   } catch {
     return null;
