@@ -3,6 +3,7 @@ import { createAdminClient } from "./supabase/admin";
 import { calcularElegibilidade } from "./graduacao-rules";
 import { CONQUISTAS_POR_CODIGO } from "./gamificacao";
 import { pushAtivo } from "./push-ativo";
+import { nomeCurto } from "./feed";
 import type { CorFaixa } from "./types";
 
 webpush.setVapidDetails(
@@ -402,4 +403,33 @@ export async function sendPushConquistas() {
   for (let i = 0; i < ids.length; i += 200) {
     await admin.from("conquistas").update({ notificada_em: agora }).in("id", ids.slice(i, i + 200));
   }
+}
+
+const LIMITE_TEXTO_PUSH = 80;
+
+/**
+ * Novo comentário num post: avisa só o autor do post. Posts automáticos (sem autor) e
+ * comentários do próprio autor não geram push.
+ */
+export async function sendPushComentario(postId: string, comentadorId: string, texto: string) {
+  const admin = createAdminClient();
+  const { data: post } = await admin
+    .from("feed_posts")
+    .select("autor_id")
+    .eq("id", postId)
+    .maybeSingle();
+  const autorId = post?.autor_id as string | null | undefined;
+  if (!autorId || autorId === comentadorId) return;
+
+  const [subs, { data: comentador }] = await Promise.all([
+    getSubscriptions([autorId]),
+    admin.from("profiles").select("nome_completo").eq("id", comentadorId).maybeSingle(),
+  ]);
+  if (subs.length === 0) return;
+
+  // Corta por caracteres (code points), para não partir um emoji ao meio
+  const letras = [...texto];
+  const corpo = letras.length > LIMITE_TEXTO_PUSH ? `${letras.slice(0, LIMITE_TEXTO_PUSH).join("")}…` : texto;
+  const nome = nomeCurto(comentador?.nome_completo ?? "") || "Alguém";
+  await sendToSubscriptions(subs, { title: "Novo comentário", body: `${nome}: ${corpo}`, url: "/perfil" });
 }
