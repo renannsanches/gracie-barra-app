@@ -20,10 +20,10 @@ interface PushSubscriptionRow {
 async function sendToSubscriptions(
   subs: PushSubscriptionRow[],
   payload: { title: string; body: string; url: string },
-) {
+): Promise<boolean> {
   if (!pushAtivo(process.env.VERCEL_ENV)) {
     console.info(`[push] desligado fora de produção: ${subs.length} envio(s) — "${payload.title}"`);
-    return;
+    return false;
   }
   await Promise.allSettled(
     subs.map((sub) =>
@@ -33,6 +33,7 @@ async function sendToSubscriptions(
       )
     )
   );
+  return true;
 }
 
 async function getSubscriptions(userIds: string[]): Promise<PushSubscriptionRow[]> {
@@ -199,6 +200,8 @@ export async function sendPushMensalidade() {
     await sendToSubscriptions(subs, { ...MENSAGENS_MENS[tipo], url: "/perfil" });
   }
 
+  // fora de produção não grava "já enviado": a BD é partilhada e o cron de produção ainda tem de enviar
+  if (!pushAtivo(process.env.VERCEL_ENV)) return;
   // marca todos como enviados (mesmo se push não chegou — evita re-tentativa diária)
   await admin
     .from("notificacoes_mensalidade_enviadas")
@@ -313,6 +316,12 @@ export async function sendPushGraduacao() {
 
     if (jaNotificado) continue;
 
+    // fora de produção não grava o registo de dedup (BD partilhada com a produção)
+    if (!pushAtivo(process.env.VERCEL_ENV)) {
+      console.info(`[push] desligado fora de produção: graduação não registada (aluno ${aluno.id}, faixa ${faixaAlvo})`);
+      return;
+    }
+
     // insert dedup record
     await admin
       .from("notificacoes_graduacao_enviadas")
@@ -386,6 +395,8 @@ export async function sendPushConquistas() {
     await sendToSubscriptions(subsDestino, { title: "Nova medalha! 🏅", body, url: "/conquistas" });
   }
 
+  // fora de produção não marca notificada_em (BD partilhada com a produção)
+  if (!pushAtivo(process.env.VERCEL_ENV)) return;
   const ids = rows.map((r) => r.id as string);
   const agora = new Date().toISOString();
   for (let i = 0; i < ids.length; i += 200) {
