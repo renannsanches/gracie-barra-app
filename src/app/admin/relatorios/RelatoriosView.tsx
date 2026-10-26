@@ -1,17 +1,42 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { FileSpreadsheet, FileText, Loader2, Download } from "lucide-react";
+import { toast } from "sonner";
+import { FileSpreadsheet, FileText, Loader2, Users } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  COLUNAS_RELATORIO_ALUNO,
+  FILTROS_STATUS_ALUNO,
+  ROTULO_ALERTA,
+  type ColunaRelatorioAluno,
+  type FiltroStatusAluno,
+  type LinhaRelatorioAluno,
+} from "@/lib/relatorio-alunos";
 import {
   getRelatorioFinanceiro,
   getRelatorioPresencas,
   getRelatorioLancamentos,
+  getRelatorioAlunos,
   MensalidadeRelatorio,
   PresencaRelatorio,
   LancamentoRelatorio,
 } from "./actions";
 
-type Tab = "financeiro" | "presencas" | "lancamentos";
+type Tab = "financeiro" | "presencas" | "lancamentos" | "alunos";
+
+const ROTULO_TAB: Record<Tab, string> = {
+  financeiro: "Mensalidades",
+  lancamentos: "Lançamentos",
+  presencas: "Presenças",
+  alunos: "Alunos",
+};
 
 const STATUS_OPTS = [
   { value: "todos",    label: "Todos os status" },
@@ -59,7 +84,9 @@ function statusLabel(s: string) {
 
 async function fetchLogoBase64(): Promise<string | null> {
   try {
-    const resp = await fetch("/logo.webp");
+    // Logo própria dos PDFs: quadrada, 400×400, JPEG em fundo branco (embutida sem recompressão).
+    // A /logo.webp da app é 335×289 e saía esticada a 18×18 mm.
+    const resp = await fetch("/logo-relatorio.jpg");
     const buf = await resp.arrayBuffer();
     const bytes = new Uint8Array(buf);
     let bin = "";
@@ -140,7 +167,7 @@ async function exportFinanceiroPDF(dados: MensalidadeRelatorio[], mes: string) {
 
   let y = 14;
   if (logoB64) {
-    doc.addImage(logoB64, "WEBP", 14, y, 18, 18);
+    doc.addImage(logoB64, "JPEG", 14, y, 18, 18);
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.text("GRACIE BARRA FAMALICÃO", 36, y + 7);
@@ -218,7 +245,7 @@ async function exportPresencasPDF(dados: PresencaRelatorio[], inicio: string, fi
 
   let y = 14;
   if (logoB64) {
-    doc.addImage(logoB64, "WEBP", 14, y, 18, 18);
+    doc.addImage(logoB64, "JPEG", 14, y, 18, 18);
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.text("GRACIE BARRA FAMALICÃO", 36, y + 7);
@@ -305,7 +332,7 @@ async function exportFluxoCaixaPDF(dados: LancamentoRelatorio[], inicio: string,
 
   const y = 14;
   if (logoB64) {
-    doc.addImage(logoB64, "WEBP", 14, y, 18, 18);
+    doc.addImage(logoB64, "JPEG", 14, y, 18, 18);
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.text("GRACIE BARRA FAMALICÃO", 36, y + 7);
@@ -375,6 +402,138 @@ async function exportFluxoCaixaPDF(dados: LancamentoRelatorio[], inicio: string,
   doc.save(`fluxo-caixa-${inicio}_${fim}.pdf`);
 }
 
+// ─── Relatório de alunos ─────────────────────────────────────────────────────
+
+const CABECALHO_ALUNO: Record<ColunaRelatorioAluno, string> = {
+  status: "Status",
+  categoria: "Categoria",
+  vencimento: "Vencimento",
+  valor: "Valor (€)",
+  plano: "Plano (€)",
+  alerta: "Alerta",
+};
+
+/** "Relatório de Alunos — 2026-10" (+ "(Inativos)" ou "(Ativos e inativos)") e o nome do ficheiro. */
+function nomeRelatorioAlunos(mes: string, filtro: FiltroStatusAluno) {
+  const rotulo = FILTROS_STATUS_ALUNO.find((f) => f.id === filtro)?.rotulo ?? "";
+  return {
+    titulo: filtro === "ativos" ? `Relatório de Alunos — ${mes}` : `Relatório de Alunos (${rotulo}) — ${mes}`,
+    ficheiro: filtro === "ativos" ? `alunos-${mes}` : `alunos-${filtro}-${mes}`,
+  };
+}
+
+function textoAlertas(r: LinhaRelatorioAluno) {
+  return r.alertas.map((a) => ROTULO_ALERTA[a]).join("; ");
+}
+
+/** Totais do rodapé: nº de alunos, soma do valor e nº com alerta (quando essas colunas saem). */
+function totaisAlunos(dados: LinhaRelatorioAluno[]) {
+  return {
+    alunos: dados.length,
+    valor: Math.round(dados.reduce((s, r) => s + (r.valor ?? 0), 0) * 100) / 100,
+    comAlerta: dados.filter((r) => r.alertas.length > 0).length,
+  };
+}
+
+async function exportAlunosExcel(
+  dados: LinhaRelatorioAluno[],
+  colunas: ColunaRelatorioAluno[],
+  mes: string,
+  filtro: FiltroStatusAluno,
+) {
+  const { utils, writeFile } = await import("xlsx");
+
+  const header = ["Nome", ...colunas.map((c) => CABECALHO_ALUNO[c])];
+  const celula: Record<ColunaRelatorioAluno, (r: LinhaRelatorioAluno) => string | number> = {
+    status: (r) => r.status,
+    categoria: (r) => r.categoria,
+    vencimento: (r) => (r.vencimento ? formatDate(r.vencimento) : "—"),
+    valor: (r) => r.valor ?? "—",
+    plano: (r) => r.plano,
+    alerta: (r) => textoAlertas(r),
+  };
+
+  const rows: Record<string, string | number>[] = dados.map((r) => {
+    const row: Record<string, string | number> = { Nome: r.nome };
+    for (const c of colunas) row[CABECALHO_ALUNO[c]] = celula[c](r);
+    return row;
+  });
+
+  const tot = totaisAlunos(dados);
+  const total: Record<string, string | number> = { Nome: `TOTAL: ${tot.alunos} alunos` };
+  if (colunas.includes("valor")) total[CABECALHO_ALUNO.valor] = tot.valor;
+  if (colunas.includes("alerta")) total[CABECALHO_ALUNO.alerta] = `${tot.comAlerta} com alerta`;
+  rows.push({}, total);
+
+  const wb = utils.book_new();
+  utils.book_append_sheet(wb, utils.json_to_sheet(rows, { header }), "Alunos");
+  writeFile(wb, `${nomeRelatorioAlunos(mes, filtro).ficheiro}.xlsx`);
+}
+
+async function exportAlunosPDF(
+  dados: LinhaRelatorioAluno[],
+  colunas: ColunaRelatorioAluno[],
+  mes: string,
+  filtro: FiltroStatusAluno,
+) {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+
+  const { titulo, ficheiro } = nomeRelatorioAlunos(mes, filtro);
+  const doc = new jsPDF({ orientation: colunas.length + 1 > 4 ? "landscape" : "portrait" });
+  const logoB64 = await fetchLogoBase64();
+
+  const y = 14;
+  if (logoB64) {
+    doc.addImage(logoB64, "JPEG", 14, y, 18, 18);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("GRACIE BARRA FAMALICÃO", 36, y + 7);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(titulo, 36, y + 14);
+    doc.text(`Gerado em ${formatDate(hoje())}`, 36, y + 20);
+  } else {
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("GRACIE BARRA FAMALICÃO", 14, y);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${titulo} · Gerado em ${formatDate(hoje())}`, 14, y + 7);
+  }
+
+  const celula: Record<ColunaRelatorioAluno, (r: LinhaRelatorioAluno) => string> = {
+    status: (r) => r.status,
+    categoria: (r) => r.categoria,
+    vencimento: (r) => (r.vencimento ? formatDate(r.vencimento) : "—"),
+    valor: (r) => (r.valor === null ? "—" : formatEuro(r.valor)),
+    plano: (r) => formatEuro(r.plano),
+    alerta: (r) => textoAlertas(r),
+  };
+
+  const tot = totaisAlunos(dados);
+  const rodape: Record<ColunaRelatorioAluno, string> = {
+    status: "",
+    categoria: "",
+    vencimento: "",
+    valor: formatEuro(tot.valor),
+    plano: "",
+    alerta: `${tot.comAlerta} com alerta`,
+  };
+
+  autoTable(doc, {
+    startY: 40,
+    head: [["Nome", ...colunas.map((c) => CABECALHO_ALUNO[c].replace(" (€)", ""))]],
+    body: dados.map((r) => [r.nome, ...colunas.map((c) => celula[c](r))]),
+    foot: [[`Total: ${tot.alunos} alunos`, ...colunas.map((c) => rodape[c])]],
+    headStyles: { fillColor: [204, 0, 0] },
+    footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold" },
+    styles: { fontSize: 9 },
+  });
+
+  doc.save(`${ficheiro}.pdf`);
+}
+
 const selectClass =
   "w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gb-blue/40";
 const inputClass =
@@ -405,6 +564,37 @@ export function RelatoriosView({
   const [lancFim, setLancFim] = useState(hoje());
   const [lancTipo, setLancTipo] = useState<"todos" | "pagar" | "receber">("todos");
   const [lancCategoria, setLancCategoria] = useState("");
+
+  // Alunos (modal)
+  const [alunosAberto, setAlunosAberto] = useState(false);
+  const [alunosMes, setAlunosMes] = useState(mesAtual());
+  const [alunosStatus, setAlunosStatus] = useState<FiltroStatusAluno>("ativos");
+  const [alunosColunas, setAlunosColunas] = useState<ColunaRelatorioAluno[]>(
+    COLUNAS_RELATORIO_ALUNO.map((c) => c.id),
+  );
+  const [alunosErro, setAlunosErro] = useState<string | null>(null);
+
+  function toggleColunaAluno(id: ColunaRelatorioAluno) {
+    setAlunosColunas((atual) => (atual.includes(id) ? atual.filter((c) => c !== id) : [...atual, id]));
+  }
+
+  function handleExportAlunos(format: "xlsx" | "pdf") {
+    setAlunosErro(null);
+    startTransition(async () => {
+      const result = await getRelatorioAlunos({ mes: alunosMes, status: alunosStatus });
+      if (!result.ok) { setAlunosErro(result.erro); return; }
+      if (result.dados.length === 0) { setAlunosErro("Nenhum aluno encontrado."); return; }
+      // Com inactivos na lista, a coluna Status entra sozinha (logo a seguir ao nome).
+      const colunas: ColunaRelatorioAluno[] = [
+        ...(alunosStatus === "ativos" ? [] : (["status"] as const)),
+        ...COLUNAS_RELATORIO_ALUNO.map((c) => c.id).filter((id) => alunosColunas.includes(id)),
+      ];
+      if (format === "xlsx") await exportAlunosExcel(result.dados, colunas, alunosMes, alunosStatus);
+      else await exportAlunosPDF(result.dados, colunas, alunosMes, alunosStatus);
+      setAlunosAberto(false);
+      toast.success("Relatório gerado");
+    });
+  }
 
   function handleExport(format: "xlsx" | "pdf", tipo: Tab) {
     setErro(null);
@@ -445,17 +635,17 @@ export function RelatoriosView({
       <h1 className="text-2xl font-black text-gb-black mb-6">Relatórios</h1>
 
       {/* Tabs */}
-      <div className="flex gap-2 bg-gray-100 rounded-xl p-1 mb-6">
-        {(["financeiro", "lancamentos", "presencas"] as Tab[]).map((t) => (
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
+        {(["financeiro", "lancamentos", "presencas", "alunos"] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => { setTab(t); setErro(null); }}
-            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            className={`flex-1 min-w-0 px-0.5 py-2 rounded-lg text-xs sm:text-sm font-semibold truncate transition-colors ${
               tab === t ? "bg-white shadow text-gb-black" : "text-gray-500 hover:text-gb-black"
             }`}
           >
-            {t === "financeiro" ? "Mensalidades" : t === "lancamentos" ? "Lançamentos" : "Presenças"}
+            {ROTULO_TAB[t]}
           </button>
         ))}
       </div>
@@ -644,6 +834,110 @@ export function RelatoriosView({
           </div>
         </div>
       )}
+
+      {tab === "alunos" && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+          <h2 className="font-bold text-gb-black">Relação de alunos</h2>
+          <p className="text-sm text-gray-500">
+            Uma linha por aluno (ativos, inativos ou ambos) com categoria, vencimento, valor e plano. Os alertas mostram o que conferir:
+            sem mensalidade, valor diferente do plano, kids com valor de adulto e vencimento diferente do habitual.
+          </p>
+          <button
+            type="button"
+            onClick={() => { setAlunosErro(null); setAlunosAberto(true); }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gb-blue text-white text-sm font-semibold hover:bg-gb-blue-dark transition-colors"
+          >
+            <Users size={16} />
+            Gerar relatório
+          </button>
+        </div>
+      )}
+
+      <Dialog open={alunosAberto} onOpenChange={(aberto) => { if (!isPending) setAlunosAberto(aberto); }}>
+        <DialogContent variant="sheet">
+          <DialogHeader>
+            <DialogTitle>Relatório de alunos</DialogTitle>
+            <DialogDescription>Escolha o mês e as colunas a incluir.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="alunos-mes" className="block text-xs font-medium text-gray-600 mb-1">Mês</label>
+              <input
+                id="alunos-mes"
+                type="month"
+                value={alunosMes}
+                onChange={(e) => setAlunosMes(e.target.value)}
+                className={inputClass + " w-full"}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="alunos-status" className="block text-xs font-medium text-gray-600 mb-1">Alunos</label>
+              <select
+                id="alunos-status"
+                value={alunosStatus}
+                onChange={(e) => setAlunosStatus(e.target.value as FiltroStatusAluno)}
+                className={selectClass}
+              >
+                {FILTROS_STATUS_ALUNO.map((f) => (
+                  <option key={f.id} value={f.id}>{f.rotulo}</option>
+                ))}
+              </select>
+              {alunosStatus !== "ativos" && (
+                <p className="mt-1 text-xs text-gray-500">Inclui a coluna Status. Inativos sem mensalidade não geram alerta.</p>
+              )}
+            </div>
+
+            <fieldset>
+              <legend className="block text-xs font-medium text-gray-600 mb-1">Colunas</legend>
+              <label className="flex items-center gap-3 py-2 text-sm text-gray-400">
+                <input type="checkbox" checked disabled className="h-4 w-4 accent-brand" />
+                Nome
+                <span className="ml-auto text-xs">sempre</span>
+              </label>
+              {COLUNAS_RELATORIO_ALUNO.map((c) => (
+                <label key={c.id} className="flex items-center gap-3 py-2 text-sm text-gb-black cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={alunosColunas.includes(c.id)}
+                    onChange={() => toggleColunaAluno(c.id)}
+                    className="h-4 w-4 accent-brand"
+                  />
+                  {c.rotulo}
+                </label>
+              ))}
+            </fieldset>
+
+            {alunosErro && (
+              <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                {alunosErro}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => handleExportAlunos("xlsx")}
+              disabled={isPending}
+              className="flex flex-1 items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            >
+              {isPending ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
+              Excel (.xlsx)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleExportAlunos("pdf")}
+              disabled={isPending}
+              className="flex flex-1 items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gb-blue text-white text-sm font-semibold hover:bg-gb-blue-dark transition-colors disabled:opacity-50"
+            >
+              {isPending ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+              PDF
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

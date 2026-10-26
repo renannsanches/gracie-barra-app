@@ -169,7 +169,7 @@ PLAYWRIGHT_ADMIN_PASSWORD=<strong-random>
 /admin/turmas/[id]      → editar turma + gerir aulas + ver reservas + marcar presenças
 /admin/financeiro       → tabela de mensalidades com filtros (mês, status, aluno)
 /admin/avisos           → CRUD de avisos (criar, editar, fixar, publicar/arquivar)
-/admin/relatorios       → exportar Excel/CSV e PDF de presenças e financeiro
+/admin/relatorios       → exportar Excel/CSV e PDF de presenças, financeiro, lançamentos e relação de alunos (modal com colunas e alertas)
 /admin/albuns           → gestão de álbuns de fotos
 /admin/albuns/[id]/fotos → upload e gestão de fotos de um álbum
 ```
@@ -455,7 +455,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 
 | Débito | Impacto | Prioridade |
 |--------|---------|------------|
-| Testes E2E só cobrem 4 fluxos; testes unitários só para a gamificação | Risco em refactors | Média |
+| Testes E2E só cobrem 4 fluxos; testes unitários só para a gamificação e o relatório de alunos | Risco em refactors | Média |
 | Cadastro sem rollback transaccional | Perfis parciais se mensalidades falharem | Média |
 | Uploads de Storage não atómicos | Ficheiros órfãos se DB falhar a seguir | Média |
 | Race condition na capacidade de aulas | Exceder lotação com utilizadores simultâneos | Baixa (academia pequena) |
@@ -504,6 +504,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | — | **Modalidades** | `/admin/modalidades`; card Modalidades na ficha (valor por aluno, total, "Atualizar pendentes" quando muda); `mensalidades.itens` (jsonb) guarda a composição e `valor` continua a ser o total; detalhe "JJ 50 € · Capoeira 20 €" no Financeiro, ficha, perfil do aluno e relatórios; `turmas.modalidade_id` filtra `/aulas` e é validado em `reservar` |
 | — | **Colégio e descontos** | Modalidade "Jiu-Jitsu · Colégio" 13 € com `desconta_noutro_local`: ao juntar uma modalidade de outro local, o editor passa o Colégio a "pago no colégio" (`cobrar=false`) e cria "Desconto aluno do Colégio −13 €" (editável); ao sair, reverte. Ficha mostra "Onde treina"; filtros de grupo (Cadastros, Financeiro) usam locais derivados; descontos manuais no editor |
 | 17 | **Gamificação** | `/ranking` (mês/ano, Adultos/Kids pela regra da graduação, empates 1,1,3, opção de ocultar); `/conquistas` (sequência = semanas seg–dom com ≥2 aulas, semana sem ninguém na academia é pausa; medalhas de aulas 10–500, sequências 4–52, Mês perfeito, Top 3 do mês desde 2026-10, 1/2/3 anos). Regras em `src/lib/gamificacao.ts` (testadas com vitest); gravação em `src/lib/conquistas-sync.ts` — depois do QR (ecrã de confirmação), na presença manual do tablet (`after`) e no cron diário `type=conquistas` (`?dry=1` só conta). Push agrupado por pessoa; backfill antigo não gera push |
+| — | **Relatório de alunos** | Aba "Alunos" em `/admin/relatorios`: modal com mês, filtro Ativos / Inativos / Ativos e inativos (inativos = status ≠ ativo; com inativos entra a coluna Status) e colunas (Nome fixo; Categoria, Vencimento, Valor, Plano, Alerta pré-marcadas e desmarcáveis) → Excel/PDF, uma linha por aluno, alertas primeiro. Alertas: sem mensalidade (só ativos; salvo plano a 0 €), valor ≠ plano, kids (< 16 anos) com valor de adulto, vencimento diferente do habitual do aluno (segunda-feira +1/+2 = dia empurrado do fim de semana). Regras em `src/lib/relatorio-alunos.ts` (testadas com vitest) |
 
 ### ❌ Por implementar
 
