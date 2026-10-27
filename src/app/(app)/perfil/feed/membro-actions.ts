@@ -5,6 +5,7 @@ import { requireMembro } from "@/lib/auth-guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushComentario } from "@/lib/push-sender";
 import {
+  ERRO_POST_INEXISTENTE,
   nomeCurto,
   podeApagarComentario,
   validarComentario,
@@ -22,7 +23,7 @@ import { carregarPaginaFeed, ehUuid } from "./dados";
 
 type Falha = { ok: false; erro: string };
 
-const POST_INEXISTENTE: Falha = { ok: false, erro: "Esta publicação já não existe." };
+const POST_INEXISTENTE: Falha = { ok: false, erro: ERRO_POST_INEXISTENTE };
 const COMENTARIO_INEXISTENTE: Falha = { ok: false, erro: "Comentário não encontrado." };
 // Código do Postgres para violação de chave estrangeira (o post foi apagado entretanto)
 const FK_VIOLADA = "23503";

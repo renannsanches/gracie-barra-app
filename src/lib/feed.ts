@@ -13,6 +13,9 @@ export const BUCKET_FEED = "feed";
 // Total de bytes das fotos novas por envio (a Vercel limita o corpo do pedido a 4,5 MB)
 export const LIMITE_ENVIO_BYTES = 4 * 1024 * 1024;
 
+// Erro das acções quando o post foi apagado entretanto — o cliente compara com isto para tirar o card
+export const ERRO_POST_INEXISTENTE = "Esta publicação já não existe.";
+
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 export type TipoPost = "manual" | "graduacao" | "podio";
 
