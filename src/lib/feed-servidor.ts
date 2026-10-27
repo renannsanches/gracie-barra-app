@@ -9,6 +9,7 @@ import {
   type DadosPodio,
 } from "@/lib/feed";
 import {
+  dentroJanelaPodio,
   deveCriarPostGraduacao,
   mesDoPodio,
   montarPodio,
@@ -161,15 +162,18 @@ interface LinhaRankingRpc {
   aulas: number;
 }
 
-// Pódio do mês anterior (a publicar no 1.º dia do mês, ou nos seguintes se falhar). Idempotente:
-// um post por mês. Com `dry` só calcula, nunca escreve. Lança se o RPC falhar, para o cron
+// Pódio do mês anterior (a publicar nos dias 1 a 3 do mês, para tolerar falhas do cron). Idempotente:
+// um post por mês; fora dessa janela não publica (um post apagado não ressuscita). Com `dry` só
+// calcula, nunca escreve, e ignora a janela (pré-visualização). Lança se o RPC falhar, para o cron
 // registar o erro em vez de saltar um mês em silêncio.
 export async function gerarPostPodio(
   admin: Admin,
   opts: { dry: boolean; hoje?: string },
 ): Promise<{ mes: string | null; publicado: boolean; jaExistia: boolean; podio: DadosPodio | null }> {
-  const mes = mesDoPodio(opts.hoje ?? hojeLisboa());
+  const hoje = opts.hoje ?? hojeLisboa();
+  const mes = mesDoPodio(hoje);
   if (!mes) return { mes: null, publicado: false, jaExistia: false, podio: null };
+  if (!opts.dry && !dentroJanelaPodio(hoje)) return { mes, publicado: false, jaExistia: false, podio: null };
 
   const { data: existente, error: erroExistente } = await admin
     .from("feed_posts")
@@ -188,15 +192,17 @@ export async function gerarPostPodio(
   if (erroRpc) throw new Error(`[feed] pódio: ranking_presencas: ${erroRpc.message}`);
 
   const podio = montarPodio(
-    ((linhas ?? []) as LinhaRankingRpc[]).map((r) => ({
-      alunoId: r.aluno_id,
-      nomeCompleto: r.nome_completo,
-      foto: r.foto_url,
-      faixa: r.faixa,
-      graus: r.graus,
-      categoria: r.categoria,
-      aulas: r.aulas,
-    })),
+    ((linhas ?? []) as LinhaRankingRpc[])
+      .filter((r) => (r.nome_completo ?? "").trim() !== "") // sem nome não há pódio
+      .map((r) => ({
+        alunoId: r.aluno_id,
+        nomeCompleto: r.nome_completo,
+        foto: r.foto_url,
+        faixa: r.faixa,
+        graus: r.graus,
+        categoria: r.categoria,
+        aulas: r.aulas,
+      })),
     mes,
   );
   if (opts.dry || !podio) return { mes, publicado: false, jaExistia: false, podio };

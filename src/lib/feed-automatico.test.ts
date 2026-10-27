@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  dentroJanelaPodio,
   deveCriarPostGraduacao,
   ehDadosGraduacao,
   ehDadosPodio,
@@ -31,6 +32,25 @@ describe("deveCriarPostGraduacao", () => {
 
   it("não gera para quem está oculto do ranking", () => {
     expect(deveCriarPostGraduacao({ ...base, ocultarRanking: true })).toBe(false);
+  });
+
+  it("só gera quando a faixa sobe (correcções e descidas não)", () => {
+    expect(deveCriarPostGraduacao({ ...base, faixaAnterior: "azul", faixaNova: "branca" })).toBe(false);
+    expect(deveCriarPostGraduacao({ ...base, faixaAnterior: "preta", faixaNova: "marrom" })).toBe(false);
+    expect(deveCriarPostGraduacao({ ...base, faixaAnterior: "cinza", faixaNova: "cinza_branca" })).toBe(false);
+    expect(deveCriarPostGraduacao({ ...base, faixaAnterior: "cinza_branca", faixaNova: "cinza" })).toBe(true); // kids
+    expect(deveCriarPostGraduacao({ ...base, faixaAnterior: "branca", faixaNova: "cinza_branca" })).toBe(true);
+    expect(deveCriarPostGraduacao({ ...base, faixaAnterior: "verde_preta", faixaNova: "azul" })).toBe(true); // kids → adulto
+    expect(deveCriarPostGraduacao({ ...base, faixaAnterior: "azul", faixaNova: "cinza" })).toBe(false); // adulto → kids
+  });
+});
+
+describe("dentroJanelaPodio", () => {
+  it("só nos dias 1 a 3 do mês", () => {
+    expect(dentroJanelaPodio("2026-11-01")).toBe(true);
+    expect(dentroJanelaPodio("2026-11-03")).toBe(true);
+    expect(dentroJanelaPodio("2026-11-04")).toBe(false);
+    expect(dentroJanelaPodio("2026-10-27")).toBe(false);
   });
 });
 

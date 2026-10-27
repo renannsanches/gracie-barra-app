@@ -6,6 +6,7 @@ import {
   sendPushConquistas,
   sendPushPodio,
 } from "@/lib/push-sender";
+import { pushAtivo } from "@/lib/push-ativo";
 import { gerarPostPodio } from "@/lib/feed-servidor";
 import { sincronizarConquistas } from "@/lib/conquistas-sync";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -38,10 +39,13 @@ export async function GET(req: Request) {
       if (!dry) await sendPushConquistas();
       return Response.json({ dry, alunos: r.alunos, novas: r.novas.length, porCodigo: r.porCodigo });
     } else if (type === "feed_podio") {
-      // ?dry=1 só calcula (a BD de dev e produção é a mesma); só com dry se aceita ?hoje=YYYY-MM-DD
-      const dry = searchParams.get("dry") === "1";
+      // ?dry=1 só calcula (a BD de dev e produção é a mesma); fora de produção é sempre dry (senão
+      // inseria o post real sem push e o cron de produção via "já existia"). Só com ?dry=1
+      // explícito se aceita ?hoje=YYYY-MM-DD
+      const dryPedido = searchParams.get("dry") === "1";
+      const dry = dryPedido || !pushAtivo(process.env.VERCEL_ENV);
       let hoje: string | undefined;
-      if (dry && searchParams.has("hoje")) {
+      if (dryPedido && searchParams.has("hoje")) {
         hoje = searchParams.get("hoje") ?? "";
         if (!/^\d{4}-\d{2}-\d{2}$/.test(hoje)) return new Response("Parâmetro hoje inválido", { status: 400 });
       }

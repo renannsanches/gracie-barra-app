@@ -2,6 +2,7 @@
 // Testado em feed-automatico.test.ts.
 import type { CorFaixa } from "./types";
 import type { DadosGraduacao, DadosPodio, EntradaPodio } from "./feed";
+import { ordemFaixa } from "./graduacao-rules";
 import { MIN_AULAS_TOP3, addDias, grupoRanking, nomeRanking, ordenarRanking } from "./gamificacao";
 import { labelCorFaixa } from "./utils";
 
@@ -17,8 +18,9 @@ const MESES = [
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ];
 
-// Só faixa nova conta (graus não; o primeiro registo também não), nunca para quem está oculto do
-// ranking, e só se a graduação for de hoje ou dos 7 dias anteriores. Datas "YYYY-MM-DD" (Lisboa).
+// Só faixa nova que SOBE conta (graus não; o primeiro registo também não; correcções/descidas não),
+// nunca para quem está oculto do ranking, e só se a graduação for de hoje ou dos 7 dias anteriores.
+// Datas "YYYY-MM-DD" (Lisboa).
 export function deveCriarPostGraduacao(e: {
   faixaAnterior: CorFaixa | null;
   faixaNova: CorFaixa;
@@ -28,6 +30,8 @@ export function deveCriarPostGraduacao(e: {
 }): boolean {
   if (e.ocultarRanking) return false;
   if (e.faixaAnterior === null || e.faixaAnterior === e.faixaNova) return false;
+  // ordem da graduação-rules; as faixas de adulto ficam acima de todas as infantis
+  if (ordemFaixa(e.faixaNova) <= ordemFaixa(e.faixaAnterior)) return false;
   return e.dataGraduacao >= addDias(e.hoje, -JANELA_GRADUACAO_DIAS) && e.dataGraduacao <= e.hoje;
 }
 
@@ -44,6 +48,12 @@ export function nomeMes(mes: string): string {
 export function mesDoPodio(hoje: string): string | null {
   const anterior = addDias(`${hoje.slice(0, 7)}-01`, -1).slice(0, 7);
   return anterior >= PRIMEIRO_MES_PODIO ? anterior : null;
+}
+
+// O pódio só é publicado nos dias 1 a 3 do mês (Lisboa): se o post for apagado, o cron dos dias
+// seguintes não o ressuscita (nem volta a mandar push). Data "YYYY-MM-DD".
+export function dentroJanelaPodio(hoje: string): boolean {
+  return Number(hoje.slice(8, 10)) <= 3;
 }
 
 type LinhaPodio = Omit<EntradaPodio, "posicao" | "nome"> & { nomeCompleto: string };

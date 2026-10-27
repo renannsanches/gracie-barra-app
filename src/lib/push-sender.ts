@@ -408,7 +408,8 @@ export async function sendPushConquistas() {
 
 const LIMITE_TEXTO_PUSH = 80;
 
-// Membros activos que recebem as novidades do feed (aluno, responsável e professor), sem o autor
+// Membros activos que recebem as novidades do feed (aluno, responsável e professor); sem
+// `excluirId` inclui toda a gente, com ele deixa de fora essa pessoa (o autor)
 async function idsMembrosAtivos(excluirId?: string): Promise<string[]> {
   const admin = createAdminClient();
   let query = admin
@@ -417,7 +418,8 @@ async function idsMembrosAtivos(excluirId?: string): Promise<string[]> {
     .eq("status", "ativo")
     .in("perfil", ["aluno", "responsavel", "professor"]);
   if (excluirId) query = query.neq("id", excluirId);
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) console.error("[push] membros activos:", error.message);
   return (data ?? []).map((p) => p.id as string);
 }
 
