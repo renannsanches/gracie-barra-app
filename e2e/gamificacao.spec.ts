@@ -5,13 +5,16 @@ import { test, expect } from "@playwright/test";
 // no ranking real — a BD de testes é a de produção. Não alterar a visibilidade aqui.
 
 test.describe("Gamificação", () => {
-  test("perfil mostra o card de sequência com atalhos", async ({ page }) => {
+  test("Início mostra as pílulas e troca de separador", async ({ page }) => {
     await page.goto("/perfil");
-    const card = page.getByTestId("card-gamificacao");
-    await expect(card).toBeVisible({ timeout: 10_000 });
-    // Atalhos são <Link> (prefetch) — role "link"
-    await expect(card.getByRole("link", { name: "Ranking" })).toBeVisible();
-    await expect(card.getByRole("link", { name: "Conquistas" })).toBeVisible();
+    const nav = page.getByRole("navigation", { name: "Secções do início" });
+    await expect(nav.getByRole("link", { name: "Feed" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByTestId("feed")).toBeVisible({ timeout: 10_000 });
+    await nav.getByRole("link", { name: "Ranking" }).click();
+    await expect(page).toHaveURL(/\/perfil\?tab=ranking/);
+    await expect(page.getByTestId("ranking-oculto")).toBeVisible();
+    await nav.getByRole("link", { name: "Galeria" }).click();
+    await expect(page).toHaveURL(/tab=galeria/);
   });
 
   test("/conquistas mostra sequência e grupos de medalhas", async ({ page }) => {

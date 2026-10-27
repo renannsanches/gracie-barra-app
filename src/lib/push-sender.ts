@@ -2,6 +2,8 @@ import webpush from "web-push";
 import { createAdminClient } from "./supabase/admin";
 import { calcularElegibilidade } from "./graduacao-rules";
 import { CONQUISTAS_POR_CODIGO } from "./gamificacao";
+import { pushAtivo } from "./push-ativo";
+import { nomeCurto } from "./feed";
 import type { CorFaixa } from "./types";
 
 webpush.setVapidDetails(
@@ -19,7 +21,11 @@ interface PushSubscriptionRow {
 async function sendToSubscriptions(
   subs: PushSubscriptionRow[],
   payload: { title: string; body: string; url: string },
-) {
+): Promise<boolean> {
+  if (!pushAtivo(process.env.VERCEL_ENV)) {
+    console.info(`[push] desligado fora de produção: ${subs.length} envio(s) — "${payload.title}"`);
+    return false;
+  }
   await Promise.allSettled(
     subs.map((sub) =>
       webpush.sendNotification(
@@ -28,6 +34,7 @@ async function sendToSubscriptions(
       )
     )
   );
+  return true;
 }
 
 async function getSubscriptions(userIds: string[]): Promise<PushSubscriptionRow[]> {
@@ -191,9 +198,11 @@ export async function sendPushMensalidade() {
     if (userIds.size === 0) continue;
     const subs = await getSubscriptions([...userIds]);
     if (subs.length === 0) continue;
-    await sendToSubscriptions(subs, { ...MENSAGENS_MENS[tipo], url: "/perfil" });
+    await sendToSubscriptions(subs, { ...MENSAGENS_MENS[tipo], url: "/conta" });
   }
 
+  // fora de produção não grava "já enviado": a BD é partilhada e o cron de produção ainda tem de enviar
+  if (!pushAtivo(process.env.VERCEL_ENV)) return;
   // marca todos como enviados (mesmo se push não chegou — evita re-tentativa diária)
   await admin
     .from("notificacoes_mensalidade_enviadas")
@@ -308,6 +317,12 @@ export async function sendPushGraduacao() {
 
     if (jaNotificado) continue;
 
+    // fora de produção não grava o registo de dedup (BD partilhada com a produção)
+    if (!pushAtivo(process.env.VERCEL_ENV)) {
+      console.info(`[push] desligado fora de produção: graduação não registada (aluno ${aluno.id}, faixa ${faixaAlvo})`);
+      return;
+    }
+
     // insert dedup record
     await admin
       .from("notificacoes_graduacao_enviadas")
@@ -381,9 +396,67 @@ export async function sendPushConquistas() {
     await sendToSubscriptions(subsDestino, { title: "Nova medalha! 🏅", body, url: "/conquistas" });
   }
 
+  // fora de produção não marca notificada_em (BD partilhada com a produção)
+  if (!pushAtivo(process.env.VERCEL_ENV)) return;
   const ids = rows.map((r) => r.id as string);
   const agora = new Date().toISOString();
   for (let i = 0; i < ids.length; i += 200) {
     await admin.from("conquistas").update({ notificada_em: agora }).in("id", ids.slice(i, i + 200));
   }
+}
+
+const LIMITE_TEXTO_PUSH = 80;
+
+/**
+ * Nova publicação de staff: avisa os membros activos (como sendPushAviso), menos o autor.
+ * Sem texto (post só com fotos) usa uma frase fixa.
+ */
+export async function sendPushNovoPost(autorId: string, texto: string) {
+  const admin = createAdminClient();
+  const { data: profiles } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("status", "ativo")
+    .in("perfil", ["aluno", "responsavel", "professor"])
+    .neq("id", autorId);
+  if (!profiles || profiles.length === 0) return;
+
+  const subs = await getSubscriptions(profiles.map((p) => p.id));
+  if (subs.length === 0) return;
+
+  // Corta por caracteres (code points), para não partir um emoji ao meio
+  const letras = [...texto];
+  const corpo = letras.length > LIMITE_TEXTO_PUSH ? `${letras.slice(0, LIMITE_TEXTO_PUSH).join("")}…` : texto;
+  await sendToSubscriptions(subs, {
+    title: "Nova publicação",
+    body: corpo || "A academia publicou fotos novas.",
+    url: "/perfil",
+  });
+}
+
+/**
+ * Novo comentário num post: avisa só o autor do post. Posts automáticos (sem autor) e
+ * comentários do próprio autor não geram push.
+ */
+export async function sendPushComentario(postId: string, comentadorId: string, texto: string) {
+  const admin = createAdminClient();
+  const { data: post } = await admin
+    .from("feed_posts")
+    .select("autor_id")
+    .eq("id", postId)
+    .maybeSingle();
+  const autorId = post?.autor_id as string | null | undefined;
+  if (!autorId || autorId === comentadorId) return;
+
+  const [subs, { data: comentador }] = await Promise.all([
+    getSubscriptions([autorId]),
+    admin.from("profiles").select("nome_completo").eq("id", comentadorId).maybeSingle(),
+  ]);
+  if (subs.length === 0) return;
+
+  // Corta por caracteres (code points), para não partir um emoji ao meio
+  const letras = [...texto];
+  const corpo = letras.length > LIMITE_TEXTO_PUSH ? `${letras.slice(0, LIMITE_TEXTO_PUSH).join("")}…` : texto;
+  const nome = nomeCurto(comentador?.nome_completo ?? "") || "Alguém";
+  await sendToSubscriptions(subs, { title: "Novo comentário", body: `${nome}: ${corpo}`, url: "/perfil" });
 }

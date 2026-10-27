@@ -21,7 +21,7 @@ export interface LinhaRanking {
   aulas: number;
 }
 
-interface RankingViewProps {
+export interface RankingViewProps {
   mes: LinhaRanking[];
   ano: LinhaRanking[];
   rotuloMes: string;
@@ -31,11 +31,13 @@ interface RankingViewProps {
   grupoPadrao: GrupoRanking;
   /** null quando a conta não treina (só responsável, staff) */
   eu: { id: string; oculto: boolean } | null;
+  /** Dentro de outra página (início): sem cabeçalho nem altura de página; os segmentos vão para o topo do corpo */
+  embutido?: boolean;
 }
 
 type Periodo = "mes" | "ano";
 
-export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, grupoPadrao, eu }: RankingViewProps) {
+export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, grupoPadrao, eu, embutido = false }: RankingViewProps) {
   const router = useRouter();
   const [periodo, setPeriodo] = useState<Periodo>("mes");
   const [grupo, setGrupo] = useState<GrupoRanking>(grupoPadrao);
@@ -67,36 +69,46 @@ export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, gru
     });
   }
 
+  const segmentos = (claro: boolean) => (
+    <>
+      <Segmentos
+        claro={claro}
+        valor={periodo}
+        onChange={setPeriodo}
+        opcoes={[
+          { valor: "mes", label: rotuloMes.charAt(0).toUpperCase() + rotuloMes.slice(1) },
+          { valor: "ano", label: rotuloAno },
+        ]}
+      />
+      <Segmentos
+        claro={claro}
+        valor={grupo}
+        onChange={setGrupo}
+        opcoes={[
+          { valor: "adulto", label: "Adultos" },
+          { valor: "infantil", label: "Kids" },
+        ]}
+      />
+    </>
+  );
+
   return (
-    <div className="min-h-screen flex flex-col bg-gb-gray">
-      <PageHeader
-        title="Ranking de presenças"
-        icon={<Trophy size={20} />}
-        back={{ href: "/perfil", label: "Início" }}
-        subtitle="Quem mais treinou — cada aula conta 1"
-      >
+    <div className={embutido ? "flex flex-col" : "min-h-screen flex flex-col bg-gb-gray"}>
+      {!embutido && (
+        <PageHeader
+          title="Ranking de presenças"
+          icon={<Trophy size={20} />}
+          back={{ href: "/perfil", label: "Início" }}
+          subtitle="Quem mais treinou — cada aula conta 1"
+        >
 
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          <Segmentos
-            valor={periodo}
-            onChange={setPeriodo}
-            opcoes={[
-              { valor: "mes", label: rotuloMes.charAt(0).toUpperCase() + rotuloMes.slice(1) },
-              { valor: "ano", label: rotuloAno },
-            ]}
-          />
-          <Segmentos
-            valor={grupo}
-            onChange={setGrupo}
-            opcoes={[
-              { valor: "adulto", label: "Adultos" },
-              { valor: "infantil", label: "Kids" },
-            ]}
-          />
-        </div>
-      </PageHeader>
+          <div className="mt-5 grid grid-cols-2 gap-2">{segmentos(false)}</div>
+        </PageHeader>
+      )}
 
-      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-3 animar-lista">
+      <div className={embutido ? "space-y-3 animar-lista" : "flex-1 px-4 py-5 pb-bottom-nav space-y-3 animar-lista"}>
+        {embutido && <div className="grid grid-cols-2 gap-2">{segmentos(true)}</div>}
+
         {eu && oculto && (
           <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-3" data-testid="ranking-oculto">
             <EyeOff size={18} className="text-gray-400 mt-0.5 shrink-0" />
@@ -158,13 +170,15 @@ function Segmentos<T extends string>({
   valor,
   onChange,
   opcoes,
+  claro = false,
 }: {
+  claro?: boolean;
   valor: T;
   onChange: (v: T) => void;
   opcoes: { valor: T; label: string }[];
 }) {
   return (
-    <div className="flex bg-white/10 rounded-xl p-1" role="tablist">
+    <div className={claro ? "flex bg-surface border border-line rounded-xl p-1" : "flex bg-white/10 rounded-xl p-1"} role="tablist">
       {opcoes.map((o) => (
         <button
           key={o.valor}
@@ -174,7 +188,13 @@ function Segmentos<T extends string>({
           onClick={() => onChange(o.valor)}
           className={cn(
             "flex-1 py-1.5 rounded-lg text-[13px] font-semibold transition-colors",
-            valor === o.valor ? "bg-white text-gray-900" : "text-white/60 hover:text-white",
+            claro
+              ? valor === o.valor
+                ? "bg-brand text-white"
+                : "text-fg-muted hover:text-ink"
+              : valor === o.valor
+                ? "bg-white text-gray-900"
+                : "text-white/60 hover:text-white",
           )}
         >
           {o.label}

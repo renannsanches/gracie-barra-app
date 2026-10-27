@@ -1,8 +1,30 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+
 type Props = { texto: string };
 
 export function MensalidadeVencidaBanner({ texto }: Props) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Publica a altura em --banner-h para o que também fica preso ao topo (ex.: pílulas do
+  // Início) ficar por baixo do aviso em vez de ser tapado por ele
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const raiz = document.documentElement;
+    const publicar = () => raiz.style.setProperty("--banner-h", `${el.offsetHeight}px`);
+    publicar();
+    const obs = new ResizeObserver(publicar);
+    obs.observe(el);
+    return () => {
+      obs.disconnect();
+      raiz.style.removeProperty("--banner-h");
+    };
+  }, []);
+
   return (
-    <div className="sticky top-0 z-50 w-full bg-amber-50 border-b border-amber-200 shadow-sm pt-safe">
+    <div ref={ref} className="sticky top-0 z-50 w-full bg-amber-50 border-b border-amber-200 shadow-sm pt-safe">
       <div className="max-w-screen-md mx-auto flex items-center gap-3 px-4 py-3">
         <div
           className="shrink-0 w-9 h-9 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-lg leading-none"

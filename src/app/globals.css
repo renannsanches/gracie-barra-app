@@ -18,6 +18,9 @@
     --ink: 10 10 10;           /* #0A0A0A — headers escuros */
     --canvas: 245 245 245;     /* #F5F5F5 — fundo das páginas */
     --surface: 255 255 255;    /* cards */
+    --fg: 17 24 39;            /* #111827 — texto principal */
+    --fg-muted: 107 114 128;   /* #6B7280 — texto secundário */
+    --line: 229 231 235;       /* #E5E7EB — bordas e divisórias */
 
     /* Estado */
     --success: 22 163 74;      /* #16A34A */

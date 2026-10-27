@@ -30,5 +30,6 @@ export async function atualizarFotoDependente(
   if (error) return { ok: false, erro: error.message };
 
   revalidatePath("/perfil");
+  revalidatePath("/conta");
   return { ok: true };
 }
