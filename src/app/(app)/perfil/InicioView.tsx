@@ -151,8 +151,15 @@ export function InicioView({ pessoa, separador, mensalidades, avisosNotif, child
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
-      {/* O fundo inferior extra (altura da safe area) fica por baixo das pílulas, que sobem essa altura */}
-      <header className="bg-ink px-5 pt-header" style={{ paddingBottom: `calc(1.5rem + ${SAFE_TOP})` }}>
+      {/* Faixa escura fixa sob o notch: com as pílulas presas no topo, o texto branco da barra
+          de estado continua legível. Parado, fica por cima do cabeçalho (escuro como ela). */}
+      <div
+        aria-hidden="true"
+        data-faixa-notch
+        className="pointer-events-none fixed inset-x-0 top-0 z-40 bg-ink"
+        style={{ height: SAFE_TOP }}
+      />
+      <header className="bg-ink px-5 pt-header pb-6">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2 min-w-0">
             <NextImage src="/logo.webp" alt="Gracie Barra" width={32} height={32} priority className="w-8 h-8 object-contain" />
@@ -241,12 +248,11 @@ export function InicioView({ pessoa, separador, mensalidades, avisosNotif, child
         </div>
       </header>
 
-      {/* Sobe a altura da safe area por cima do fundo do cabeçalho: parado, fica colado a ele;
-          preso no topo, o padding afasta as pílulas do notch */}
+      {/* Presa por baixo do aviso de mensalidade (--banner-h, quando existe) ou da faixa do notch */}
       <nav
         aria-label="Secções do início"
-        className="sticky top-0 z-30 bg-canvas"
-        style={{ marginTop: `calc(-1 * ${SAFE_TOP})`, paddingTop: `calc(0.75rem + ${SAFE_TOP})` }}
+        className="sticky z-30 bg-canvas pt-3"
+        style={{ top: `var(--banner-h, ${SAFE_TOP})` }}
       >
         <ul ref={pilulasRef} className="relative flex gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {PILULAS.map(({ id, label, icon: Icon }) => {
@@ -258,7 +264,7 @@ export function InicioView({ pessoa, separador, mensalidades, avisosNotif, child
                   scroll={false}
                   aria-current={activa ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-1.5 h-10 px-4 rounded-full text-sm font-semibold whitespace-nowrap transition-colors duration-fast",
+                    "flex items-center gap-1.5 h-11 px-4 rounded-full text-sm font-semibold whitespace-nowrap transition-colors duration-fast",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-canvas",
                     activa
                       ? "bg-brand text-white"

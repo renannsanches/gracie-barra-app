@@ -22,7 +22,7 @@ export default function Loading() {
       </div>
       <div className="flex gap-2 overflow-hidden px-4 pt-3 pb-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="rounded-full h-10 w-24 shrink-0" />
+          <Skeleton key={i} className="rounded-full h-11 w-24 shrink-0" />
         ))}
       </div>
       <div className="flex-1 px-4 pt-1 space-y-4 pb-bottom-nav">
