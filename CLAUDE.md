@@ -144,8 +144,8 @@ PLAYWRIGHT_ADMIN_PASSWORD=<strong-random>
 /cadastro               → onboarding multi-step (3 tipos de perfil)
 /esqueci-senha          → pedido de reset de password
 /nova-senha             → formulário de nova password
-/perfil                 → Início: pílulas Feed · Ranking · Conquistas · Galeria (`?tab=`); staff vê o compositor de publicações; aqui vivem os modais (mensalidade, medalhas, aptos a graduar)
-/conta                  → Minha conta: dados, faixa, mensalidades, dependentes, card de aptos a graduar + Dashboard (staff), Sair
+/perfil                 → Início: pílulas Feed · Ranking · Conquistas · Galeria (`?tab=`); staff vê no separador Feed o card recolhível de aptos a graduar e o compositor de publicações; aqui vivem os modais (mensalidade, medalhas, aptos a graduar)
+/conta                  → Minha conta: dados, faixa, mensalidades, dependentes, Dashboard (staff), Sair
 /presenca               → gera QR Code (self ou dependentes); polling até confirmação
 /presencas              → histórico de presenças com calendário visual e filtro por mês
 /aulas                  → vista semanal de aulas disponíveis; reservar/cancelar
@@ -396,11 +396,12 @@ ActionResult = { ok: boolean; erro?: string }  // retorno padrão de Server Acti
 | `ui/dialog` | Diálogo Radix partilhado (`variant="center"` ou `"sheet"` = bottom sheet no telemóvel). Usar em vez de `fixed inset-0` à mão |
 | `ConfirmDialog` | `await confirmar({ titulo, descricao?, destrutivo? })` — substitui `window.confirm()` |
 | `InicioView` | Início em `/perfil`: pílulas Feed · Ranking · Conquistas · Galeria (`?tab=`, o voltar do browser percorre os separadores), faixa e acesso a Minha conta |
+| `AptosGraduarCard` | Card recolhível (fechado por defeito) com os alunos aptos a graduar; staff, no separador Feed do Início, acima de "Nova publicação". Se o cálculo falhar o card não aparece e o feed carrega na mesma |
 | `FeedLista` / `PostCard` | Feed paginado (10 posts por página) e cartão de publicação com gosto, comentários e (staff) editar/apagar |
 | `FotosCarrossel` | Carrossel de fotos de um post (até 10) |
 | `CurtidasSheet` / `ComentariosSheet` | Bottom sheets com quem deu gosto e com os comentários (máx. 300 caracteres) |
 | `PostComposer` | Compositor de publicações (staff): texto ≤2000, até 10 fotos comprimidas no cliente, 4 MB no total por envio (limite do body na Vercel) |
-| `ContaView` | Minha conta em `/conta` (antiga `PerfilView`): dados, faixa, mensalidades, dependentes, aptos a graduar; `BottomNav` marca Início também em `/conta` |
+| `ContaView` | Minha conta em `/conta` (antiga `PerfilView`): dados, faixa, mensalidades, dependentes, Dashboard (staff); `BottomNav` marca Início também em `/conta` |
 | `FeedbackHosts` | `<Toaster>` (sonner, topo) + host do `confirmar()`; montado nos layouts `(app)` e `admin` |
 
 ---
@@ -508,7 +509,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | — | Monitorização erros | Sentry (`@sentry/nextjs`) integrado, mapeamento de source maps em Vercel |
 | 16 | **Notificações push + WhatsApp** | Web Push via `web-push` + VAPID keys; tabelas `push_subscriptions` e `notificacoes_graduacao_enviadas`; Vercel Cron 09:00 mensalidades+graduações, 08:00 responsáveis; push de aviso fire-and-forget em `avisos-actions.ts`; o push de mensalidade (vence amanhã/hoje/atraso) abre `/conta`, onde Mensalidades começa aberta se houver alguma por pagar; botão WhatsApp em `/conta` › Mensalidades quando mensalidade atrasada |
 | — | **Bloqueio financeiro em reservas** | Mensalidade atrasada ≥10 dias bloqueia QR, presença manual e reservas de aulas; helper RPC `verificar_bloqueio_financeiro`; `AulasView` mostra botão desabilitado com aviso âmbar |
-| — | **Card "aptos a graduar" em /conta** | Admin e professor vêem em Minha conta (`/conta`) um card com alunos que cumprem requisitos de graduação |
+| — | **Card "aptos a graduar" no Início** | Admin e professor vêem no Início (`/perfil`, separador Feed, acima de "Nova publicação") um card recolhível, fechado por defeito, com alunos que cumprem requisitos de graduação |
 | — | **Email no card do aluno** | `AlunoEditView` mostra campo email (read-only) buscado via `admin.getUserById`; ocultado para dependentes (`sem_login=true`) |
 | — | **Push para dependentes via responsável** | `push-sender` faz lookup em `dependentes` para substituir IDs de dependentes pelos dos responsáveis antes de buscar subscriptions |
 | — | **Push de avisos inclui professores** | Notificações de avisos publicados enviadas a alunos E professores |

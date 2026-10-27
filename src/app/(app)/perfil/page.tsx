@@ -3,7 +3,9 @@ import Link from "next/link";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { calcularAptosGraduar } from "@/lib/aptos-graduar";
+import { calcularAptosGraduar, type AptoGraduar } from "@/lib/aptos-graduar";
+import { eStaff } from "@/lib/feed";
+import { AptosGraduarCard } from "@/components/AptosGraduarCard";
 import type { CategoriaFaixa, CorFaixa, Mensalidade, PerfilUsuario } from "@/lib/types";
 import { GraduacaoAptosModal } from "@/components/GraduacaoAptosModal";
 import { CHAVE_AVISO_GRADUACAO, janelaAvisoGraduacao } from "@/lib/aviso-graduacao";
@@ -180,7 +182,7 @@ async function ConteudoSeparador({
 
   let dados: DadosSeparador;
   try {
-    dados = await carregarSeparador(separador, userId);
+    dados = await carregarSeparador(separador, userId, perfil);
   } catch (erro) {
     // redirect()/notFound() e afins seguem para o Next; o resto fica neste cartão,
     // para uma falha aqui não partir a página principal da app (cabeçalho, pílulas, barra inferior)
@@ -210,7 +212,10 @@ async function ConteudoSeparador({
     case "feed":
       // key: o router.refresh() depois de publicar remonta a lista com a página nova
       return (
-        <FeedLista key={dados.pagina.posts[0]?.id ?? "vazio"} paginaInicial={dados.pagina} sessao={{ userId, perfil }} />
+        <div className="space-y-4">
+          {dados.aptos && <AptosGraduarCard aptos={dados.aptos} />}
+          <FeedLista key={dados.pagina.posts[0]?.id ?? "vazio"} paginaInicial={dados.pagina} sessao={{ userId, perfil }} />
+        </div>
       );
   }
 }
@@ -219,9 +224,14 @@ type DadosSeparador =
   | { separador: "ranking"; ranking: Awaited<ReturnType<typeof carregarRanking>> }
   | { separador: "conquistas"; pessoas: Awaited<ReturnType<typeof carregarConquistas>> }
   | { separador: "galeria"; albuns: Awaited<ReturnType<typeof carregarAlbuns>> }
-  | { separador: "feed"; pagina: Awaited<ReturnType<typeof carregarPaginaFeed>> };
+  // aptos: só staff; null = não mostrar o card (aluno, ou o cálculo falhou)
+  | { separador: "feed"; pagina: Awaited<ReturnType<typeof carregarPaginaFeed>>; aptos: AptoGraduar[] | null };
 
-async function carregarSeparador(separador: Separador, userId: string): Promise<DadosSeparador> {
+async function carregarSeparador(
+  separador: Separador,
+  userId: string,
+  perfil: PerfilUsuario,
+): Promise<DadosSeparador> {
   const supabase = await createClient();
   switch (separador) {
     case "ranking":
@@ -230,7 +240,19 @@ async function carregarSeparador(separador: Separador, userId: string): Promise<
       return { separador, pessoas: await carregarConquistas(supabase, userId) };
     case "galeria":
       return { separador, albuns: await carregarAlbuns(supabase) };
-    case "feed":
-      return { separador, pagina: await carregarPaginaFeed(createAdminClient(), userId, null) };
+    case "feed": {
+      const admin = createAdminClient();
+      // Uma falha nos aptos não parte o feed: fica só sem o card
+      const [pagina, aptos] = await Promise.all([
+        carregarPaginaFeed(admin, userId, null),
+        eStaff(perfil)
+          ? calcularAptosGraduar(admin).catch((erro: unknown) => {
+              console.error("[inicio] falha a calcular os aptos a graduar:", erro);
+              return null;
+            })
+          : Promise.resolve(null),
+      ]);
+      return { separador, pagina, aptos };
+    }
   }
 }

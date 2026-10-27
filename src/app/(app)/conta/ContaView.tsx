@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   User, Phone, Calendar, Mail, LogOut, ShieldCheck, Settings, LayoutDashboard,
-  Award, Camera, Loader2, Check, X, CreditCard, Users, ChevronRight, ChevronDown, Star,
+  Award, Camera, Loader2, Check, X, CreditCard, Users, ChevronRight, ChevronDown,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -20,7 +20,6 @@ import { PhoneInput } from "@/components/PhoneInput";
 import { telefoneParaExibir, telefoneParaE164 } from "@/lib/phone";
 import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import { comprimirParaWebP } from "@/lib/comprimir-imagem";
-import type { AptoGraduar } from "@/lib/aptos-graduar";
 import type { Profile, Mensalidade, StatusMensalidade, HistoricoGraduacao, DependentePerfil } from "@/lib/types";
 import { DependenteModal } from "./DependenteModal";
 import { atualizarFotoDependente } from "./dependente-foto-actions";
@@ -63,11 +62,10 @@ interface ContaViewProps {
   aulasMes: number;
   ultimoTreino: string | null;
   dependentes: DependentePerfil[];
-  aptosGraduar: AptoGraduar[];
 }
 
 export function ContaView({
-  profile: profileProp, email, mensalidades, historicoGraduacoes, totalAulas, aulasMes, ultimoTreino, dependentes, aptosGraduar,
+  profile: profileProp, email, mensalidades, historicoGraduacoes, totalAulas, aulasMes, ultimoTreino, dependentes,
 }: ContaViewProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -731,50 +729,6 @@ export function ContaView({
         {isStaff && (
           <section className="space-y-2" aria-labelledby="sec-academia">
             <TituloSecao id="sec-academia">Academia</TituloSecao>
-
-            {/* Aptos a graduar */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <Star size={15} className="text-emerald-500" />
-                  <span className="text-sm font-bold text-gray-700">Aptos a graduar</span>
-                  {aptosGraduar.length > 0 && (
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                      {aptosGraduar.length}
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs text-gray-400">presenças e tempo verificados</span>
-              </div>
-              {aptosGraduar.length === 0 ? (
-                <div className="px-5 py-8 text-center">
-                  <p className="text-sm text-gray-400">Nenhum aluno apto a graduar de momento.</p>
-                </div>
-              ) : (
-                <ul className="divide-y divide-gray-50">
-                  {aptosGraduar.map((a) => (
-                    <li key={a.id}>
-                      <Link
-                        href={`/admin/alunos/${a.id}`}
-                        className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="shrink-0 flex items-center justify-center">
-                          <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="xs" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-800 truncate">{a.nome_completo}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">{a.semanasQualificadas} semanas qualificadas</p>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <ChevronRight size={14} className="text-gray-300" />
-                          <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="xs" />
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
 
             <div className="bg-surface rounded-2xl border border-line overflow-hidden divide-y divide-line">
               <LinhaLink

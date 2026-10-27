@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { calcularAptosGraduar, type AptoGraduar } from "@/lib/aptos-graduar";
 import type { Profile, Mensalidade, HistoricoGraduacao, DependentePerfil } from "@/lib/types";
 import { ContaView } from "./ContaView";
 
@@ -87,9 +86,6 @@ export default async function ContaPage() {
     }
   }
 
-  const isStaff = p?.perfil === "admin" || p?.perfil === "professor";
-  const aptosGraduar: AptoGraduar[] = isStaff ? await calcularAptosGraduar(createAdminClient()) : [];
-
   return (
     <ContaView
       profile={p}
@@ -100,7 +96,6 @@ export default async function ContaPage() {
       aulasMes={aulasMes}
       ultimoTreino={ultimoTreino}
       dependentes={dependentes}
-      aptosGraduar={aptosGraduar}
     />
   );
 }
