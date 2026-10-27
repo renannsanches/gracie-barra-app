@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Heart, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,7 @@ export function PostCard({
   const [sheet, setSheet] = useState<"curtidas" | "comentarios" | null>(null);
   // Fixado na montagem: o servidor e o cliente podem diferir uns segundos (ver suppressHydrationWarning)
   const [agora] = useState(() => new Date());
+  const idContagemComentarios = useId();
 
   function postSumiu() {
     setSheet(null);
@@ -135,10 +136,15 @@ export function PostCard({
           type="button"
           onClick={() => setSheet("comentarios")}
           aria-label="Ver comentários"
+          aria-describedby={idContagemComentarios}
           className={cn(PILULA, "gap-1.5 px-3 hover:bg-line/60")}
         >
           <MessageCircle size={20} aria-hidden="true" />
-          {comentarios}
+          <span aria-hidden="true">{comentarios}</span>
+          {/* O nome acessível fica "Ver comentários"; a contagem chega como descrição */}
+          <span id={idContagemComentarios} className="sr-only">
+            {comentarios === 1 ? "1 comentário" : `${comentarios} comentários`}
+          </span>
         </button>
       </div>
 

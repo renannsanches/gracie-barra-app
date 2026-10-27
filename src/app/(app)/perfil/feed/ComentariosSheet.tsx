@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useId, useState } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,6 +21,13 @@ import { apagarComentario, comentar, listarComentarios } from "./membro-actions"
 import { AvatarAutor } from "./CurtidasSheet";
 
 const ERRO_LIGACAO = "Sem ligação. Tenta outra vez.";
+
+// Acrescenta à lista os comentários que ainda não estão lá (por id), mantendo a ordem
+function juntar(lista: ComentarioFeed[], novos: ComentarioFeed[]): ComentarioFeed[] {
+  const vistos = new Set(lista.map((c) => c.id));
+  const extra = novos.filter((c) => !vistos.has(c.id));
+  return extra.length ? [...lista, ...extra] : lista;
+}
 
 // Montado só com a sheet aberta (o Radix desmonta o conteúdo ao fechar): cada abertura
 // volta a carregar a lista.
@@ -54,9 +61,8 @@ function Conversa({
       .then((r) => {
         if (!vivo) return;
         if (r.ok) {
-          setComentarios(r.comentarios);
-          // O número do card pode estar desactualizado: acerta-se com o que veio do servidor
-          sincronizarTotal(r.comentarios.length);
+          // Um comentário enviado antes de a lista chegar não se perde
+          setComentarios((prev) => (prev ? juntar(r.comentarios, prev) : r.comentarios));
         } else {
           falhar(r.erro);
         }
@@ -68,6 +74,13 @@ function Conversa({
       vivo = false;
     };
   }, [postId]);
+
+  // O número do card segue sempre a lista (carregar, enviar, apagar) — e acerta-o com o
+  // servidor ao abrir, se estiver desactualizado
+  const total = comentarios?.length ?? null;
+  useEffect(() => {
+    if (total !== null) sincronizarTotal(total);
+  }, [total]);
 
   const caracteres = contarCaracteres(texto);
   const excede = caracteres > LIMITE_COMENTARIO;
@@ -85,11 +98,9 @@ function Conversa({
     try {
       const r = await comentar(postId, v.texto);
       if (r.ok) {
-        const lista = comentarios ?? [];
-        const nova = lista.some((c) => c.id === r.comentario.id) ? lista : [...lista, r.comentario];
-        setComentarios(nova);
+        const novo = r.comentario;
+        setComentarios((prev) => juntar(prev ?? [], [novo]));
         setTexto("");
-        onTotal(nova.length);
       } else if (r.erro === ERRO_POST_INEXISTENTE) {
         onFalha(r.erro);
       } else {
@@ -109,9 +120,7 @@ function Conversa({
     try {
       const r = await apagarComentario(c.id);
       if (r.ok) {
-        const nova = (comentarios ?? []).filter((x) => x.id !== c.id);
-        setComentarios(nova);
-        onTotal(nova.length);
+        setComentarios((prev) => prev && prev.filter((x) => x.id !== c.id));
         toast.success("Comentário apagado.");
       } else {
         toast.error(r.erro ?? "Não foi possível apagar o comentário.");
@@ -241,6 +250,8 @@ export function ComentariosSheet({
   /** Chamado quando o servidor diz que o post já não existe (o card sai da lista) */
   onPostApagado?: () => void;
 }) {
+  const conteudo = useRef<HTMLDivElement>(null);
+
   function falhou(erro: string) {
     toast.error(erro);
     onFechar();
@@ -249,7 +260,17 @@ export function ComentariosSheet({
 
   return (
     <Dialog open={aberto} onOpenChange={(o) => !o && onFechar()}>
-      <DialogContent variant="sheet" aria-describedby={undefined} className="flex flex-col overflow-hidden">
+      <DialogContent
+        ref={conteudo}
+        variant="sheet"
+        aria-describedby={undefined}
+        className="flex flex-col overflow-hidden"
+        // Sem foco automático no campo: no Android o teclado abria e tapava a lista
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          conteudo.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-fg">Comentários</DialogTitle>
         </DialogHeader>
