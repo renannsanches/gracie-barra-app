@@ -31,7 +31,7 @@ export default async function GaleriaAlbumPage({ params }: Props) {
       <PageHeader
         title={(album as Album).titulo}
         icon={<Images size={20} />}
-        back={{ href: "/galeria", label: "Galeria" }}
+        back={{ href: "/perfil?tab=galeria", label: "Galeria" }}
         subtitle={
           <>
             {(album as Album).descricao && <p className="mt-0.5">{(album as Album).descricao}</p>}

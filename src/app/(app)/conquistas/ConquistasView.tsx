@@ -27,7 +27,7 @@ const GRUPOS: { grupo: GrupoConquista; titulo: string }[] = [
   { grupo: "especiais", titulo: "Especiais" },
 ];
 
-export function ConquistasView({ pessoas }: { pessoas: PessoaConquistas[] }) {
+export function ConquistasView({ pessoas, embutido = false }: { pessoas: PessoaConquistas[]; embutido?: boolean }) {
   const [selId, setSelId] = useState(pessoas[0]?.id ?? "");
   const pessoa = pessoas.find((p) => p.id === selId) ?? pessoas[0];
 
@@ -37,35 +37,47 @@ export function ConquistasView({ pessoas }: { pessoas: PessoaConquistas[] }) {
     if (ids.length > 0) void marcarConquistasVistas(ids);
   }, [pessoas]);
 
+  const seletor = (claro: boolean) =>
+    pessoas.length > 1 && (
+      <div className={claro ? "flex gap-2 overflow-x-auto -mx-1 px-1" : "mt-5 flex gap-2 overflow-x-auto -mx-1 px-1"}>
+        {pessoas.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => setSelId(p.id)}
+            className={cn(
+              "px-3.5 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap transition-colors",
+              claro
+                ? p.id === pessoa?.id
+                  ? "bg-brand text-white"
+                  : "bg-surface border border-line text-fg-muted hover:text-ink"
+                : p.id === pessoa?.id
+                  ? "bg-white text-gray-900"
+                  : "bg-white/10 text-white/70 hover:text-white",
+            )}
+          >
+            {p.nome}
+          </button>
+        ))}
+      </div>
+    );
+
   return (
-    <div className="min-h-screen flex flex-col bg-gb-gray">
-      <PageHeader
-        title="Conquistas"
-        icon={<MedalIcon size={20} />}
-        back={{ href: "/perfil", label: "Início" }}
-        subtitle="Sequências de treino e medalhas"
-      >
+    <div className={embutido ? "flex flex-col" : "min-h-screen flex flex-col bg-gb-gray"}>
+      {!embutido && (
+        <PageHeader
+          title="Conquistas"
+          icon={<MedalIcon size={20} />}
+          back={{ href: "/perfil", label: "Início" }}
+          subtitle="Sequências de treino e medalhas"
+        >
 
-        {pessoas.length > 1 && (
-          <div className="mt-5 flex gap-2 overflow-x-auto -mx-1 px-1">
-            {pessoas.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setSelId(p.id)}
-                className={cn(
-                  "px-3.5 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap transition-colors",
-                  p.id === pessoa?.id ? "bg-white text-gray-900" : "bg-white/10 text-white/70 hover:text-white",
-                )}
-              >
-                {p.nome}
-              </button>
-            ))}
-          </div>
-        )}
-      </PageHeader>
+          {seletor(false)}
+        </PageHeader>
+      )}
 
-      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-3 animar-lista">
+      <div className={embutido ? "space-y-3 animar-lista" : "flex-1 px-4 py-5 pb-bottom-nav space-y-3 animar-lista"}>
+        {embutido && seletor(true)}
         {!pessoa ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-[14px] text-gray-500">
             Sem alunos associados a esta conta.
