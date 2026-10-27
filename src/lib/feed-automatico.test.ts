@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   deveCriarPostGraduacao,
+  ehDadosGraduacao,
+  ehDadosPodio,
   mesDoPodio,
   montarPodio,
   nomeMes,
@@ -140,5 +142,31 @@ describe("textoPodio", () => {
     expect(textoPodio({ kind: "podio", mes: "2026-10", adultos: p.adultos, kids: [] })).toBe(
       "Pódio de outubro 🏆\nAdultos: 1.º Ana Costa, 2.º Bruno Dias, 2.º Carla Reis",
     );
+  });
+});
+
+describe("ehDadosGraduacao / ehDadosPodio", () => {
+  const graduacao = {
+    kind: "graduacao", alunoId: "a", nome: "Ana", faixa: "azul", graus: 0, categoria: "adulto",
+  };
+  const podio = { kind: "podio", mes: "2026-10", adultos: [], kids: [] };
+
+  it("aceita dados válidos", () => {
+    expect(ehDadosGraduacao(graduacao)).toBe(true);
+    expect(ehDadosPodio(podio)).toBe(true);
+  });
+
+  it("rejeita dados mal formados", () => {
+    for (const d of [null, undefined, {}, "x", { kind: "graduacao", faixa: null }, { kind: "graduacao" }]) {
+      expect(ehDadosGraduacao(d)).toBe(false);
+    }
+    for (const d of [null, undefined, {}, { kind: "podio" }, { kind: "podio", mes: "2026-10", adultos: [] }, { kind: "podio", adultos: [], kids: [] }]) {
+      expect(ehDadosPodio(d)).toBe(false);
+    }
+  });
+
+  it("não confunde os dois tipos", () => {
+    expect(ehDadosGraduacao(podio)).toBe(false);
+    expect(ehDadosPodio(graduacao)).toBe(false);
   });
 });

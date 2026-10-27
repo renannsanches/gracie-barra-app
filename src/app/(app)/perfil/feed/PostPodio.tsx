@@ -17,30 +17,34 @@ const COR_MEDALHA: Record<number, string> = {
 };
 
 function LinhaPodio({ entrada, kids }: { entrada: EntradaPodio; kids: boolean }) {
-  const faixa = entrada.faixa as CorFaixa | null;
+  // Tolera entradas incompletas (os dados vêm da BD sem validação)
+  const faixa = typeof entrada.faixa === "string" && entrada.faixa ? (entrada.faixa as CorFaixa) : null;
+  const nome = typeof entrada.nome === "string" ? entrada.nome : "";
+  const posicao = typeof entrada.posicao === "number" ? entrada.posicao : 3;
+  const aulas = typeof entrada.aulas === "number" ? entrada.aulas : 0;
   return (
     <li className="flex items-center gap-3 py-2.5">
       {/* Empates trazem a mesma posição (1, 1, 3) */}
       <span
         role="img"
-        aria-label={`${entrada.posicao}.º lugar`}
+        aria-label={`${posicao}.º lugar`}
         className={cn(
           "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-black tabular-nums",
-          COR_MEDALHA[entrada.posicao] ?? COR_MEDALHA[3],
+          COR_MEDALHA[posicao] ?? COR_MEDALHA[3],
         )}
       >
-        {entrada.posicao}
+        {posicao}
       </span>
       <AvatarAutor
-        autor={{ id: entrada.alunoId, nome: entrada.nome, foto: entrada.foto }}
+        autor={{ id: entrada.alunoId, nome, foto: entrada.foto ?? null }}
         className="h-10 w-10 text-[13px]"
       />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-fg">{entrada.nome}</p>
+        <p className="truncate text-sm font-semibold text-fg">{nome}</p>
         {faixa && (
           <FaixaBJJ
             faixa={faixa}
-            graus={entrada.graus}
+            graus={entrada.graus ?? 0}
             categoria={kids ? "infantil" : inferCategoria(faixa)}
             tamanho="xs"
             className="mt-0.5"
@@ -48,8 +52,8 @@ function LinhaPodio({ entrada, kids }: { entrada: EntradaPodio; kids: boolean })
         )}
       </div>
       <p className="shrink-0 text-xs text-fg-muted">
-        <span className="text-sm font-bold tabular-nums text-fg">{entrada.aulas}</span>{" "}
-        {entrada.aulas === 1 ? "aula" : "aulas"}
+        <span className="text-sm font-bold tabular-nums text-fg">{aulas}</span>{" "}
+        {aulas === 1 ? "aula" : "aulas"}
       </p>
     </li>
   );
@@ -61,7 +65,10 @@ export function PostPodio({ dados }: { dados: DadosPodio }) {
   const seccoes = [
     { titulo: "Adultos", entradas: dados.adultos, kids: false },
     { titulo: "Kids", entradas: dados.kids, kids: true },
-  ].filter((s) => s.entradas.length > 0);
+  ]
+    // Entradas nulas (dados mal formados) não se desenham
+    .map((s) => ({ ...s, entradas: s.entradas.filter((e) => typeof e === "object" && e !== null) }))
+    .filter((s) => s.entradas.length > 0);
 
   return (
     <section aria-labelledby={idTitulo} className="rounded-xl bg-canvas px-4 pb-2 pt-4">
@@ -73,8 +80,8 @@ export function PostPodio({ dados }: { dados: DadosPodio }) {
         <div key={s.titulo} className="mt-3">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">{s.titulo}</h4>
           <ol className="divide-y divide-line">
-            {s.entradas.map((e) => (
-              <LinhaPodio key={e.alunoId} entrada={e} kids={s.kids} />
+            {s.entradas.map((e, i) => (
+              <LinhaPodio key={e.alunoId ?? i} entrada={e} kids={s.kids} />
             ))}
           </ol>
         </div>

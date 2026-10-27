@@ -1,7 +1,7 @@
 // Posts automáticos do feed (graduação e pódio mensal): regras puras, sem Supabase nem React.
 // Testado em feed-automatico.test.ts.
 import type { CorFaixa } from "./types";
-import type { DadosPodio, EntradaPodio } from "./feed";
+import type { DadosGraduacao, DadosPodio, EntradaPodio } from "./feed";
 import { MIN_AULAS_TOP3, addDias, grupoRanking, nomeRanking, ordenarRanking } from "./gamificacao";
 import { labelCorFaixa } from "./utils";
 
@@ -72,4 +72,18 @@ export function textoPodio(d: DadosPodio): string {
   if (d.adultos.length > 0) linhas.push(linha("Adultos", d.adultos));
   if (d.kids.length > 0) linhas.push(linha("Kids", d.kids));
   return linhas.join("\n");
+}
+
+// `dados` vem da BD sem validação: só se desenha o bloco especial quando a forma está certa
+// (senão o post aparece como um manual, em vez de rebentar o feed).
+export function ehDadosGraduacao(d: unknown): d is DadosGraduacao {
+  if (typeof d !== "object" || d === null) return false;
+  const o = d as Record<string, unknown>;
+  return o.kind === "graduacao" && typeof o.faixa === "string";
+}
+
+export function ehDadosPodio(d: unknown): d is DadosPodio {
+  if (typeof d !== "object" || d === null) return false;
+  const o = d as Record<string, unknown>;
+  return o.kind === "podio" && typeof o.mes === "string" && Array.isArray(o.adultos) && Array.isArray(o.kids);
 }
