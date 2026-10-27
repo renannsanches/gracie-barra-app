@@ -1,17 +1,38 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Newspaper } from "lucide-react";
+import { Loader2, Newspaper, Plus } from "lucide-react";
 import { toast } from "sonner";
-import type { PaginaFeed, PostFeed, Sessao } from "@/lib/feed";
+import { eStaff, type PaginaFeed, type PostFeed, type Sessao } from "@/lib/feed";
 import { carregarMaisPosts } from "./membro-actions";
 import { PostCard } from "./PostCard";
+import { PostComposer } from "./PostComposer";
 
 // Junta a página nova à lista sem repetir posts (um post novo publicado entre pedidos
 // empurra os outros e o mesmo id pode vir em duas páginas)
 function juntar(lista: PostFeed[], novos: PostFeed[]): PostFeed[] {
   const vistos = new Set(lista.map((p) => p.id));
   return [...lista, ...novos.filter((p) => !vistos.has(p.id))];
+}
+
+// Só para staff: abre o compositor. Depois de publicar, o router.refresh() remonta a lista.
+function NovaPublicacao() {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setAberto(true)}
+        className="flex h-14 w-full items-center gap-3 rounded-2xl border border-line bg-surface px-4 text-left text-sm font-semibold text-fg transition-colors duration-fast hover:bg-canvas active:bg-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-white">
+          <Plus size={18} aria-hidden="true" />
+        </span>
+        Nova publicação
+      </button>
+      <PostComposer aberto={aberto} onFechar={() => setAberto(false)} />
+    </>
+  );
 }
 
 export function FeedLista({ paginaInicial, sessao }: { paginaInicial: PaginaFeed; sessao: Sessao }) {
@@ -69,22 +90,28 @@ export function FeedLista({ paginaInicial, sessao }: { paginaInicial: PaginaFeed
     setPosts((lista) => lista.filter((p) => p.id !== id));
   }, []);
 
+  const staff = eStaff(sessao.perfil);
+
   if (posts.length === 0 && !cursor) {
     return (
-      <div data-testid="feed" className="rounded-2xl border border-line bg-surface px-6 py-10 text-center">
-        <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-brand">
-          <Newspaper size={22} aria-hidden="true" />
-        </span>
-        <h2 className="text-base font-semibold text-fg">A academia ainda não publicou nada</h2>
-        <p className="mx-auto mt-1.5 max-w-xs text-sm leading-relaxed text-fg-muted">
-          Quando houver graduações, competições ou fotos do treino, aparecem aqui.
-        </p>
+      <div data-testid="feed" className="space-y-4">
+        {staff && <NovaPublicacao />}
+        <div className="rounded-2xl border border-line bg-surface px-6 py-10 text-center">
+          <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-brand">
+            <Newspaper size={22} aria-hidden="true" />
+          </span>
+          <h2 className="text-base font-semibold text-fg">A academia ainda não publicou nada</h2>
+          <p className="mx-auto mt-1.5 max-w-xs text-sm leading-relaxed text-fg-muted">
+            Quando houver graduações, competições ou fotos do treino, aparecem aqui.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div data-testid="feed" className="space-y-4">
+      {staff && <NovaPublicacao />}
       {posts.map((post) => (
         <PostCard key={post.id} post={post} sessao={sessao} onApagado={tirar} />
       ))}

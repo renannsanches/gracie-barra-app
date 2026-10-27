@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushNovoPost } from "@/lib/push-sender";
 import {
   BUCKET_FEED,
+  ERRO_POST_INEXISTENTE,
   caminhoNoBucket,
   eStaff,
   podeApagarPost,
@@ -27,7 +28,7 @@ import { ehUuid } from "./dados";
 type Falha = { ok: false; erro: string };
 
 const SEM_PERMISSAO: Falha = { ok: false, erro: "Sem permissão." };
-const POST_INEXISTENTE: Falha = { ok: false, erro: "Esta publicação já não existe." };
+const POST_INEXISTENTE: Falha = { ok: false, erro: ERRO_POST_INEXISTENTE };
 const PEDIDO_INVALIDO: Falha = { ok: false, erro: "Pedido inválido." };
 const FOTO_INVALIDA: Falha = { ok: false, erro: "Foto inválida ou demasiado grande." };
 const FALHA_UPLOAD: Falha = { ok: false, erro: "Não foi possível enviar as fotos. Tenta outra vez." };
@@ -149,7 +150,13 @@ export async function criarPost(formData: FormData): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function editarPost(postId: string, formData: FormData): Promise<ActionResult> {
+// O que o card precisa para se actualizar sem recarregar a lista
+export type PostEditado = { texto: string; fotos: string[]; editadoEm: string };
+
+export async function editarPost(
+  postId: string,
+  formData: FormData,
+): Promise<{ ok: true; post: PostEditado } | Falha> {
   const guard = await requireMembro();
   if (!guard.ok) return guard;
   if (!ehUuid(postId)) return POST_INEXISTENTE;
@@ -190,13 +197,19 @@ export async function editarPost(postId: string, formData: FormData): Promise<Ac
   const envio = await enviarFotos(admin, postId, novas, manter.length);
   if (!envio.ok) return envio;
 
+  const editado: PostEditado = {
+    texto: validacao.texto,
+    fotos: [...manter, ...envio.urls],
+    editadoEm: new Date().toISOString(),
+  };
+
   try {
     const { data: actualizado, error } = await admin
       .from("feed_posts")
       .update({
-        texto: validacao.texto,
-        fotos: [...manter, ...envio.urls],
-        editado_em: new Date().toISOString(),
+        texto: editado.texto,
+        fotos: editado.fotos,
+        editado_em: editado.editadoEm,
       })
       .eq("id", postId)
       .select("id");
@@ -216,7 +229,7 @@ export async function editarPost(postId: string, formData: FormData): Promise<Ac
   await removerDoBucket(admin, caminhosDeUrls(postId, fotosActuais.filter((u) => !mantidas.has(u))));
 
   revalidatePath("/perfil");
-  return { ok: true };
+  return { ok: true, post: editado };
 }
 
 export async function apagarPost(postId: string): Promise<ActionResult> {

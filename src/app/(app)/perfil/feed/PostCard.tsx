@@ -1,14 +1,28 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { Heart, MessageCircle } from "lucide-react";
+import { DropdownMenu } from "radix-ui";
+import { Heart, Loader2, MessageCircle, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { confirmar } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
-import { ERRO_POST_INEXISTENTE, tempoRelativo, type PostFeed, type Sessao } from "@/lib/feed";
+import {
+  ERRO_POST_INEXISTENTE,
+  podeApagarPost,
+  podeEditarPost,
+  tempoRelativo,
+  type PostFeed,
+  type Sessao,
+} from "@/lib/feed";
 import { alternarCurtida } from "./membro-actions";
+import { apagarPost, type PostEditado } from "./staff-actions";
+import { PostComposer } from "./PostComposer";
 import { AvatarAutor, CurtidasSheet } from "./CurtidasSheet";
 import { ComentariosSheet } from "./ComentariosSheet";
 import { FotosCarrossel } from "./FotosCarrossel";
+
+const ITEM_MENU =
+  "flex h-11 cursor-pointer select-none items-center gap-2.5 rounded-lg px-3 text-sm font-medium outline-none transition-colors duration-fast data-[highlighted]:bg-canvas";
 
 const PILULA =
   "inline-flex h-11 items-center rounded-full bg-canvas text-sm font-semibold tabular-nums text-fg transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand";
@@ -29,12 +43,21 @@ export function PostCard({
   const [aGuardar, setAGuardar] = useState(false);
   const aGuardarRef = useRef(false);
   const [sheet, setSheet] = useState<"curtidas" | "comentarios" | null>(null);
+  // Conteúdo editável: uma edição aplica-se aqui (a lista não remonta com o router.refresh)
+  const [conteudo, setConteudo] = useState<Omit<PostEditado, "editadoEm"> & { editadoEm: string | null }>({
+    texto: post.texto,
+    fotos: post.fotos,
+    editadoEm: post.editadoEm,
+  });
+  const [aEditar, setAEditar] = useState(false);
+  const [aApagar, setAApagar] = useState(false);
   // Fixado na montagem: o servidor e o cliente podem diferir uns segundos (ver suppressHydrationWarning)
   const [agora] = useState(() => new Date());
   const idContagemComentarios = useId();
 
   function postSumiu() {
     setSheet(null);
+    setAEditar(false);
     onApagado(post.id);
   }
 
@@ -73,7 +96,33 @@ export function PostCard({
     }
   }
 
+  async function apagar() {
+    if (aApagar) return;
+    const ok = await confirmar({
+      titulo: "Apagar publicação?",
+      descricao: "Os gostos e os comentários também são apagados.",
+      destrutivo: true,
+    });
+    if (!ok) return;
+    setAApagar(true);
+    try {
+      const r = await apagarPost(post.id);
+      if (r.ok) {
+        toast.success("Publicação apagada");
+        onApagado(post.id);
+      } else {
+        falha(r.erro ?? "Não foi possível apagar a publicação.");
+      }
+    } catch {
+      toast.error("Sem ligação. Tenta outra vez.");
+    } finally {
+      setAApagar(false);
+    }
+  }
+
   const quando = tempoRelativo(post.criadoEm, agora);
+  const podeEditar = podeEditarPost(sessao, post.autor.id);
+  const podeApagar = podeApagarPost(sessao);
 
   return (
     <article data-testid="post" className="rounded-2xl border border-line bg-surface p-4">
@@ -85,18 +134,54 @@ export function PostCard({
             <time dateTime={post.criadoEm} suppressHydrationWarning>
               {quando}
             </time>
-            {post.editadoEm && " · editado"}
+            {conteudo.editadoEm && " · editado"}
           </p>
         </div>
+        {(podeEditar || podeApagar) && (
+          // Não modal: abrir a sheet ou a confirmação a partir do menu não deixa o foco preso
+          <DropdownMenu.Root modal={false}>
+            <DropdownMenu.Trigger
+              aria-label="Opções da publicação"
+              disabled={aApagar}
+              className="-mr-2 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-fg-muted transition-colors duration-fast hover:bg-canvas hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand data-[state=open]:bg-canvas disabled:opacity-50"
+            >
+              {aApagar ? (
+                <Loader2 size={18} className="animate-spin" aria-hidden="true" />
+              ) : (
+                <MoreHorizontal size={20} aria-hidden="true" />
+              )}
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                align="end"
+                sideOffset={4}
+                className="z-50 min-w-40 rounded-xl border border-line bg-surface p-1 shadow-lg data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+              >
+                {podeEditar && (
+                  <DropdownMenu.Item onSelect={() => setAEditar(true)} className={cn(ITEM_MENU, "text-fg")}>
+                    <Pencil size={16} aria-hidden="true" />
+                    Editar
+                  </DropdownMenu.Item>
+                )}
+                {podeApagar && (
+                  <DropdownMenu.Item onSelect={() => void apagar()} className={cn(ITEM_MENU, "text-destructive")}>
+                    <Trash2 size={16} aria-hidden="true" />
+                    Apagar
+                  </DropdownMenu.Item>
+                )}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        )}
       </header>
 
-      {post.texto && (
-        <p className="mt-3 whitespace-pre-line break-words text-[15px] leading-relaxed text-fg">{post.texto}</p>
+      {conteudo.texto && (
+        <p className="mt-3 whitespace-pre-line break-words text-[15px] leading-relaxed text-fg">{conteudo.texto}</p>
       )}
 
-      {post.fotos.length > 0 && (
+      {conteudo.fotos.length > 0 && (
         <div className="mt-3">
-          <FotosCarrossel fotos={post.fotos} alt={`Publicação de ${post.autor.nome}`} />
+          <FotosCarrossel fotos={conteudo.fotos} alt={`Publicação de ${post.autor.nome}`} />
         </div>
       )}
 
@@ -162,6 +247,15 @@ export function PostCard({
         onTotal={setComentarios}
         onPostApagado={postSumiu}
       />
+      {podeEditar && (
+        <PostComposer
+          aberto={aEditar}
+          onFechar={() => setAEditar(false)}
+          post={{ ...post, ...conteudo }}
+          onGuardado={setConteudo}
+          onPostApagado={postSumiu}
+        />
+      )}
     </article>
   );
 }
