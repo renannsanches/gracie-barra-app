@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { calcularElegibilidade } from "@/lib/graduacao-rules";
-import { fetchAllPresencasDias } from "@/lib/fetch-all-presencas";
-import type { Profile, Mensalidade, HistoricoGraduacao, DependentePerfil, CorFaixa, CategoriaFaixa } from "@/lib/types";
+import { calcularAptosGraduar, type AptoGraduar } from "@/lib/aptos-graduar";
+import type { Profile, Mensalidade, HistoricoGraduacao, DependentePerfil } from "@/lib/types";
 import { PerfilView } from "./PerfilView";
 import { GraduacaoAptosModal } from "@/components/GraduacaoAptosModal";
 import { CHAVE_AVISO_GRADUACAO, janelaAvisoGraduacao } from "@/lib/aviso-graduacao";
@@ -11,17 +10,6 @@ import { NovaConquistaModal, type ConquistaPorVer } from "@/components/NovaConqu
 import { carregarEstadoGamificacao } from "@/lib/conquistas-sync";
 import { getDiasAtraso, getMaiorAtraso } from "@/lib/mensalidade-status";
 import type { ResumoGamificacao } from "./PerfilView";
-
-interface AptosGraduarAluno {
-  id: string;
-  nome_completo: string;
-  faixa: CorFaixa;
-  graus: number;
-  categoria: CategoriaFaixa;
-  proximaPromocao: { faixa: CorFaixa; graus: number };
-  semanasQualificadas: number;
-  semanasNecessarias: number;
-}
 
 export default async function PerfilPage() {
   const supabase = await createClient();
@@ -119,74 +107,7 @@ export default async function PerfilPage() {
   }
 
   const isAdminOrProfessor = p?.perfil === "admin" || p?.perfil === "professor";
-  const aptosGraduar: AptosGraduarAluno[] = [];
-
-  if (isAdminOrProfessor) {
-    const admin = createAdminClient();
-    const { data: alunosAtivos } = await admin
-      .from("profiles")
-      .select("id, nome_completo, faixa, graus, categoria, data_nascimento, created_at")
-      .eq("perfil", "aluno")
-      .eq("status", "ativo");
-
-    const activeIds = (alunosAtivos ?? []).map((a) => a.id as string);
-
-    if (activeIds.length > 0) {
-      const [presencasAtivos, { data: historicoAtivos }] = await Promise.all([
-        fetchAllPresencasDias(admin, activeIds),
-        admin.from("historico_graduacoes")
-          .select("id, aluno_id, faixa_nova, faixa_anterior, graus_nova, graus_anterior, data_graduacao, graduado_por, observacoes, created_at")
-          .in("aluno_id", activeIds)
-          .order("data_graduacao", { ascending: false }),
-      ]);
-
-      const diasByAluno: Record<string, string[]> = {};
-      for (const pr of presencasAtivos) {
-        const aid = pr.aluno_id;
-        if (!diasByAluno[aid]) diasByAluno[aid] = [];
-        diasByAluno[aid].push(pr.dia_registro);
-      }
-
-      const historicoByAluno: Record<string, HistoricoGraduacao[]> = {};
-      for (const h of historicoAtivos ?? []) {
-        const aid = h.aluno_id as string;
-        if (!historicoByAluno[aid]) historicoByAluno[aid] = [];
-        historicoByAluno[aid].push(h as HistoricoGraduacao);
-      }
-
-      for (const a of alunosAtivos ?? []) {
-        if (!a.faixa) continue;
-        const eleg = calcularElegibilidade(
-          {
-            faixa: a.faixa as CorFaixa,
-            graus: (a.graus as number) ?? 0,
-            categoria: ((a.categoria as string) ?? "adulto") as CategoriaFaixa,
-            data_nascimento: (a.data_nascimento as string | null) ?? null,
-            created_at: a.created_at as string,
-          },
-          diasByAluno[a.id as string] ?? [],
-          historicoByAluno[a.id as string] ?? [],
-        );
-        if (eleg.elegivel && eleg.proximaPromocao) {
-          aptosGraduar.push({
-            id: a.id as string,
-            nome_completo: a.nome_completo as string,
-            faixa: a.faixa as CorFaixa,
-            graus: (a.graus as number) ?? 0,
-            categoria: ((a.categoria as string) ?? "adulto") as CategoriaFaixa,
-            proximaPromocao: eleg.proximaPromocao,
-            semanasQualificadas: eleg.semanasQualificadas,
-            semanasNecessarias: eleg.semanasNecessarias,
-          });
-        }
-      }
-
-      aptosGraduar.sort((a, b) =>
-        (b.semanasQualificadas - b.semanasNecessarias) -
-        (a.semanasQualificadas - a.semanasNecessarias)
-      );
-    }
-  }
+  const aptosGraduar: AptoGraduar[] = isAdminOrProfessor ? await calcularAptosGraduar(createAdminClient()) : [];
 
   const janelaAviso = janelaAvisoGraduacao();
   const mostrarAvisoGraduacao =

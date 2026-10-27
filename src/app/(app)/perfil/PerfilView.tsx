@@ -22,10 +22,12 @@ import { formatarMoeda, formatarMes, formatarData, labelCorFaixa } from "@/lib/u
 import { PhoneInput } from "@/components/PhoneInput";
 import { telefoneParaExibir, telefoneParaE164 } from "@/lib/phone";
 import { getEffectiveStatus } from "@/lib/mensalidade-status";
-import type { Profile, Mensalidade, StatusMensalidade, HistoricoGraduacao, DependentePerfil, CorFaixa, CategoriaFaixa } from "@/lib/types";
-import { DependenteModal } from "./DependenteModal";
+import type { Profile, Mensalidade, StatusMensalidade, HistoricoGraduacao, DependentePerfil } from "@/lib/types";
+import { DependenteModal } from "../conta/DependenteModal";
 import { NotificacoesModal } from "./NotificacoesModal";
-import { atualizarFotoDependente } from "./dependente-foto-actions";
+import { atualizarFotoDependente } from "../conta/dependente-foto-actions";
+import { comprimirParaWebP } from "@/lib/comprimir-imagem";
+import type { AptoGraduar } from "@/lib/aptos-graduar";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "success" | "destructive" | "warning" }> = {
@@ -64,67 +66,6 @@ function calcularIdade(dataNascimento: string | null): string {
   return ` (${idade} anos)`;
 }
 
-async function comprimirParaWebP(file: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    img.onload = () => {
-      const MAX = 500;
-      let { width, height } = img;
-
-      if (width > MAX || height > MAX) {
-        if (width >= height) {
-          height = Math.round((height / width) * MAX);
-          width = MAX;
-        } else {
-          width = Math.round((width / height) * MAX);
-          height = MAX;
-        }
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error("Canvas não suportado"));
-        return;
-      }
-
-      ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob(
-        (blob) => {
-          URL.revokeObjectURL(objectUrl);
-          if (blob) resolve(blob);
-          else reject(new Error("Falha ao converter imagem"));
-        },
-        "image/webp",
-        0.8
-      );
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Falha ao carregar imagem"));
-    };
-
-    img.src = objectUrl;
-  });
-}
-
-interface AptosGraduarAluno {
-  id: string;
-  nome_completo: string;
-  faixa: CorFaixa;
-  graus: number;
-  categoria: CategoriaFaixa;
-  proximaPromocao: { faixa: CorFaixa; graus: number };
-  semanasQualificadas: number;
-  semanasNecessarias: number;
-}
-
 export interface ResumoGamificacao {
   id: string;
   nome: string;
@@ -143,7 +84,7 @@ interface PerfilViewProps {
   ultimoTreino: string | null;
   avisosNotif: { id: string; titulo: string; created_at: string }[];
   dependentes: DependentePerfil[];
-  aptosGraduar: AptosGraduarAluno[];
+  aptosGraduar: AptoGraduar[];
   gamificacao: ResumoGamificacao[];
 }
 

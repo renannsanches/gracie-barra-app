@@ -1,0 +1,919 @@
+"use client";
+
+import { toast } from "sonner";
+import { DetalheMensalidade } from "@/components/ValorMensalidade";
+import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  User, Phone, Calendar, Mail, LogOut, ShieldCheck, Settings,
+  Award, Camera, Loader2, Check, X, CreditCard, Users, ChevronRight, ChevronDown, Star,
+} from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { PageHeader } from "@/components/PageHeader";
+import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { formatarMoeda, formatarMes, formatarData, labelCorFaixa } from "@/lib/utils";
+import { PhoneInput } from "@/components/PhoneInput";
+import { telefoneParaExibir, telefoneParaE164 } from "@/lib/phone";
+import { getEffectiveStatus } from "@/lib/mensalidade-status";
+import { comprimirParaWebP } from "@/lib/comprimir-imagem";
+import type { AptoGraduar } from "@/lib/aptos-graduar";
+import type { Profile, Mensalidade, StatusMensalidade, HistoricoGraduacao, DependentePerfil } from "@/lib/types";
+import { DependenteModal } from "./DependenteModal";
+import { atualizarFotoDependente } from "./dependente-foto-actions";
+
+const PERFIL_LABELS: Record<string, string> = {
+  aluno:       "Aluno",
+  professor:   "Professor",
+  admin:       "Administrador",
+  tablet:      "Tablet",
+  responsavel: "Responsável",
+};
+
+const TIPOS_FOTO = ["image/jpeg", "image/png", "image/webp"];
+
+function calcularIdade(dataNascimento: string | null): string {
+  if (!dataNascimento) return "";
+  const hoje = new Date();
+  const nasc = new Date(dataNascimento);
+  let idade = hoje.getFullYear() - nasc.getFullYear();
+  const m = hoje.getMonth() - nasc.getMonth();
+  if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) idade--;
+  return ` (${idade} anos)`;
+}
+
+function iniciaisDe(nome: string) {
+  return nome
+    .split(" ")
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
+}
+
+interface ContaViewProps {
+  profile: Profile | null;
+  email: string;
+  mensalidades: Mensalidade[];
+  historicoGraduacoes: HistoricoGraduacao[];
+  totalAulas: number;
+  aulasMes: number;
+  ultimoTreino: string | null;
+  dependentes: DependentePerfil[];
+  aptosGraduar: AptoGraduar[];
+}
+
+export function ContaView({
+  profile: profileProp, email, mensalidades, historicoGraduacoes, totalAulas, aulasMes, ultimoTreino, dependentes, aptosGraduar,
+}: ContaViewProps) {
+  const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const depFileInputRef = useRef<HTMLInputElement>(null);
+  const uploadingDepIdRef = useRef<string | null>(null);
+
+  const [saindo, setSaindo] = useState(false);
+  const [dependenteSelecionado, setDependenteSelecionado] = useState<DependentePerfil | null>(null);
+  const [uploadingDepId, setUploadingDepId] = useState<string | null>(null);
+  const [dependentesState, setDependentesState] = useState(dependentes);
+
+  const [dadosOpen, setDadosOpen] = useState(false);
+  const [faixaOpen, setFaixaOpen] = useState(false);
+  const [mensalidadesOpen, setMensalidadesOpen] = useState(false);
+  const [dependentesOpen, setDependentesOpen] = useState(false);
+
+  const [profile, setProfile] = useState(profileProp);
+
+  const [fotoUrl, setFotoUrl] = useState(profileProp?.foto_url ?? null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErro, setUploadErro] = useState("");
+
+  const [editando, setEditando] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [salvoErro, setSalvoErro] = useState("");
+  const [form, setForm] = useState({
+    nome:      profileProp?.nome_completo ?? "",
+    telefone:  telefoneParaE164(profileProp?.telefone) ?? "",
+    dataNasc:  profileProp?.data_nascimento ?? "",
+    novoEmail: "",
+  });
+  const [emailMsgOk, setEmailMsgOk] = useState("");
+
+  async function handleLogout() {
+    setSaindo(true);
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
+
+  function handleAvatarClick() {
+    if (!uploading) fileInputRef.current?.click();
+  }
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!TIPOS_FOTO.includes(file.type)) {
+      setUploadErro("Apenas JPG, PNG e WebP são aceitos.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadErro("A imagem deve ter no máximo 2MB.");
+      return;
+    }
+
+    setUploading(true);
+    setUploadErro("");
+
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Não autenticado");
+
+      const blob = await comprimirParaWebP(file);
+      const fileName = `${user.id}.webp`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, blob, { contentType: "image/webp", upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(fileName);
+
+      await supabase
+        .from("profiles")
+        .update({ foto_url: publicUrl })
+        .eq("id", user.id);
+
+      setFotoUrl(`${publicUrl}?t=${Date.now()}`);
+    } catch (err) {
+      setUploadErro(err instanceof Error ? err.message : "Erro ao fazer upload.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function iniciarEdicao() {
+    setForm({
+      nome:      profile?.nome_completo ?? "",
+      telefone:  telefoneParaE164(profile?.telefone) ?? "",
+      dataNasc:  profile?.data_nascimento ?? "",
+      novoEmail: "",
+    });
+    setSalvoErro("");
+    setEmailMsgOk("");
+    setEditando(true);
+  }
+
+  function cancelarEdicao() {
+    setEditando(false);
+    setSalvoErro("");
+  }
+
+  async function handleSalvar() {
+    if (!form.nome.trim()) {
+      setSalvoErro("Nome não pode estar vazio.");
+      return;
+    }
+
+    setSalvando(true);
+    setSalvoErro("");
+
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Não autenticado");
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          nome_completo:    form.nome.trim(),
+          telefone:         form.telefone.trim() || null,
+          data_nascimento:  form.dataNasc || null,
+        })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              nome_completo:   form.nome.trim(),
+              telefone:        form.telefone.trim() || null,
+              data_nascimento: form.dataNasc || null,
+            }
+          : prev
+      );
+
+      const emailNovo = form.novoEmail.trim().toLowerCase();
+      if (emailNovo && emailNovo !== email.toLowerCase()) {
+        const { error: emailErr } = await supabase.auth.updateUser({ email: emailNovo });
+        if (emailErr) throw emailErr;
+        setEmailMsgOk(`Email de confirmação enviado para ${emailNovo}. Confirma para concluir a alteração.`);
+      }
+
+      setEditando(false);
+      toast.success("Dados guardados");
+    } catch (err) {
+      setSalvoErro(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  function handleDepAvatarClick(e: React.MouseEvent, depId: string) {
+    e.stopPropagation();
+    if (uploadingDepId) return;
+    uploadingDepIdRef.current = depId;
+    depFileInputRef.current?.click();
+  }
+
+  async function handleDepAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const depId = uploadingDepIdRef.current;
+    if (depFileInputRef.current) depFileInputRef.current.value = "";
+    if (!file || !depId) { uploadingDepIdRef.current = null; return; }
+
+    if (!TIPOS_FOTO.includes(file.type)) { uploadingDepIdRef.current = null; return; }
+    if (file.size > 2 * 1024 * 1024) { uploadingDepIdRef.current = null; return; }
+
+    setUploadingDepId(depId);
+
+    try {
+      const blob = await comprimirParaWebP(file);
+      const timestamp = Date.now();
+      const path = `dependentes/${depId}/${timestamp}.webp`;
+
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, blob, { contentType: "image/webp", upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+      const urlComTs = `${publicUrl}?t=${timestamp}`;
+
+      const result = await atualizarFotoDependente(depId, publicUrl);
+      if (!result.ok) throw new Error(result.erro);
+
+      setDependentesState((prev) =>
+        prev.map((d) => d.id === depId ? { ...d, foto_url: urlComTs } : d)
+      );
+    } catch {
+      toast.error("Não foi possível alterar a foto.");
+    } finally {
+      setUploadingDepId(null);
+      uploadingDepIdRef.current = null;
+    }
+  }
+
+  const header = <PageHeader title="Minha conta" icon={<Settings size={20} />} back={{ href: "/perfil", label: "Início" }} />;
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex flex-col bg-canvas">
+        {header}
+        <div className="flex-1 px-4 py-8 pb-bottom-nav text-center space-y-4">
+          <p className="text-sm text-fg-muted">Perfil não encontrado.</p>
+          <BotaoSair saindo={saindo} onClick={handleLogout} />
+        </div>
+      </div>
+    );
+  }
+
+  const isStaff = profile.perfil === "admin" || profile.perfil === "professor";
+  const idadeStr = calcularIdade(profile.data_nascimento ?? null);
+
+  return (
+    <div className="min-h-screen flex flex-col bg-canvas">
+      {header}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        aria-label="Selecionar foto de perfil"
+        className="hidden"
+        onChange={handleAvatarChange}
+      />
+      <input
+        ref={depFileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        aria-label="Selecionar foto do dependente"
+        className="hidden"
+        onChange={handleDepAvatarChange}
+      />
+
+      <div className="flex-1 px-4 pt-4 pb-bottom-nav space-y-6 animar-lista">
+        {/* Perfil */}
+        <section className="space-y-2" aria-labelledby="sec-perfil">
+          <TituloSecao id="sec-perfil">Perfil</TituloSecao>
+
+          <div className="bg-surface rounded-2xl border border-line flex items-center gap-4 p-4">
+            <button
+              type="button"
+              onClick={handleAvatarClick}
+              disabled={uploading}
+              className="relative shrink-0 w-14 h-14 rounded-full bg-ink flex items-center justify-center overflow-visible focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              aria-label="Alterar foto de perfil"
+            >
+              <span className="w-full h-full rounded-full overflow-hidden flex items-center justify-center">
+                {fotoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={fotoUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-white font-bold text-base">{iniciaisDe(profile.nome_completo)}</span>
+                )}
+              </span>
+              {uploading && (
+                <span className="absolute inset-0 rounded-full bg-ink/60 flex items-center justify-center">
+                  <Loader2 size={20} className="text-white animate-spin" />
+                </span>
+              )}
+              <span className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-brand ring-2 ring-surface flex items-center justify-center">
+                <Camera size={12} className="text-white" />
+              </span>
+            </button>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-semibold text-fg truncate">{profile.nome_completo}</p>
+              <p className="text-sm text-fg-muted truncate">
+                {PERFIL_LABELS[profile.perfil] ?? profile.perfil}
+                {email && <> · {email}</>}
+              </p>
+              {uploadErro && <p className="text-xs text-brand mt-1">{uploadErro}</p>}
+            </div>
+          </div>
+
+          {/* Dados pessoais */}
+          <AccordionCard
+            open={dadosOpen}
+            onToggle={() => setDadosOpen((o) => !o)}
+            icon={<ShieldCheck size={16} className="text-gray-400" />}
+            title="Dados pessoais"
+            action={
+              !editando ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDadosOpen(true);
+                    iniciarEdicao();
+                  }}
+                  className="text-[12px] text-brand font-medium"
+                >
+                  Editar
+                </button>
+              ) : undefined
+            }
+          >
+            <div className="space-y-1">
+
+              {editando ? (
+                <div className="space-y-4 pt-1">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nome">Nome completo</Label>
+                    <Input
+                      id="nome"
+                      value={form.nome}
+                      onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+                      placeholder="Seu nome completo"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="telefone">Telefone</Label>
+                    <PhoneInput
+                      id="telefone"
+                      value={form.telefone || undefined}
+                      onChange={(v) => setForm((f) => ({ ...f, telefone: v ?? "" }))}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="dataNasc">Data de nascimento</Label>
+                    <Input
+                      id="dataNasc"
+                      type="date"
+                      title="Data de nascimento"
+                      value={form.dataNasc}
+                      onChange={(e) => setForm((f) => ({ ...f, dataNasc: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder={email}
+                      value={form.novoEmail}
+                      onChange={(e) => setForm((f) => ({ ...f, novoEmail: e.target.value }))}
+                    />
+                    <p className="text-xs text-gray-400 px-1">
+                      Deixa em branco para manter {email}. Ao alterar, receberás um email de confirmação.
+                    </p>
+                    {emailMsgOk && (
+                      <p className="text-xs text-green-600 px-1">{emailMsgOk}</p>
+                    )}
+                  </div>
+
+                  {profile.faixa && (
+                    <div className="rounded-xl bg-gb-gray px-4 py-3">
+                      <p className="text-xs text-gray-400 font-medium mb-1">Faixa / Graus / Categoria</p>
+                      <p className="text-sm text-gray-500 capitalize">
+                        {labelCorFaixa(profile.faixa)} · {profile.graus} grau{profile.graus !== 1 ? "s" : ""} · {profile.categoria}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">Apenas o professor pode alterar</p>
+                    </div>
+                  )}
+
+                  {salvoErro && (
+                    <p className="text-red-600 text-sm">{salvoErro}</p>
+                  )}
+
+                  <div className="flex gap-3 pt-1">
+                    <Button
+                      onClick={handleSalvar}
+                      disabled={salvando}
+                      className="flex-1 bg-brand hover:bg-brand-dark text-white"
+                    >
+                      {salvando ? (
+                        <><Loader2 size={16} className="animate-spin mr-2" />Salvando...</>
+                      ) : (
+                        <><Check size={16} className="mr-2" />Salvar</>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={cancelarEdicao}
+                      disabled={salvando}
+                      className="flex-1"
+                    >
+                      <X size={16} className="mr-2" />
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <InfoRow icon={<User size={16} />} label="Nome completo" value={profile.nome_completo} />
+                  <InfoRow icon={<Mail size={16} />} label="E-mail" value={email || "—"} />
+                  {profile.telefone && (
+                    <InfoRow icon={<Phone size={16} />} label="Telefone" value={telefoneParaExibir(profile.telefone)} />
+                  )}
+                  {profile.data_nascimento && (
+                    <InfoRow
+                      icon={<Calendar size={16} />}
+                      label="Data de nascimento"
+                      value={formatarData(profile.data_nascimento) + idadeStr}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          </AccordionCard>
+        </section>
+
+        {/* Treino e pagamentos */}
+        <section className="space-y-2" aria-labelledby="sec-treino">
+          <TituloSecao id="sec-treino">Treino e pagamentos</TituloSecao>
+
+          {/* Faixa + Stats — escondido para responsável puro */}
+          {profile.perfil !== "responsavel" && <AccordionCard
+            open={faixaOpen}
+            onToggle={() => setFaixaOpen((o) => !o)}
+            icon={<Award size={16} className="text-gray-400" />}
+            title="Faixa e graduação"
+          >
+              <div className="space-y-3">
+                {profile.faixa ? (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <FaixaBJJ faixa={profile.faixa} graus={profile.graus} categoria={profile.categoria} tamanho="sm" className="flex-1" />
+                      <div className="text-right shrink-0">
+                        <p className="text-[14px] font-medium text-gray-900">{labelCorFaixa(profile.faixa)}</p>
+                        <p className="text-[12px] text-gray-400">{profile.graus} {profile.graus === 1 ? "grau" : "graus"} · <span className="capitalize">{profile.categoria}</span></p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-gb-gray rounded-xl p-3 text-center">
+                        <p className="text-[22px] font-medium text-gray-900 leading-none">{totalAulas}</p>
+                        <p className="text-xs text-gray-400 mt-1">Total de aulas</p>
+                      </div>
+                      <div className="bg-gb-gray rounded-xl p-3 text-center">
+                        <p className="text-[22px] font-medium text-gray-900 leading-none">{aulasMes}</p>
+                        <p className="text-xs text-gray-400 mt-1">Esse mês</p>
+                      </div>
+                      <div className="bg-gb-gray rounded-xl p-3 text-center">
+                        <p className="text-[22px] font-medium text-gray-900 leading-none">
+                          {ultimoTreino ? formatarData(ultimoTreino).split("/").slice(0, 2).join("/") : "—"}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">Último treino</p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-4">
+                    <Award size={32} className="text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-400 text-sm">Graduação a ser definida pelo professor</p>
+                  </div>
+                )}
+
+                {historicoGraduacoes.length > 0 && (
+                  <div className="pt-2">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Minha Evolução</p>
+                    <div className="relative pl-9">
+                      {historicoGraduacoes.length > 1 && (
+                        <div className="absolute left-3 top-5 bottom-5 w-0.5 bg-gray-200 rounded-full" />
+                      )}
+                      {historicoGraduacoes.map((g) => (
+                        <div key={g.id} className="relative mb-5 last:mb-0">
+                          <div className="absolute -left-9 top-1 w-7 h-7 rounded-full bg-gb-blue border-2 border-white flex items-center justify-center shadow-sm z-10">
+                            <Award size={12} className="text-white" />
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                              {formatarData(g.data_graduacao)}
+                            </p>
+                            <div className="flex items-center gap-3 flex-wrap">
+                              {g.faixa_anterior && (
+                                <>
+                                  <FaixaBJJ
+                                    faixa={g.faixa_anterior}
+                                    graus={g.graus_anterior ?? 0}
+                                    categoria={inferCategoria(g.faixa_anterior)}
+                                    tamanho="sm"
+                                    showLabel
+                                  />
+                                  <span className="text-gray-400 text-xl font-light shrink-0">→</span>
+                                </>
+                              )}
+                              <FaixaBJJ faixa={g.faixa_nova} graus={g.graus_nova} categoria={inferCategoria(g.faixa_nova)} tamanho="sm" showLabel />
+                            </div>
+                            {(g.professor || g.observacoes) && (
+                              <div className="space-y-0.5 pt-1">
+                                {g.professor && (
+                                  <p className="text-xs text-gray-400">{g.professor.nome_completo}</p>
+                                )}
+                                {g.observacoes && (
+                                  <p className="text-xs text-gray-500 italic">&ldquo;{g.observacoes}&rdquo;</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+          </AccordionCard>}
+
+          {/* Mensalidades */}
+          {mensalidades.length > 0 && (
+            <AccordionCard
+              open={mensalidadesOpen}
+              onToggle={() => setMensalidadesOpen((o) => !o)}
+              icon={<CreditCard size={16} className="text-gray-400" />}
+              title="Mensalidades"
+            >
+              <div className="space-y-2">
+                {mensalidades.map((m) => {
+                  const ef = getEffectiveStatus(m);
+                  return (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between gap-3 py-2.5 border-b border-gray-100 last:border-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-medium text-gray-900">{formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}</p>
+                      <p className="text-[12px] text-gray-400 mt-0.5">Vence em {formatarData(m.data_vencimento)}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[14px] font-medium text-gray-900">{m.valor != null ? formatarMoeda(m.valor) : "—"}</p>
+                      {m.valor != null && <DetalheMensalidade valor={m.valor} itens={m.itens} className="text-xs" />}
+                      <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mt-1 ${
+                        ef === "pago"
+                          ? "bg-emerald-500/15 text-emerald-600"
+                          : ef === "atrasado"
+                          ? "bg-red-500/15 text-red-600"
+                          : "bg-amber-500/15 text-amber-600"
+                      }`}>
+                        {ef === "pago"
+                          ? `Pago${m.data_pagamento ? ` em ${formatarData(m.data_pagamento)}` : ""}`
+                          : ef === "atrasado"
+                          ? "Vencida"
+                          : "Pendente"
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+              {mensalidades.some((m) => getEffectiveStatus(m) === "atrasado") && (
+                <a
+                  href="https://wa.me/14076941856"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full mt-3 py-2.5 rounded-lg bg-whatsapp hover:bg-whatsapp-dark transition-colors duration-fast text-white text-[14px] font-medium"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                  </svg>
+                  Falar com a Simone
+                </a>
+              )}
+            </AccordionCard>
+          )}
+
+          {/* Dependentes */}
+          {dependentesState.length > 0 && (
+            <AccordionCard
+              open={dependentesOpen}
+              onToggle={() => setDependentesOpen((o) => !o)}
+              icon={<Users size={16} className="text-gray-400" />}
+              title="Dependentes"
+            >
+              <div className="space-y-1">
+                {dependentesState.map((dep) => {
+                  const ultimaMens = dep.mensalidades[0];
+                  const ultimaMensEf = ultimaMens ? getEffectiveStatus(ultimaMens) : null;
+                  const mensStatusColor: Record<StatusMensalidade, string> = {
+                    pago:     "text-green-600 bg-green-50",
+                    pendente: "text-amber-600 bg-amber-50",
+                    atrasado: "text-red-600 bg-red-50",
+                  };
+                  const mensStatusLabel: Record<StatusMensalidade, string> = {
+                    pago:     "Em dia",
+                    pendente: "Pendente",
+                    atrasado: "Vencida",
+                  };
+                  const isUploadingThis = uploadingDepId === dep.id;
+                  return (
+                    <div
+                      key={dep.id}
+                      className="w-full flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0 text-left"
+                    >
+                      <div className="relative shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden">
+                          {dep.foto_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={dep.foto_url} alt={dep.nome_completo} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-white font-bold text-[13px]">{iniciaisDe(dep.nome_completo)}</span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDepAvatarClick(e, dep.id)}
+                          disabled={!!uploadingDepId}
+                          className="absolute -bottom-0.5 -right-0.5 w-[18px] h-[18px] rounded-full bg-brand border-[1.5px] border-white flex items-center justify-center shadow"
+                          aria-label={`Alterar foto de ${dep.nome_completo}`}
+                        >
+                          {isUploadingThis
+                            ? <Loader2 size={8} className="text-white animate-spin" />
+                            : <Camera size={8} className="text-white" />
+                          }
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDependenteSelecionado(dep)}
+                        className="flex-1 min-w-0 flex items-center gap-3 text-left"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[14px] font-medium text-gray-900 truncate">{dep.nome_completo}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            {dep.faixa && (
+                              <p className="text-[12px] text-gray-400">
+                                {labelCorFaixa(dep.faixa)} · {dep.graus} grau{dep.graus !== 1 ? "s" : ""} · <span className="capitalize">{dep.categoria}</span>
+                              </p>
+                            )}
+                            {ultimaMens && ultimaMensEf && (
+                              <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${mensStatusColor[ultimaMensEf]}`}>
+                                {mensStatusLabel[ultimaMensEf]}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {dep.faixa && (
+                          <FaixaBJJ faixa={dep.faixa} graus={dep.graus} categoria={dep.categoria} tamanho="sm" />
+                        )}
+                        <ChevronRight size={16} className="text-gray-300 shrink-0" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </AccordionCard>
+          )}
+        </section>
+
+        {/* Academia — só staff */}
+        {isStaff && (
+          <section className="space-y-2" aria-labelledby="sec-academia">
+            <TituloSecao id="sec-academia">Academia</TituloSecao>
+
+            {/* Aptos a graduar */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Star size={15} className="text-emerald-500" />
+                  <span className="text-sm font-bold text-gray-700">Aptos a graduar</span>
+                  {aptosGraduar.length > 0 && (
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                      {aptosGraduar.length}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-gray-400">presenças e tempo verificados</span>
+              </div>
+              {aptosGraduar.length === 0 ? (
+                <div className="px-5 py-8 text-center">
+                  <p className="text-sm text-gray-400">Nenhum aluno apto a graduar de momento.</p>
+                </div>
+              ) : (
+                <ul className="divide-y divide-gray-50">
+                  {aptosGraduar.map((a) => (
+                    <li key={a.id}>
+                      <Link
+                        href={`/admin/alunos/${a.id}`}
+                        className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="shrink-0 flex items-center justify-center">
+                          <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="xs" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 truncate">{a.nome_completo}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{a.semanasQualificadas} semanas qualificadas</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <ChevronRight size={14} className="text-gray-300" />
+                          <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="xs" />
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="bg-surface rounded-2xl border border-line overflow-hidden divide-y divide-line">
+              <LinhaLink
+                href="/admin"
+                icon={<ShieldCheck size={18} />}
+                titulo="Dashboard"
+                descricao="Painel de gestão da academia"
+              />
+            </div>
+          </section>
+        )}
+
+        <div className="pt-2">
+          <BotaoSair saindo={saindo} onClick={handleLogout} />
+        </div>
+      </div>
+
+      {dependenteSelecionado && (
+        <DependenteModal
+          dependente={dependentesState.find((d) => d.id === dependenteSelecionado.id) ?? dependenteSelecionado}
+          onClose={() => setDependenteSelecionado(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function TituloSecao({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <h2 id={id} className="px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+      {children}
+    </h2>
+  );
+}
+
+function LinhaLink({
+  href,
+  icon,
+  titulo,
+  descricao,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  titulo: string;
+  descricao?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-3 min-h-14 px-4 py-3 active:bg-canvas transition-colors duration-fast focus-visible:outline-none focus-visible:bg-canvas"
+    >
+      <span className="w-9 h-9 rounded-lg bg-brand/10 text-brand flex items-center justify-center shrink-0">
+        {icon}
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-medium text-fg">{titulo}</span>
+        {descricao && <span className="block text-xs text-fg-muted mt-0.5">{descricao}</span>}
+      </span>
+      <ChevronRight size={18} className="text-fg-muted shrink-0" aria-hidden="true" />
+    </Link>
+  );
+}
+
+function BotaoSair({ saindo, onClick }: { saindo: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={saindo}
+      className="w-full h-12 rounded-full bg-surface border border-line text-brand text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform duration-fast ease-out-expo disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+    >
+      {saindo ? <Loader2 size={18} className="animate-spin" /> : <LogOut size={18} />}
+      {saindo ? "A sair…" : "Sair"}
+    </button>
+  );
+}
+
+function AccordionCard({
+  open,
+  onToggle,
+  icon,
+  title,
+  action,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  icon: React.ReactNode;
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+        className="w-full flex items-center justify-between px-4 py-3.5 cursor-pointer active:bg-gray-50 transition-colors duration-fast"
+      >
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="text-[13px] font-medium text-gray-900">{title}</span>
+        </div>
+        <div className="flex items-center gap-2.5">
+          {action}
+          <ChevronDown
+            size={16}
+            className={`text-gray-400 transition-transform duration-200 ease-in-out${open ? " rotate-180" : ""}`}
+          />
+        </div>
+      </div>
+      <div inert={!open} className={`overflow-hidden transition-[max-height] duration-base ease-in-out ${open ? "max-h-[2000px]" : "max-h-0"}`}>
+        <div className="px-4 pb-4 border-t border-gray-100 pt-3">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
+      <div className="text-gray-400 shrink-0 w-5 text-center">{icon}</div>
+      <div className="min-w-0">
+        <p className="text-xs text-gray-400 mb-0.5">{label}</p>
+        <p className="text-[14px] text-gray-900 break-words">{value}</p>
+      </div>
+    </div>
+  );
+}
