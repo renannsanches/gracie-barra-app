@@ -6,7 +6,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  User, Phone, Calendar, Mail, LogOut, ShieldCheck, Settings,
+  User, Phone, Calendar, Mail, LogOut, ShieldCheck, Settings, LayoutDashboard,
   Award, Camera, Loader2, Check, X, CreditCard, Users, ChevronRight, ChevronDown, Star,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -293,6 +293,8 @@ export function ContaView({
 
   const isStaff = profile.perfil === "admin" || profile.perfil === "professor";
   const idadeStr = calcularIdade(profile.data_nascimento ?? null);
+  const mostrarFaixa = profile.perfil !== "responsavel";
+  const mostrarTreino = mostrarFaixa || mensalidades.length > 0 || dependentesState.length > 0;
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
@@ -485,12 +487,13 @@ export function ContaView({
           </AccordionCard>
         </section>
 
-        {/* Treino e pagamentos */}
+        {/* Treino e pagamentos — só se alguma das secções abaixo aparecer */}
+        {mostrarTreino && (
         <section className="space-y-2" aria-labelledby="sec-treino">
           <TituloSecao id="sec-treino">Treino e pagamentos</TituloSecao>
 
           {/* Faixa + Stats — escondido para responsável puro */}
-          {profile.perfil !== "responsavel" && <AccordionCard
+          {mostrarFaixa && <AccordionCard
             open={faixaOpen}
             onToggle={() => setFaixaOpen((o) => !o)}
             icon={<Award size={16} className="text-gray-400" />}
@@ -721,6 +724,7 @@ export function ContaView({
             </AccordionCard>
           )}
         </section>
+        )}
 
         {/* Academia — só staff */}
         {isStaff && (
@@ -774,7 +778,7 @@ export function ContaView({
             <div className="bg-surface rounded-2xl border border-line overflow-hidden divide-y divide-line">
               <LinhaLink
                 href="/admin"
-                icon={<ShieldCheck size={18} />}
+                icon={<LayoutDashboard size={18} />}
                 titulo="Dashboard"
                 descricao="Painel de gestão da academia"
               />
@@ -870,6 +874,7 @@ function AccordionCard({
         aria-expanded={open}
         onClick={onToggle}
         onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             onToggle();
