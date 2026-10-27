@@ -20,13 +20,17 @@ test.afterAll(async () => {
     .flatMap((p) => (p.fotos as string[] | null) ?? [])
     .map((url) => (url.includes(marca) ? url.slice(url.indexOf(marca) + marca.length).split(/[?#]/)[0] : ""))
     .filter(Boolean);
-  if (caminhos.length > 0) await admin.storage.from("feed").remove(caminhos);
+  if (caminhos.length > 0) {
+    const { error: erroStorage } = await admin.storage.from("feed").remove(caminhos);
+    if (erroStorage) throw new Error(`limpeza do bucket feed: ${erroStorage.message}`);
+  }
 
-  await admin
+  const { error: erroDelete } = await admin
     .from("feed_posts")
     .delete()
     .in("id", restos.map((p) => p.id))
     .like("texto", "e2e-feed-%");
+  if (erroDelete) throw new Error(`limpeza de feed_posts: ${erroDelete.message}`);
 });
 
 test("staff publica, dá gosto, comenta e apaga", async ({ page }) => {

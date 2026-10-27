@@ -181,7 +181,8 @@ export function PostCard({
 
       {conteudo.fotos.length > 0 && (
         <div className="mt-3">
-          <FotosCarrossel fotos={conteudo.fotos} alt={`Publicação de ${post.autor.nome}`} />
+          {/* key: depois de uma edição o carrossel recomeça na 1.ª foto (o ponto activo não fica fora) */}
+          <FotosCarrossel key={conteudo.editadoEm ?? "original"} fotos={conteudo.fotos} alt={`Publicação de ${post.autor.nome}`} />
         </div>
       )}
 

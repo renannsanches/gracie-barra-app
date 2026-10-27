@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { comprimirParaWebP } from "@/lib/comprimir-imagem";
+import { comprimirFoto } from "@/lib/comprimir-imagem";
 import { cn } from "@/lib/utils";
 import {
   ERRO_POST_INEXISTENTE,
@@ -107,7 +107,8 @@ function Formulario({
       const blobs: Blob[] = [];
       for (const f of novas) {
         try {
-          blobs.push(await comprimirParaWebP(f.file, 1600, 0.82));
+          // WebP; JPEG nos browsers que não o geram (iPhone)
+          blobs.push(await comprimirFoto(f.file, 1600, 0.82));
         } catch {
           setErro(`Não foi possível ler "${f.file.name}". Usa JPG ou PNG.`);
           return;
@@ -120,7 +121,9 @@ function Formulario({
 
       const fd = new FormData();
       fd.set("texto", v.texto);
-      blobs.forEach((b, i) => fd.append("fotos", new File([b], `foto-${i}.webp`, { type: b.type })));
+      blobs.forEach((b, i) =>
+        fd.append("fotos", new File([b], `foto-${i}.${b.type === "image/jpeg" ? "jpg" : "webp"}`, { type: b.type })),
+      );
 
       if (editar) {
         fd.set("manter", JSON.stringify(mantidas));

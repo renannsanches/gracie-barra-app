@@ -34,6 +34,8 @@ const FOTO_INVALIDA: Falha = { ok: false, erro: "Foto inválida ou demasiado gra
 const FALHA_UPLOAD: Falha = { ok: false, erro: "Não foi possível enviar as fotos. Tenta outra vez." };
 
 const TAMANHO_MAXIMO_FOTO = 5 * 1024 * 1024;
+// WebP por defeito; JPEG quando o browser não gera WebP (Safari/iPhone). Extensão no bucket por tipo.
+const EXTENSAO_POR_TIPO: Record<string, string> = { "image/webp": "webp", "image/jpeg": "jpg" };
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -62,13 +64,13 @@ function lerTexto(formData: FormData): string {
   return typeof texto === "string" ? texto : "";
 }
 
-// null = há algum ficheiro que não é uma imagem WebP dentro do limite
+// null = há algum ficheiro que não é uma imagem WebP/JPEG dentro do limite
 function lerFotosNovas(formData: FormData): File[] | null {
   const valores = formData.getAll("fotos");
   const ficheiros: File[] = [];
   for (const v of valores) {
     if (!(v instanceof File)) return null;
-    if (v.type !== "image/webp" || v.size === 0 || v.size > TAMANHO_MAXIMO_FOTO) return null;
+    if (!Object.hasOwn(EXTENSAO_POR_TIPO, v.type) || v.size === 0 || v.size > TAMANHO_MAXIMO_FOTO) return null;
     ficheiros.push(v);
   }
   return ficheiros;
@@ -85,11 +87,12 @@ async function enviarFotos(
   const urls: string[] = [];
   const caminhos: string[] = [];
   for (let i = 0; i < ficheiros.length; i++) {
-    const caminho = `${postId}/${inicio + i}-${crypto.randomUUID()}.webp`;
+    const tipo = ficheiros[i].type;
+    const caminho = `${postId}/${inicio + i}-${crypto.randomUUID()}.${EXTENSAO_POR_TIPO[tipo]}`;
     try {
       const { error } = await admin.storage
         .from(BUCKET_FEED)
-        .upload(caminho, ficheiros[i], { contentType: "image/webp" });
+        .upload(caminho, ficheiros[i], { contentType: tipo });
       if (error) {
         console.error("[feed] upload de foto", error.message);
         // Pode ter ficado gravado mesmo com erro (ex.: resposta perdida): tenta-se remover
