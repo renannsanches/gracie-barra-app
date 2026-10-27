@@ -117,6 +117,7 @@ export async function carregarPaginaFeed(
     curtidas: curtidas[i],
     curtiEu: curtidosPorMim.has(p.id),
     comentarios: comentarios[i],
+    dados: null, // provisório — a Task 2 lê a coluna `dados`
   }));
 
   const ultimo = mostrados[mostrados.length - 1];

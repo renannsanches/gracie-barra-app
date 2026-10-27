@@ -2,7 +2,7 @@
 // Sem Supabase nem React — é importado tanto por server actions como por componentes
 // cliente, por isso só usa APIs que existem no browser e no Node (TextEncoder, btoa, Intl).
 // Testado em feed.test.ts.
-import type { PerfilUsuario } from "./types";
+import type { CategoriaFaixa, CorFaixa, PerfilUsuario } from "./types";
 
 // ── Limites ───────────────────────────────────────────────────────────────────
 export const LIMITE_COMENTARIO = 300;
@@ -32,6 +32,34 @@ export const AUTOR_ACADEMIA: AutorFeed = {
   foto: "/logo.webp",
 };
 
+// Dados estruturados dos posts automáticos (coluna `dados` de feed_posts)
+export interface DadosGraduacao {
+  kind: "graduacao";
+  alunoId: string;
+  nome: string;
+  faixa: CorFaixa;
+  graus: number;
+  categoria: CategoriaFaixa;
+}
+
+export interface EntradaPodio {
+  alunoId: string;
+  nome: string;
+  foto: string | null;
+  faixa: string | null;
+  graus: number;
+  categoria: string | null;
+  aulas: number;
+  posicao: number;
+}
+
+export interface DadosPodio {
+  kind: "podio";
+  mes: string; // "YYYY-MM"
+  adultos: EntradaPodio[];
+  kids: EntradaPodio[];
+}
+
 export interface PostFeed {
   id: string;
   tipo: TipoPost;
@@ -43,6 +71,7 @@ export interface PostFeed {
   curtidas: number;
   curtiEu: boolean;
   comentarios: number;
+  dados: DadosGraduacao | DadosPodio | null;
 }
 
 // cursor null = não há mais páginas
