@@ -72,6 +72,8 @@ test.describe("post automático de graduação", () => {
   let alunoId = "";
   let original: { faixa: string | null; graus: number; categoria: string; ocultar_ranking: boolean } | null = null;
   const graduacoesAntes = new Set<string>();
+  const criadas = new Set<string>(); // graduações registadas por este teste, guardadas logo que se sabem
+  let snapshotFeito = false;
 
   function hojeLisboa(): string {
     return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Lisbon", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
@@ -114,30 +116,56 @@ test.describe("post automático de graduação", () => {
     const { data: grads, error: erroGrads } = await admin.from("historico_graduacoes").select("id").eq("aluno_id", alunoId);
     if (erroGrads) throw new Error(`historico_graduacoes: ${erroGrads.message}`);
     for (const g of grads ?? []) graduacoesAntes.add(g.id as string);
+    snapshotFeito = true;
   });
 
   test.afterAll(async () => {
-    if (!alunoId) return;
-    const novas = await graduacoesNovas();
-    const posts = await postsDe(novas);
-    const marca = "/object/public/feed/";
-    const caminhos = posts
-      .flatMap((p) => (p.fotos as string[] | null) ?? [])
-      .map((url) => (url.includes(marca) ? url.slice(url.indexOf(marca) + marca.length).split(/[?#]/)[0] : ""))
-      .filter(Boolean);
-    if (caminhos.length > 0) {
-      const { error } = await admin.storage.from("feed").remove(caminhos);
-      if (error) throw new Error(`limpeza do bucket feed: ${error.message}`);
+    // Sem o retrato do beforeAll não se sabe o que é "novo": não se toca em nada
+    if (!snapshotFeito || !original) return;
+    const erros: string[] = [];
+    const tentar = async (passo: () => Promise<void>) => {
+      try {
+        await passo();
+      } catch (e) {
+        erros.push(e instanceof Error ? e.message : String(e));
+      }
+    };
+
+    // 1.º o perfil: mesmo que o resto falhe, o aluno de teste volta a ficar fora do ranking
+    await tentar(() => perfilDoAluno(original!));
+
+    // Graduações deste teste = as registadas (mesmo que a linha já não exista) + as que sobrarem
+    await tentar(async () => {
+      for (const id of await graduacoesNovas()) criadas.add(id);
+    });
+    const ids = [...criadas];
+
+    // Posts pela referência, existam ou não as graduações (apanha posts órfãos)
+    await tentar(async () => {
+      const posts = await postsDe(ids);
+      const marca = "/object/public/feed/";
+      const caminhos = posts
+        .flatMap((p) => (p.fotos as string[] | null) ?? [])
+        .map((url) => (url.includes(marca) ? url.slice(url.indexOf(marca) + marca.length).split(/[?#]/)[0] : ""))
+        .filter(Boolean);
+      if (posts.length > 0) {
+        const { error } = await admin.from("feed_posts").delete().eq("tipo", "graduacao").in("id", posts.map((p) => p.id));
+        if (error) throw new Error(`limpeza de feed_posts: ${error.message}`);
+      }
+      if (caminhos.length > 0) {
+        const { error } = await admin.storage.from("feed").remove(caminhos);
+        if (error) throw new Error(`limpeza do bucket feed: ${error.message}`);
+      }
+    });
+
+    if (ids.length > 0) {
+      await tentar(async () => {
+        const { error } = await admin.from("historico_graduacoes").delete().eq("aluno_id", alunoId).in("id", ids);
+        if (error) throw new Error(`limpeza de historico_graduacoes: ${error.message}`);
+      });
     }
-    if (posts.length > 0) {
-      const { error } = await admin.from("feed_posts").delete().eq("tipo", "graduacao").in("id", posts.map((p) => p.id));
-      if (error) throw new Error(`limpeza de feed_posts: ${error.message}`);
-    }
-    if (novas.length > 0) {
-      const { error } = await admin.from("historico_graduacoes").delete().eq("aluno_id", alunoId).in("id", novas);
-      if (error) throw new Error(`limpeza de historico_graduacoes: ${error.message}`);
-    }
-    if (original) await perfilDoAluno(original);
+
+    if (erros.length > 0) throw new Error(erros.join(" | "));
   });
 
   test("faixa nova publica no feed; apagar a graduação tira o post; aluno oculto não publica", async ({ page, context }) => {
@@ -155,6 +183,7 @@ test.describe("post automático de graduação", () => {
       await page.getByRole("button", { name: "Registar Graduação" }).click();
       await expect(page.getByText("Nova Graduação", { exact: true })).toHaveCount(0, { timeout: 15_000 });
       const novas = await graduacoesNovas();
+      for (const id of novas) criadas.add(id);
       expect(novas).toHaveLength(1);
       return novas[0];
     }
