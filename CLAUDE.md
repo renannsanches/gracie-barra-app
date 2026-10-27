@@ -71,7 +71,8 @@ npm run test:e2e:report   # ver relatório HTML do último run
 | `cadastro.spec.ts` | Redirecionamentos de auth + fluxo de cadastro com utilizador fresh |
 | `presenca.spec.ts` | Geração de QR Code + countdown + expiração |
 | `financeiro.spec.ts` | Marcar mensalidade como paga + desmarcar (admin) |
-| `gamificacao.spec.ts` | Card no /perfil, /conquistas, abas do /ranking (aluno de teste fica oculto do ranking) |
+| `gamificacao.spec.ts` | Pílulas do Início (/perfil), /conquistas, abas do /ranking (aluno de teste fica oculto do ranking) |
+| `feed.spec.ts` | Staff publica, aluno põe gosto e comenta, staff apaga (projecto admin; limpa os posts `e2e-feed-*` e os ficheiros) |
 
 A BD dos testes é a de produção: o `global-setup` põe `ocultar_ranking = true` nos utilizadores de teste para não aparecerem no ranking real.
 
@@ -143,7 +144,8 @@ PLAYWRIGHT_ADMIN_PASSWORD=<strong-random>
 /cadastro               → onboarding multi-step (3 tipos de perfil)
 /esqueci-senha          → pedido de reset de password
 /nova-senha             → formulário de nova password
-/perfil                 → home do aluno: faixa, mensalidade, dependentes, acções rápidas; admin/professor vêem card de alunos aptos a graduar
+/perfil                 → Início: pílulas Feed · Ranking · Conquistas · Galeria (`?tab=`); staff vê o compositor de publicações; aqui vivem os modais (mensalidade, medalhas, aptos a graduar)
+/conta                  → Minha conta: dados, faixa, mensalidades, dependentes, card de aptos a graduar + Dashboard (staff), Sair
 /presenca               → gera QR Code (self ou dependentes); polling até confirmação
 /presencas              → histórico de presenças com calendário visual e filtro por mês
 /aulas                  → vista semanal de aulas disponíveis; reservar/cancelar
@@ -294,6 +296,9 @@ Ao concluir cadastro:
 | `albuns` | Álbuns de fotos (título, capa, autor) |
 | `fotos` | Fotos dentro de álbuns (URL no Storage, legenda) |
 | `conquistas` | Medalhas ganhas (`codigo`, `referencia` = mês nas repetíveis, `conquistada_em`, `vista_em`, `notificada_em`). Só o servidor grava (service_role) |
+| `feed_posts` | Publicações do feed (`autor_id` null = academia, `tipo` manual/graduacao/podio, `texto` ≤2000, `fotos` ≤10 caminhos no bucket `feed`, `referencia` única por tipo para os automáticos). RLS ligada **sem policies** → só service_role |
+| `feed_curtidas` | Gostos (post_id + user_id). Só service_role |
+| `feed_comentarios` | Comentários (texto 1–300). Só service_role |
 | `grupos_alunos` | Locais de treino (nome, ativo, padrao). Cada modalidade pertence a um local; o(s) local(is) do aluno são derivados das suas modalidades (`profiles.grupo_id` está obsoleto — não usar) |
 | `modalidades` | Catálogo (nome, valor, valor_infantil, ativo, padrao, `grupo_id` = local, `desconta_noutro_local`). Nome único por local. Padrão (Jiu-Jitsu Academia) = registos da app |
 | `aluno_modalidades` | "Plano" do aluno: modalidades + valor próprio + `cobrar` (false = pago diretamente no local, fora da app) |
@@ -342,6 +347,7 @@ grupo_id: string | null   // OBSOLETO — o local vem das modalidades (aluno_mod
 | `avatars` | Fotos de perfil dos alunos |
 | `galeria` | Fotos dos álbuns |
 | `Contrato` | PDF do contrato de prestação de serviços |
+| `feed` | Fotos do feed — público, 5 MB, `image/webp` e `image/jpeg` (JPEG porque o Safari/iPhone não gera WebP a partir do canvas; `comprimirFoto` em `src/lib/comprimir-imagem.ts` cai para JPEG) |
 
 ---
 
@@ -389,6 +395,12 @@ ActionResult = { ok: boolean; erro?: string }  // retorno padrão de Server Acti
 | `skeletons` + `ui/skeleton` | Blocos para os `loading.tsx` — `AppPageSkeleton`, `CardListSkeleton`, `AdminPageSkeleton` |
 | `ui/dialog` | Diálogo Radix partilhado (`variant="center"` ou `"sheet"` = bottom sheet no telemóvel). Usar em vez de `fixed inset-0` à mão |
 | `ConfirmDialog` | `await confirmar({ titulo, descricao?, destrutivo? })` — substitui `window.confirm()` |
+| `InicioView` | Início em `/perfil`: pílulas Feed · Ranking · Conquistas · Galeria (`?tab=`, o voltar do browser percorre os separadores), faixa e acesso a Minha conta |
+| `FeedLista` / `PostCard` | Feed paginado (10 posts por página) e cartão de publicação com gosto, comentários e (staff) editar/apagar |
+| `FotosCarrossel` | Carrossel de fotos de um post (até 10) |
+| `CurtidasSheet` / `ComentariosSheet` | Bottom sheets com quem deu gosto e com os comentários (máx. 300 caracteres) |
+| `PostComposer` | Compositor de publicações (staff): texto ≤2000, até 10 fotos comprimidas no cliente, 4 MB no total por envio (limite do body na Vercel) |
+| `ContaView` | Minha conta em `/conta` (antiga `PerfilView`): dados, faixa, mensalidades, dependentes, aptos a graduar; `BottomNav` marca Início também em `/conta` |
 | `FeedbackHosts` | `<Toaster>` (sonner, topo) + host do `confirmar()`; montado nos layouts `(app)` e `admin` |
 
 ---
@@ -405,6 +417,7 @@ canvas     // #F5F5F5 — fundo das páginas
 surface    // #FFFFFF — cards
 success / warning / destructive
 whatsapp / whatsapp-dark          // botões "Falar com a Simone"
+fg / fg-muted / line              // texto principal / secundário / bordas (--fg, --fg-muted, --line em globals.css)
 // gb-blue, gb-black, gb-gray… continuam como aliases (gb-blue é o vermelho, nome histórico)
 ```
 
@@ -445,6 +458,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | Enum `responsavel` em falta no DB | Adicionar ao enum Postgres antes de usar no código |
 | Índice único em `aulas` incompleto | Incluir `horario` — mesmo dia com horas diferentes gerava conflito |
 | Link de reset de password vai para `/login?erro=confirmacao` | `resetPasswordForEmail` usa fluxo OTP (`token_hash+type=recovery`), não PKCE — o callback tem de tratar ambos os casos com `verifyOtp` |
+| Dev/e2e a enviar push a alunos reais | Dev, e2e e produção partilham a BD e as chaves VAPID. Push só sai com `VERCEL_ENV=production` (`pushAtivo` em `src/lib/push-ativo.ts`); fora de produção as escritas de deduplicação (`notificacoes_*_enviadas`, `conquistas.notificada_em`) também são saltadas, para não gastar o "já notificado" |
 | Push de mensalidade não chega a dependentes | Dependentes (`sem_login=true`) não têm push subscription própria — buscar na tabela `dependentes` e substituir pelos IDs dos responsáveis antes de consultar `push_subscriptions` |
 | `/api/push/send` bloqueada pelo middleware | Adicionar à lista de paths públicos — é chamada pelo Vercel Cron sem sessão de utilizador |
 | `proxy.ts` não suportado no Vercel | Usar `middleware.ts` — o Vercel não reconhece `proxy.ts` como middleware Next.js |
@@ -455,7 +469,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 
 | Débito | Impacto | Prioridade |
 |--------|---------|------------|
-| Testes E2E só cobrem 4 fluxos; testes unitários só para a gamificação | Risco em refactors | Média |
+| Testes E2E só cobrem 5 fluxos; testes unitários só para a gamificação | Risco em refactors | Média |
 | Cadastro sem rollback transaccional | Perfis parciais se mensalidades falharem | Média |
 | Uploads de Storage não atómicos | Ficheiros órfãos se DB falhar a seguir | Média |
 | Race condition na capacidade de aulas | Exceder lotação com utilizadores simultâneos | Baixa (academia pequena) |
@@ -505,10 +519,15 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | — | **Colégio e descontos** | Modalidade "Jiu-Jitsu · Colégio" 13 € com `desconta_noutro_local`: ao juntar uma modalidade de outro local, o editor passa o Colégio a "pago no colégio" (`cobrar=false`) e cria "Desconto aluno do Colégio −13 €" (editável); ao sair, reverte. Ficha mostra "Onde treina"; filtros de grupo (Cadastros, Financeiro) usam locais derivados; descontos manuais no editor |
 | 17 | **Gamificação** | `/ranking` (mês/ano, Adultos/Kids pela regra da graduação, empates 1,1,3, opção de ocultar); `/conquistas` (sequência = semanas seg–dom com ≥2 aulas, semana sem ninguém na academia é pausa; medalhas de aulas 10–500, sequências 4–52, Mês perfeito, Top 3 do mês desde 2026-10, 1/2/3 anos). Regras em `src/lib/gamificacao.ts` (testadas com vitest); gravação em `src/lib/conquistas-sync.ts` — depois do QR (ecrã de confirmação), na presença manual do tablet (`after`) e no cron diário `type=conquistas` (`?dry=1` só conta). Push agrupado por pessoa; backfill antigo não gera push |
 
+| 18 | **Feed da academia (PR 1)** | `/perfil` é o Início com pílulas Feed · Ranking · Conquistas · Galeria; `/conta` = Minha conta. Staff publica/edita/apaga (texto + até 10 fotos); aluno/responsável/professor põem gosto e comentam. Tabelas `feed_*` + bucket `feed` (migrações `20261026120000_feed.sql` e `20261027120000_feed_jpeg.sql`, já aplicadas em produção). Push: novo post → alunos/responsáveis/professores activos (menos o autor); comentário → só o autor do post; gostos não notificam. Regras puras em `src/lib/feed.ts` (testadas); loaders partilhados `dados.ts` em ranking/conquistas/galeria. Desvio ao spec §5.2: sem linha "Notificações" em Minha conta (não existe toggle de push); a linha "Modo escuro" vem no PR 3 |
+
 ### ❌ Por implementar
 
 | Fase | Funcionalidade | Prioridade |
 |------|---------------|------------|
+| 18 | **Feed — posts automáticos** (graduações e pódio mensal, `tipo` graduacao/podio, `autor_id` null) — PR 2 do spec `docs/superpowers/specs/2026-10-26-feed-design.md` | Média |
+| 18 | **Modo escuro** — PR 3 do mesmo spec; traz a linha "Modo escuro" em Minha conta | Baixa |
+| 18 | **Vídeo no feed via Bunny Stream** — decisão do dono; o feed arranca só com fotos (spec §3) | Baixa |
 | 15 | **UI/UX Polishing** — feito (PRs #61–#63): tokens, safe areas, zoom, skeletons, barra inferior, toasts, diálogos/confirmações, UI optimista, micro-interacções, cores/tipografia consistentes. Opcional: Barlow Condensed nos números (`docs/plano-fluidez-ui.md`) | — |
 
 ---
