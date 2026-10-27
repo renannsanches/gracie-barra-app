@@ -4,7 +4,9 @@ import {
   sendPushResponsavelAula,
   sendPushGraduacao,
   sendPushConquistas,
+  sendPushPodio,
 } from "@/lib/push-sender";
+import { gerarPostPodio } from "@/lib/feed-servidor";
 import { sincronizarConquistas } from "@/lib/conquistas-sync";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -35,6 +37,25 @@ export async function GET(req: Request) {
       const r = await sincronizarConquistas(createAdminClient(), { dry });
       if (!dry) await sendPushConquistas();
       return Response.json({ dry, alunos: r.alunos, novas: r.novas.length, porCodigo: r.porCodigo });
+    } else if (type === "feed_podio") {
+      // ?dry=1 só calcula (a BD de dev e produção é a mesma); só com dry se aceita ?hoje=YYYY-MM-DD
+      const dry = searchParams.get("dry") === "1";
+      let hoje: string | undefined;
+      if (dry && searchParams.has("hoje")) {
+        hoje = searchParams.get("hoje") ?? "";
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(hoje)) return new Response("Parâmetro hoje inválido", { status: 400 });
+      }
+      const r = await gerarPostPodio(createAdminClient(), { dry, hoje });
+      // só quem inseriu o post manda push
+      if (r.publicado) await sendPushPodio(r.mes!);
+      return Response.json({
+        dry,
+        mes: r.mes,
+        publicado: r.publicado,
+        jaExistia: r.jaExistia,
+        adultos: r.podio?.adultos.length ?? 0,
+        kids: r.podio?.kids.length ?? 0,
+      });
     } else {
       return new Response(`Tipo desconhecido: ${type}`, { status: 400 });
     }

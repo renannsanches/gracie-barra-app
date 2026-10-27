@@ -4,6 +4,7 @@ import { calcularElegibilidade } from "./graduacao-rules";
 import { CONQUISTAS_POR_CODIGO } from "./gamificacao";
 import { pushAtivo } from "./push-ativo";
 import { nomeCurto } from "./feed";
+import { nomeMes } from "./feed-automatico";
 import type { CorFaixa } from "./types";
 
 webpush.setVapidDetails(
@@ -407,21 +408,25 @@ export async function sendPushConquistas() {
 
 const LIMITE_TEXTO_PUSH = 80;
 
+// Membros activos que recebem as novidades do feed (aluno, responsável e professor), sem o autor
+async function idsMembrosAtivos(excluirId?: string): Promise<string[]> {
+  const admin = createAdminClient();
+  let query = admin
+    .from("profiles")
+    .select("id")
+    .eq("status", "ativo")
+    .in("perfil", ["aluno", "responsavel", "professor"]);
+  if (excluirId) query = query.neq("id", excluirId);
+  const { data } = await query;
+  return (data ?? []).map((p) => p.id as string);
+}
+
 /**
  * Nova publicação de staff: avisa os membros activos (como sendPushAviso), menos o autor.
  * Sem texto (post só com fotos) usa uma frase fixa.
  */
 export async function sendPushNovoPost(autorId: string, texto: string) {
-  const admin = createAdminClient();
-  const { data: profiles } = await admin
-    .from("profiles")
-    .select("id")
-    .eq("status", "ativo")
-    .in("perfil", ["aluno", "responsavel", "professor"])
-    .neq("id", autorId);
-  if (!profiles || profiles.length === 0) return;
-
-  const subs = await getSubscriptions(profiles.map((p) => p.id));
+  const subs = await getSubscriptions(await idsMembrosAtivos(autorId));
   if (subs.length === 0) return;
 
   // Corta por caracteres (code points), para não partir um emoji ao meio
@@ -459,4 +464,16 @@ export async function sendPushComentario(postId: string, comentadorId: string, t
   const corpo = letras.length > LIMITE_TEXTO_PUSH ? `${letras.slice(0, LIMITE_TEXTO_PUSH).join("")}…` : texto;
   const nome = nomeCurto(comentador?.nome_completo ?? "") || "Alguém";
   await sendToSubscriptions(subs, { title: "Novo comentário", body: `${nome}: ${corpo}`, url: "/perfil" });
+}
+
+/** Pódio do mês publicado no feed: avisa todos os membros activos (ninguém é excluído). */
+export async function sendPushPodio(mes: string) {
+  const subs = await getSubscriptions(await idsMembrosAtivos());
+  if (subs.length === 0) return;
+
+  await sendToSubscriptions(subs, {
+    title: `Pódio de ${nomeMes(mes)}`,
+    body: `Vê quem mais treinou em ${nomeMes(mes)}.`,
+    url: "/perfil",
+  });
 }

@@ -6,9 +6,16 @@ import {
   ERRO_POST_INEXISTENTE,
   caminhoNoBucket,
   type DadosGraduacao,
+  type DadosPodio,
 } from "@/lib/feed";
-import { deveCriarPostGraduacao, textoGraduacao } from "@/lib/feed-automatico";
-import { grupoRanking, hojeLisboa, nomeRanking } from "@/lib/gamificacao";
+import {
+  deveCriarPostGraduacao,
+  mesDoPodio,
+  montarPodio,
+  textoGraduacao,
+  textoPodio,
+} from "@/lib/feed-automatico";
+import { grupoRanking, hojeLisboa, limitesPeriodo, nomeRanking } from "@/lib/gamificacao";
 import type { CategoriaFaixa, CorFaixa } from "@/lib/types";
 
 export type Admin = ReturnType<typeof createAdminClient>;
@@ -91,6 +98,11 @@ export async function publicarPostGraduacao(
     });
     if (!deve) return;
 
+    // Sem nome não há post: sairia "recebeu a faixa…" sem ninguém
+    if (!((aluno.nome_completo as string | null) ?? "").trim()) {
+      console.error("[feed] post de graduação: aluno sem nome", g.alunoId);
+      return;
+    }
     const nome = nomeRanking(
       (aluno.nome_completo as string | null) ?? "",
       grupoRanking(g.faixaNova, g.categoria),
@@ -137,4 +149,67 @@ export async function apagarPostGraduacao(admin: Admin, graduacaoId: string): Pr
   } catch (e) {
     console.error("[feed] apagar post de graduação:", e);
   }
+}
+
+interface LinhaRankingRpc {
+  aluno_id: string;
+  nome_completo: string;
+  foto_url: string | null;
+  faixa: string | null;
+  graus: number;
+  categoria: string | null;
+  aulas: number;
+}
+
+// Pódio do mês anterior (a publicar no 1.º dia do mês, ou nos seguintes se falhar). Idempotente:
+// um post por mês. Com `dry` só calcula, nunca escreve. Lança se o RPC falhar, para o cron
+// registar o erro em vez de saltar um mês em silêncio.
+export async function gerarPostPodio(
+  admin: Admin,
+  opts: { dry: boolean; hoje?: string },
+): Promise<{ mes: string | null; publicado: boolean; jaExistia: boolean; podio: DadosPodio | null }> {
+  const mes = mesDoPodio(opts.hoje ?? hojeLisboa());
+  if (!mes) return { mes: null, publicado: false, jaExistia: false, podio: null };
+
+  const { data: existente, error: erroExistente } = await admin
+    .from("feed_posts")
+    .select("id")
+    .eq("tipo", "podio")
+    .eq("referencia", mes)
+    .maybeSingle();
+  if (erroExistente) throw new Error(`[feed] pódio: ${erroExistente.message}`);
+  if (existente) return { mes, publicado: false, jaExistia: true, podio: null };
+
+  const { inicio, fim } = limitesPeriodo("mes", `${mes}-01`);
+  const { data: linhas, error: erroRpc } = await admin.rpc("ranking_presencas", {
+    p_inicio: inicio,
+    p_fim: fim,
+  });
+  if (erroRpc) throw new Error(`[feed] pódio: ranking_presencas: ${erroRpc.message}`);
+
+  const podio = montarPodio(
+    ((linhas ?? []) as LinhaRankingRpc[]).map((r) => ({
+      alunoId: r.aluno_id,
+      nomeCompleto: r.nome_completo,
+      foto: r.foto_url,
+      faixa: r.faixa,
+      graus: r.graus,
+      categoria: r.categoria,
+      aulas: r.aulas,
+    })),
+    mes,
+  );
+  if (opts.dry || !podio) return { mes, publicado: false, jaExistia: false, podio };
+
+  const { error } = await admin.from("feed_posts").insert({
+    tipo: "podio",
+    autor_id: null,
+    referencia: mes,
+    texto: textoPodio(podio),
+    dados: podio,
+  });
+  // 23505 = outro pedido publicou entretanto: quem não inseriu não manda push
+  if (error?.code === "23505") return { mes, publicado: false, jaExistia: true, podio };
+  if (error) throw new Error(`[feed] pódio: ${error.message}`);
+  return { mes, publicado: true, jaExistia: false, podio };
 }
