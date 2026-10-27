@@ -48,9 +48,12 @@ async function removerDoBucket(admin: Admin, caminhos: string[]): Promise<void> 
   }
 }
 
-// Caminhos no bucket de URLs guardados pelo servidor numa linha de post
-function caminhosDeUrls(urls: string[]): string[] {
-  return urls.map((u) => caminhoNoBucket(u)).filter((c): c is string => c !== null);
+// Caminhos no bucket de URLs guardados pelo servidor numa linha de post. Só entram os que
+// estão na pasta deste post: qualquer outro caminho que apareça na linha fica intocado.
+function caminhosDeUrls(postId: string, urls: string[]): string[] {
+  return urls
+    .map((u) => caminhoNoBucket(u))
+    .filter((c): c is string => c !== null && c.startsWith(`${postId}/`));
 }
 
 function lerTexto(formData: FormData): string {
@@ -82,16 +85,23 @@ async function enviarFotos(
   const caminhos: string[] = [];
   for (let i = 0; i < ficheiros.length; i++) {
     const caminho = `${postId}/${inicio + i}-${crypto.randomUUID()}.webp`;
-    const { error } = await admin.storage
-      .from(BUCKET_FEED)
-      .upload(caminho, ficheiros[i], { contentType: "image/webp" });
-    if (error) {
-      console.error("[feed] upload de foto", error.message);
-      await removerDoBucket(admin, caminhos);
+    try {
+      const { error } = await admin.storage
+        .from(BUCKET_FEED)
+        .upload(caminho, ficheiros[i], { contentType: "image/webp" });
+      if (error) {
+        console.error("[feed] upload de foto", error.message);
+        // Pode ter ficado gravado mesmo com erro (ex.: resposta perdida): tenta-se remover
+        await removerDoBucket(admin, [...caminhos, caminho]);
+        return FALHA_UPLOAD;
+      }
+      caminhos.push(caminho);
+      urls.push(admin.storage.from(BUCKET_FEED).getPublicUrl(caminho).data.publicUrl);
+    } catch (e) {
+      console.error("[feed] upload de foto (excepção)", e);
+      await removerDoBucket(admin, [...caminhos, caminho]);
       return FALHA_UPLOAD;
     }
-    caminhos.push(caminho);
-    urls.push(admin.storage.from(BUCKET_FEED).getPublicUrl(caminho).data.publicUrl);
   }
   return { ok: true, urls, caminhos };
 }
@@ -113,17 +123,23 @@ export async function criarPost(formData: FormData): Promise<ActionResult> {
   const envio = await enviarFotos(admin, postId, ficheiros, 0);
   if (!envio.ok) return envio;
 
-  const { error } = await admin.from("feed_posts").insert({
-    id: postId,
-    autor_id: guard.userId,
-    tipo: "manual",
-    texto: validacao.texto,
-    fotos: envio.urls,
-  });
-  if (error) {
-    console.error("[feed] criarPost insert", error.message);
+  try {
+    const { error } = await admin.from("feed_posts").insert({
+      id: postId,
+      autor_id: guard.userId,
+      tipo: "manual",
+      texto: validacao.texto,
+      fotos: envio.urls,
+    });
+    if (error) {
+      console.error("[feed] criarPost insert", error.message);
+      await removerDoBucket(admin, envio.caminhos);
+      return { ok: false, erro: error.message };
+    }
+  } catch (e) {
+    console.error("[feed] criarPost insert (excepção)", e);
     await removerDoBucket(admin, envio.caminhos);
-    return { ok: false, erro: error.message };
+    return FALHA_UPLOAD;
   }
 
   revalidatePath("/perfil");
@@ -153,9 +169,11 @@ export async function editarPost(postId: string, formData: FormData): Promise<Ac
   // `manter` vem do cliente: só conta o que já está na linha do post (e sem repetidos)
   const fotosActuais = ((post.fotos as string[] | null) ?? []).filter((u) => typeof u === "string");
   const bruto = formData.get("manter");
+  // Campo em falta não é "manter nada": apagaria todas as fotos por engano
+  if (typeof bruto !== "string") return PEDIDO_INVALIDO;
   let pedidas: unknown;
   try {
-    pedidas = JSON.parse(typeof bruto === "string" ? bruto : "[]");
+    pedidas = JSON.parse(bruto);
   } catch {
     return PEDIDO_INVALIDO;
   }
@@ -172,24 +190,30 @@ export async function editarPost(postId: string, formData: FormData): Promise<Ac
   const envio = await enviarFotos(admin, postId, novas, manter.length);
   if (!envio.ok) return envio;
 
-  const { data: actualizado, error } = await admin
-    .from("feed_posts")
-    .update({
-      texto: validacao.texto,
-      fotos: [...manter, ...envio.urls],
-      editado_em: new Date().toISOString(),
-    })
-    .eq("id", postId)
-    .select("id");
-  if (error || !actualizado || actualizado.length === 0) {
-    if (error) console.error("[feed] editarPost update", error.message);
+  try {
+    const { data: actualizado, error } = await admin
+      .from("feed_posts")
+      .update({
+        texto: validacao.texto,
+        fotos: [...manter, ...envio.urls],
+        editado_em: new Date().toISOString(),
+      })
+      .eq("id", postId)
+      .select("id");
+    if (error || !actualizado || actualizado.length === 0) {
+      if (error) console.error("[feed] editarPost update", error.message);
+      await removerDoBucket(admin, envio.caminhos);
+      return error ? { ok: false, erro: error.message } : POST_INEXISTENTE;
+    }
+  } catch (e) {
+    console.error("[feed] editarPost update (excepção)", e);
     await removerDoBucket(admin, envio.caminhos);
-    return error ? { ok: false, erro: error.message } : POST_INEXISTENTE;
+    return FALHA_UPLOAD;
   }
 
   // Só agora, com a linha já gravada, saem do bucket as fotos que o post deixou de ter
   const mantidas = new Set(manter);
-  await removerDoBucket(admin, caminhosDeUrls(fotosActuais.filter((u) => !mantidas.has(u))));
+  await removerDoBucket(admin, caminhosDeUrls(postId, fotosActuais.filter((u) => !mantidas.has(u))));
 
   revalidatePath("/perfil");
   return { ok: true };
@@ -214,7 +238,7 @@ export async function apagarPost(postId: string): Promise<ActionResult> {
   const { error } = await admin.from("feed_posts").delete().eq("id", postId);
   if (error) return { ok: false, erro: error.message };
 
-  await removerDoBucket(admin, caminhosDeUrls(((post.fotos as string[] | null) ?? []).filter((u) => typeof u === "string")));
+  await removerDoBucket(admin, caminhosDeUrls(postId, ((post.fotos as string[] | null) ?? []).filter((u) => typeof u === "string")));
 
   revalidatePath("/perfil");
   return { ok: true };
