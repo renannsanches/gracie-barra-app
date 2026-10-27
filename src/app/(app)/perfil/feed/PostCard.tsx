@@ -20,6 +20,8 @@ import { PostComposer } from "./PostComposer";
 import { AvatarAutor, CurtidasSheet } from "./CurtidasSheet";
 import { ComentariosSheet } from "./ComentariosSheet";
 import { FotosCarrossel } from "./FotosCarrossel";
+import { PostGraduacao } from "./PostGraduacao";
+import { PostPodio } from "./PostPodio";
 
 const ITEM_MENU =
   "flex h-11 cursor-pointer select-none items-center gap-2.5 rounded-lg px-3 text-sm font-medium outline-none transition-colors duration-fast data-[highlighted]:bg-canvas";
@@ -176,7 +178,27 @@ export function PostCard({
       </header>
 
       {conteudo.texto && (
-        <p className="mt-3 whitespace-pre-line break-words text-[15px] leading-relaxed text-fg">{conteudo.texto}</p>
+        <p
+          className={cn(
+            // No pódio o texto repete a lista: fica só para os leitores de ecrã
+            post.dados?.kind === "podio"
+              ? "sr-only"
+              : "mt-3 whitespace-pre-line break-words text-[15px] leading-relaxed text-fg",
+          )}
+        >
+          {conteudo.texto}
+        </p>
+      )}
+
+      {post.dados?.kind === "graduacao" && (
+        <div className="mt-3">
+          <PostGraduacao dados={post.dados} />
+        </div>
+      )}
+      {post.dados?.kind === "podio" && (
+        <div className="mt-3">
+          <PostPodio dados={post.dados} />
+        </div>
       )}
 
       {conteudo.fotos.length > 0 && (
