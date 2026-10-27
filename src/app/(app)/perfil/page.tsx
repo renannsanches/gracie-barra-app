@@ -1,17 +1,39 @@
+import { Suspense } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { calcularAptosGraduar, type AptoGraduar } from "@/lib/aptos-graduar";
-import type { Profile, Mensalidade, HistoricoGraduacao, DependentePerfil } from "@/lib/types";
-import { PerfilView } from "./PerfilView";
+import { calcularAptosGraduar } from "@/lib/aptos-graduar";
+import type { CategoriaFaixa, CorFaixa, Mensalidade, PerfilUsuario } from "@/lib/types";
 import { GraduacaoAptosModal } from "@/components/GraduacaoAptosModal";
 import { CHAVE_AVISO_GRADUACAO, janelaAvisoGraduacao } from "@/lib/aviso-graduacao";
 import { NovaConquistaModal, type ConquistaPorVer } from "@/components/NovaConquistaModal";
-import { carregarEstadoGamificacao } from "@/lib/conquistas-sync";
+import { CardListSkeleton } from "@/components/skeletons";
 import { getDiasAtraso, getMaiorAtraso } from "@/lib/mensalidade-status";
-import type { ResumoGamificacao } from "./PerfilView";
+import { separadorValido, type Separador } from "@/lib/inicio";
+import { InicioView } from "./InicioView";
+import { carregarPaginaFeed } from "./feed/dados";
+import { FeedLista } from "./feed/FeedLista";
+import { RankingView } from "../ranking/RankingView";
+import { carregarRanking } from "../ranking/dados";
+import { ConquistasView } from "../conquistas/ConquistasView";
+import { carregarConquistas } from "../conquistas/dados";
+import { AlbunsGrid } from "../galeria/AlbunsGrid";
+import { carregarAlbuns } from "../galeria/dados";
 
-export default async function PerfilPage() {
+interface PerfilRow {
+  id: string;
+  nome_completo: string;
+  foto_url: string | null;
+  faixa: CorFaixa | null;
+  graus: number | null;
+  categoria: CategoriaFaixa;
+  perfil: PerfilUsuario;
+}
+
+type DependenteRow = { dependente: { id: string; nome_completo: string } | null };
+
+export default async function PerfilPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const supabase = await createClient();
 
   const {
@@ -20,138 +42,96 @@ export default async function PerfilPage() {
 
   if (!user) redirect("/login");
 
-  const now = new Date();
-  const inicioMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const separador = separadorValido((await searchParams).tab);
 
-  const [
-    { data: profile },
-    { data: mensalidades },
-    { data: graduacoes },
-    { count: presencasCount },
-    { count: presencasMesCount },
-    { data: ultimaPresenca },
-    { data: avisosData },
-    { data: dependentesData },
-  ] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
-    supabase
-      .from("mensalidades")
-      .select("*")
-      .eq("aluno_id", user.id)
-      .order("mes_referencia", { ascending: false }),
-    // Admin client: o nome do professor está noutro perfil, que o RLS não deixa o aluno ler
-    createAdminClient()
-      .from("historico_graduacoes")
-      .select("*, professor:profiles!historico_graduacoes_graduado_por_fkey(nome_completo)")
-      .eq("aluno_id", user.id)
-      .order("data_graduacao", { ascending: false }),
-    supabase
-      .from("presencas")
-      .select("id", { count: "exact", head: true })
-      .eq("aluno_id", user.id),
-    supabase
-      .from("presencas")
-      .select("id", { count: "exact", head: true })
-      .eq("aluno_id", user.id)
-      .gte("dia_registro", inicioMes),
-    supabase
-      .from("presencas")
-      .select("registrado_em")
-      .eq("aluno_id", user.id)
-      .order("registrado_em", { ascending: false })
-      .limit(1),
-    supabase
-      .from("avisos")
-      .select("id, titulo, created_at")
-      .eq("publicado", true)
-      .order("created_at", { ascending: false })
-      .limit(10),
-    supabase
-      .from("dependentes")
-      .select("dependente:profiles!dependentes_dependente_id_fkey(id, nome_completo, foto_url, faixa, graus, categoria)")
-      .eq("responsavel_id", user.id),
-  ]);
+  // A casca só carrega o que o cabeçalho (sino) e os modais precisam; o conteúdo do
+  // separador activo carrega à parte, dentro do Suspense.
+  const [{ data: profile }, { data: mensalidades }, { data: avisosData }, { data: dependentesData }] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, nome_completo, foto_url, faixa, graus, categoria, perfil")
+        .eq("id", user.id)
+        .single(),
+      supabase
+        .from("mensalidades")
+        .select("*")
+        .eq("aluno_id", user.id)
+        .order("mes_referencia", { ascending: false }),
+      supabase
+        .from("avisos")
+        .select("id, titulo, created_at")
+        .eq("publicado", true)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      supabase
+        .from("dependentes")
+        .select("dependente:profiles!dependentes_dependente_id_fkey(id, nome_completo)")
+        .eq("responsavel_id", user.id),
+    ]);
 
-  const p = profile as Profile;
-  const totalAulas = (p?.aulas_manual ?? 0) + (presencasCount ?? 0);
-  const aulasMes = presencasMesCount ?? 0;
-  const ultimoTreino = (ultimaPresenca?.[0] as { registrado_em: string } | undefined)?.registrado_em ?? null;
+  const p = profile as PerfilRow | null;
+  // Não redirecionar para /login: o middleware devolve um utilizador com sessão a /perfil (ciclo)
+  if (!p) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-canvas">
+        <div className="text-center space-y-3">
+          <p className="text-fg-muted">Perfil não encontrado.</p>
+          <Link href="/conta" className="text-sm font-semibold text-brand">
+            Ir para Minha conta
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const avisosNotif = (avisosData ?? []).map((a) => ({
     id: a.id as string,
     titulo: a.titulo as string,
     created_at: a.created_at as string,
   }));
 
-  const dependentesBase: DependentePerfil[] = (dependentesData ?? [])
-    .map((d) => d.dependente as unknown as Omit<DependentePerfil, "mensalidades">)
-    .filter(Boolean)
-    .map((d) => ({ ...d, mensalidades: [] }));
+  const dependentes = ((dependentesData ?? []) as unknown as DependenteRow[])
+    .map((d) => d.dependente)
+    .filter((d): d is { id: string; nome_completo: string } => Boolean(d));
 
-  let dependentes: DependentePerfil[] = dependentesBase;
-  if (dependentesBase.length > 0) {
-    const depIds = dependentesBase.map((d) => d.id);
-    const { data: depMensalidades } = await supabase
-      .from("mensalidades")
-      .select("*")
-      .in("aluno_id", depIds)
-      .order("mes_referencia", { ascending: false });
-
-    if (depMensalidades) {
-      const byAluno = new Map<string, Mensalidade[]>();
-      for (const m of depMensalidades as Mensalidade[]) {
-        if (!byAluno.has(m.aluno_id)) byAluno.set(m.aluno_id, []);
-        byAluno.get(m.aluno_id)!.push(m);
-      }
-      dependentes = dependentesBase.map((d) => ({ ...d, mensalidades: byAluno.get(d.id) ?? [] }));
-    }
-  }
-
-  const isAdminOrProfessor = p?.perfil === "admin" || p?.perfil === "professor";
-  const aptosGraduar: AptoGraduar[] = isAdminOrProfessor ? await calcularAptosGraduar(createAdminClient()) : [];
-
+  const isAdminOrProfessor = p.perfil === "admin" || p.perfil === "professor";
   const janelaAviso = janelaAvisoGraduacao();
-  const mostrarAvisoGraduacao =
-    isAdminOrProfessor &&
-    aptosGraduar.length > 0 &&
-    user.user_metadata?.[CHAVE_AVISO_GRADUACAO] !== janelaAviso;
+  // Só calcula os aptos quando o aviso desta janela ainda não foi visto (sem aptos não há aviso)
+  const avisoPorVer = isAdminOrProfessor && user.user_metadata?.[CHAVE_AVISO_GRADUACAO] !== janelaAviso;
 
-  // Gamificação: sequência e medalhas do próprio (se treina) e dos dependentes.
-  // Uma falha aqui não pode partir a página principal da app.
   const pessoasGamificacao = [
-    ...(p?.perfil !== "responsavel" ? [{ id: user.id, nome: "Eu" }] : []),
+    ...(p.perfil !== "responsavel" ? [{ id: user.id, nome: "Eu" }] : []),
     ...dependentes.map((d) => ({ id: d.id, nome: d.nome_completo.split(" ")[0] })),
   ];
-  let gamificacao: ResumoGamificacao[] = [];
-  let conquistasPorVer: ConquistaPorVer[] = [];
-  try {
-    const ids = pessoasGamificacao.map((x) => x.id);
-    const [estado, { data: conquistas }] = await Promise.all([
-      carregarEstadoGamificacao(createAdminClient(), pessoasGamificacao),
-      supabase.from("conquistas").select("id, aluno_id, codigo, vista_em").in("aluno_id", ids),
-    ]);
-    gamificacao = pessoasGamificacao.map((x) => ({
-      id: x.id,
-      nome: x.nome,
-      sequencia: estado[x.id]?.sequencia.atual ?? 0,
-      semanaAulas: estado[x.id]?.sequencia.semanaAtual.aulas ?? 0,
-      medalhas: (conquistas ?? []).filter((c) => c.aluno_id === x.id).length,
-    }));
-    conquistasPorVer = (conquistas ?? [])
-      .filter((c) => !c.vista_em)
-      .map((c) => ({
-        id: c.id as string,
-        codigo: c.codigo as string,
-        dependente: c.aluno_id === user.id ? undefined : pessoasGamificacao.find((x) => x.id === c.aluno_id)?.nome,
-      }));
-  } catch (e) {
-    console.error("[perfil] gamificação", e);
-  }
+  const idsGamificacao = pessoasGamificacao.map((x) => x.id);
+
+  const [{ data: depMensalidades }, aptosGraduar, { data: conquistas }] = await Promise.all([
+    dependentes.length > 0
+      ? supabase
+          .from("mensalidades")
+          .select("aluno_id, status, data_vencimento")
+          .in("aluno_id", dependentes.map((d) => d.id))
+      : Promise.resolve({ data: [] as Pick<Mensalidade, "aluno_id" | "status" | "data_vencimento">[] }),
+    avisoPorVer ? calcularAptosGraduar(createAdminClient()) : Promise.resolve([]),
+    idsGamificacao.length > 0
+      ? supabase.from("conquistas").select("id, aluno_id, codigo").in("aluno_id", idsGamificacao).is("vista_em", null)
+      : Promise.resolve({ data: [] as { id: string; aluno_id: string; codigo: string }[] }),
+  ]);
+
+  const mostrarAvisoGraduacao = avisoPorVer && aptosGraduar.length > 0;
+
+  const conquistasPorVer: ConquistaPorVer[] = (conquistas ?? []).map((c) => ({
+    id: c.id as string,
+    codigo: c.codigo as string,
+    dependente: c.aluno_id === user.id ? undefined : pessoasGamificacao.find((x) => x.id === c.aluno_id)?.nome,
+  }));
 
   // Não empilhar com o aviso de graduação nem com o de mensalidade em atraso (≥2 dias)
   const hoje = new Date();
   const atrasoMensalidade = Math.max(
     getMaiorAtraso((mensalidades ?? []) as Mensalidade[], hoje),
-    ...dependentes.flatMap((d) => d.mensalidades.map((m) => getDiasAtraso(m, hoje))),
+    ...(depMensalidades ?? []).map((m) => getDiasAtraso(m, hoje)),
   );
   const mostrarNovaConquista =
     conquistasPorVer.length > 0 && !mostrarAvisoGraduacao && atrasoMensalidade < 2;
@@ -160,19 +140,52 @@ export default async function PerfilPage() {
     <>
       {mostrarAvisoGraduacao && <GraduacaoAptosModal janela={janelaAviso} />}
       {mostrarNovaConquista && <NovaConquistaModal conquistas={conquistasPorVer} />}
-      <PerfilView
-        profile={p}
-        email={user.email ?? ""}
+      <InicioView
+        pessoa={{
+          id: p.id,
+          nome: p.nome_completo,
+          foto: p.foto_url,
+          faixa: p.faixa,
+          graus: p.graus ?? 0,
+          categoria: p.categoria,
+          perfil: p.perfil,
+        }}
+        separador={separador}
         mensalidades={(mensalidades ?? []) as Mensalidade[]}
-        historicoGraduacoes={(graduacoes ?? []) as HistoricoGraduacao[]}
-        totalAulas={totalAulas}
-        aulasMes={aulasMes}
-        ultimoTreino={ultimoTreino}
         avisosNotif={avisosNotif}
-        dependentes={dependentes}
-        aptosGraduar={aptosGraduar}
-        gamificacao={gamificacao}
-      />
+      >
+        {/* key: ao trocar de separador mostra logo o esqueleto em vez do conteúdo anterior */}
+        <Suspense key={separador} fallback={<CardListSkeleton count={2} />}>
+          <ConteudoSeparador separador={separador} userId={user.id} perfil={p.perfil} />
+        </Suspense>
+      </InicioView>
     </>
   );
+}
+
+// Só o separador activo carrega dados
+async function ConteudoSeparador({
+  separador,
+  userId,
+  perfil,
+}: {
+  separador: Separador;
+  userId: string;
+  perfil: PerfilUsuario;
+}) {
+  const supabase = await createClient();
+
+  switch (separador) {
+    case "ranking":
+      return <RankingView {...await carregarRanking(supabase, userId)} embutido />;
+    case "conquistas":
+      return <ConquistasView pessoas={await carregarConquistas(supabase, userId)} embutido />;
+    case "galeria":
+      return <AlbunsGrid albuns={await carregarAlbuns(supabase)} />;
+    case "feed": {
+      const pagina = await carregarPaginaFeed(createAdminClient(), userId, null);
+      // key: o router.refresh() depois de publicar remonta a lista com a página nova
+      return <FeedLista key={pagina.posts[0]?.id ?? "vazio"} paginaInicial={pagina} sessao={{ userId, perfil }} />;
+    }
+  }
 }

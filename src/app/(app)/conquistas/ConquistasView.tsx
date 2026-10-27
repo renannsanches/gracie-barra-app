@@ -50,7 +50,7 @@ export function ConquistasView({ pessoas, embutido = false }: { pessoas: PessoaC
               claro
                 ? p.id === pessoa?.id
                   ? "bg-brand text-white"
-                  : "bg-surface border border-gray-100 text-gray-500 hover:text-ink"
+                  : "bg-surface border border-line text-fg-muted hover:text-ink"
                 : p.id === pessoa?.id
                   ? "bg-white text-gray-900"
                   : "bg-white/10 text-white/70 hover:text-white",
@@ -76,7 +76,7 @@ export function ConquistasView({ pessoas, embutido = false }: { pessoas: PessoaC
         </PageHeader>
       )}
 
-      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-3 animar-lista">
+      <div className={embutido ? "space-y-3 animar-lista" : "flex-1 px-4 py-5 pb-bottom-nav space-y-3 animar-lista"}>
         {embutido && seletor(true)}
         {!pessoa ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-[14px] text-gray-500">

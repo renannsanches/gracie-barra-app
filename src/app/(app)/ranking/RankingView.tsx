@@ -106,7 +106,7 @@ export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, gru
         </PageHeader>
       )}
 
-      <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-3 animar-lista">
+      <div className={embutido ? "space-y-3 animar-lista" : "flex-1 px-4 py-5 pb-bottom-nav space-y-3 animar-lista"}>
         {embutido && <div className="grid grid-cols-2 gap-2">{segmentos(true)}</div>}
 
         {eu && oculto && (
@@ -178,7 +178,7 @@ function Segmentos<T extends string>({
   opcoes: { valor: T; label: string }[];
 }) {
   return (
-    <div className={claro ? "flex bg-surface border border-gray-100 rounded-xl p-1" : "flex bg-white/10 rounded-xl p-1"} role="tablist">
+    <div className={claro ? "flex bg-surface border border-line rounded-xl p-1" : "flex bg-white/10 rounded-xl p-1"} role="tablist">
       {opcoes.map((o) => (
         <button
           key={o.valor}
@@ -191,7 +191,7 @@ function Segmentos<T extends string>({
             claro
               ? valor === o.valor
                 ? "bg-brand text-white"
-                : "text-gray-500 hover:text-ink"
+                : "text-fg-muted hover:text-ink"
               : valor === o.valor
                 ? "bg-white text-gray-900"
                 : "text-white/60 hover:text-white",
