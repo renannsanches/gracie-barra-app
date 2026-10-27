@@ -408,6 +408,33 @@ export async function sendPushConquistas() {
 const LIMITE_TEXTO_PUSH = 80;
 
 /**
+ * Nova publicação de staff: avisa os membros activos (como sendPushAviso), menos o autor.
+ * Sem texto (post só com fotos) usa uma frase fixa.
+ */
+export async function sendPushNovoPost(autorId: string, texto: string) {
+  const admin = createAdminClient();
+  const { data: profiles } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("status", "ativo")
+    .in("perfil", ["aluno", "responsavel", "professor"])
+    .neq("id", autorId);
+  if (!profiles || profiles.length === 0) return;
+
+  const subs = await getSubscriptions(profiles.map((p) => p.id));
+  if (subs.length === 0) return;
+
+  // Corta por caracteres (code points), para não partir um emoji ao meio
+  const letras = [...texto];
+  const corpo = letras.length > LIMITE_TEXTO_PUSH ? `${letras.slice(0, LIMITE_TEXTO_PUSH).join("")}…` : texto;
+  await sendToSubscriptions(subs, {
+    title: "Nova publicação",
+    body: corpo || "A academia publicou fotos novas.",
+    url: "/perfil",
+  });
+}
+
+/**
  * Novo comentário num post: avisa só o autor do post. Posts automáticos (sem autor) e
  * comentários do próprio autor não geram push.
  */
