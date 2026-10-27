@@ -198,7 +198,7 @@ export async function sendPushMensalidade() {
     if (userIds.size === 0) continue;
     const subs = await getSubscriptions([...userIds]);
     if (subs.length === 0) continue;
-    await sendToSubscriptions(subs, { ...MENSAGENS_MENS[tipo], url: "/perfil" });
+    await sendToSubscriptions(subs, { ...MENSAGENS_MENS[tipo], url: "/conta" });
   }
 
   // fora de produção não grava "já enviado": a BD é partilhada e o cron de produção ainda tem de enviar

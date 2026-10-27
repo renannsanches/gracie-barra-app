@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { calcularAptosGraduar } from "@/lib/aptos-graduar";
@@ -173,19 +173,64 @@ async function ConteudoSeparador({
   userId: string;
   perfil: PerfilUsuario;
 }) {
-  const supabase = await createClient();
+  // O tablet (Safari 15) não vê o feed nem os outros separadores
+  if (perfil === "tablet") {
+    return <p className="py-8 text-center text-sm text-fg-muted">Conteúdo não disponível no tablet.</p>;
+  }
 
+  let dados: DadosSeparador;
+  try {
+    dados = await carregarSeparador(separador, userId);
+  } catch (erro) {
+    // redirect()/notFound() e afins seguem para o Next; o resto fica neste cartão,
+    // para uma falha aqui não partir a página principal da app (cabeçalho, pílulas, barra inferior)
+    unstable_rethrow(erro);
+    console.error(`[inicio] falha a carregar o separador "${separador}":`, erro);
+    return (
+      <div className="rounded-2xl border border-line bg-surface p-5 text-center">
+        <p className="text-sm text-fg">Não foi possível carregar. Tenta outra vez.</p>
+        <Link
+          href={separador === "feed" ? "/perfil" : `/perfil?tab=${separador}`}
+          scroll={false}
+          className="mt-3 inline-flex h-11 items-center rounded-full bg-brand px-5 text-sm font-semibold text-white"
+        >
+          Tentar outra vez
+        </Link>
+      </div>
+    );
+  }
+
+  switch (dados.separador) {
+    case "ranking":
+      return <RankingView {...dados.ranking} embutido />;
+    case "conquistas":
+      return <ConquistasView pessoas={dados.pessoas} embutido />;
+    case "galeria":
+      return <AlbunsGrid albuns={dados.albuns} />;
+    case "feed":
+      // key: o router.refresh() depois de publicar remonta a lista com a página nova
+      return (
+        <FeedLista key={dados.pagina.posts[0]?.id ?? "vazio"} paginaInicial={dados.pagina} sessao={{ userId, perfil }} />
+      );
+  }
+}
+
+type DadosSeparador =
+  | { separador: "ranking"; ranking: Awaited<ReturnType<typeof carregarRanking>> }
+  | { separador: "conquistas"; pessoas: Awaited<ReturnType<typeof carregarConquistas>> }
+  | { separador: "galeria"; albuns: Awaited<ReturnType<typeof carregarAlbuns>> }
+  | { separador: "feed"; pagina: Awaited<ReturnType<typeof carregarPaginaFeed>> };
+
+async function carregarSeparador(separador: Separador, userId: string): Promise<DadosSeparador> {
+  const supabase = await createClient();
   switch (separador) {
     case "ranking":
-      return <RankingView {...await carregarRanking(supabase, userId)} embutido />;
+      return { separador, ranking: await carregarRanking(supabase, userId) };
     case "conquistas":
-      return <ConquistasView pessoas={await carregarConquistas(supabase, userId)} embutido />;
+      return { separador, pessoas: await carregarConquistas(supabase, userId) };
     case "galeria":
-      return <AlbunsGrid albuns={await carregarAlbuns(supabase)} />;
-    case "feed": {
-      const pagina = await carregarPaginaFeed(createAdminClient(), userId, null);
-      // key: o router.refresh() depois de publicar remonta a lista com a página nova
-      return <FeedLista key={pagina.posts[0]?.id ?? "vazio"} paginaInicial={pagina} sessao={{ userId, perfil }} />;
-    }
+      return { separador, albuns: await carregarAlbuns(supabase) };
+    case "feed":
+      return { separador, pagina: await carregarPaginaFeed(createAdminClient(), userId, null) };
   }
 }

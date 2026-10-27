@@ -81,7 +81,8 @@ export function ContaView({
 
   const [dadosOpen, setDadosOpen] = useState(false);
   const [faixaOpen, setFaixaOpen] = useState(false);
-  const [mensalidadesOpen, setMensalidadesOpen] = useState(false);
+  // Abre logo quando há alguma por pagar (o push de mensalidade traz o aluno aqui)
+  const [mensalidadesOpen, setMensalidadesOpen] = useState(() => mensalidades.some((m) => m.status !== "pago"));
   const [dependentesOpen, setDependentesOpen] = useState(false);
 
   const [profile, setProfile] = useState(profileProp);

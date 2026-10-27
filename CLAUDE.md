@@ -72,7 +72,7 @@ npm run test:e2e:report   # ver relatório HTML do último run
 | `presenca.spec.ts` | Geração de QR Code + countdown + expiração |
 | `financeiro.spec.ts` | Marcar mensalidade como paga + desmarcar (admin) |
 | `gamificacao.spec.ts` | Pílulas do Início (/perfil), /conquistas, abas do /ranking (aluno de teste fica oculto do ranking) |
-| `feed.spec.ts` | Staff publica, aluno põe gosto e comenta, staff apaga (projecto admin; limpa os posts `e2e-feed-*` e os ficheiros) |
+| `feed.spec.ts` | Corre como staff (projecto admin): publica, põe gosto, comenta e apaga (limpa os posts `e2e-feed-*` e os ficheiros) |
 
 A BD dos testes é a de produção: o `global-setup` põe `ocultar_ranking = true` nos utilizadores de teste para não aparecerem no ranking real.
 
@@ -296,7 +296,7 @@ Ao concluir cadastro:
 | `albuns` | Álbuns de fotos (título, capa, autor) |
 | `fotos` | Fotos dentro de álbuns (URL no Storage, legenda) |
 | `conquistas` | Medalhas ganhas (`codigo`, `referencia` = mês nas repetíveis, `conquistada_em`, `vista_em`, `notificada_em`). Só o servidor grava (service_role) |
-| `feed_posts` | Publicações do feed (`autor_id` null = academia, `tipo` manual/graduacao/podio, `texto` ≤2000, `fotos` ≤10 caminhos no bucket `feed`, `referencia` única por tipo para os automáticos). RLS ligada **sem policies** → só service_role |
+| `feed_posts` | Publicações do feed (`autor_id` null = academia, `tipo` manual/graduacao/podio, `texto` ≤2000, `fotos` ≤10 URLs públicos completos de ficheiros do bucket `feed`, `referencia` única por tipo para os automáticos). RLS ligada **sem policies** → só service_role |
 | `feed_curtidas` | Gostos (post_id + user_id). Só service_role |
 | `feed_comentarios` | Comentários (texto 1–300). Só service_role |
 | `grupos_alunos` | Locais de treino (nome, ativo, padrao). Cada modalidade pertence a um local; o(s) local(is) do aluno são derivados das suas modalidades (`profiles.grupo_id` está obsoleto — não usar) |
@@ -385,7 +385,7 @@ ActionResult = { ok: boolean; erro?: string }  // retorno padrão de Server Acti
 | `AvisosMarkRead` | Marca avisos como lidos via localStorage |
 | `InstallPrompt` | Banner PWA de instalação (respeita `pwa-install-dismissed` no localStorage) |
 | `ServiceWorkerUpdater` | Recarrega página quando novo SW disponível (desactivado em dev) |
-| `MensalidadeVencidaBanner` | Banner âmbar fixo no topo quando mensalidade (própria ou de dependente) está atrasada ≥5 dias |
+| `MensalidadeVencidaBanner` | Client component: banner âmbar fixo no topo quando mensalidade (própria ou de dependente) está atrasada ≥5 dias; publica a sua altura em `--banner-h` (as pílulas do Início prendem-se por baixo dela) |
 | `MensalidadeAtrasoModal` | Modal central 1x/dia (localStorage) quando atraso ≥2 dias; botão "Falar com Simone" abre WhatsApp com mensagem pré-preenchida |
 | `Medalha` | Medalha redonda (bronze/prata/ouro) — número nos marcos de aulas e sequências, ícone nas especiais |
 | `NovaConquistaModal` | Modal em `/perfil` com medalhas ainda não vistas (próprio + dependentes); não aparece com o aviso de graduação nem com mensalidade ≥2 dias em atraso |
@@ -474,7 +474,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | Uploads de Storage não atómicos | Ficheiros órfãos se DB falhar a seguir | Média |
 | Race condition na capacidade de aulas | Exceder lotação com utilizadores simultâneos | Baixa (academia pequena) |
 | Componentes com 1000+ linhas | `AlunoEditView.tsx`, `CadastroForm.tsx` — difíceis de manter | Baixa |
-| ~54 avisos de lint em código legado | `no-explicit-any`, `set-state-in-effect` e `purity` rebaixadas a aviso em `eslint.config.mjs` — voltar a erro depois de corrigidas | Baixa |
+| ~36 avisos de lint em código legado | `no-explicit-any`, `set-state-in-effect` e `purity` rebaixadas a aviso em `eslint.config.mjs` — voltar a erro depois de corrigidas | Baixa |
 
 ---
 
@@ -506,9 +506,9 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | — | Auth guard nas actions | `requireAdmin()` / `requireTablet()` em todas as Server Actions |
 | — | Histórico filtro pessoa | Alunos filtram histórico de presenças por pessoa (self ou dependentes) |
 | — | Monitorização erros | Sentry (`@sentry/nextjs`) integrado, mapeamento de source maps em Vercel |
-| 16 | **Notificações push + WhatsApp** | Web Push via `web-push` + VAPID keys; tabelas `push_subscriptions` e `notificacoes_graduacao_enviadas`; Vercel Cron 09:00 mensalidades+graduações, 08:00 responsáveis; push de aviso fire-and-forget em `avisos-actions.ts`; botão WhatsApp em `/perfil` quando mensalidade atrasada |
+| 16 | **Notificações push + WhatsApp** | Web Push via `web-push` + VAPID keys; tabelas `push_subscriptions` e `notificacoes_graduacao_enviadas`; Vercel Cron 09:00 mensalidades+graduações, 08:00 responsáveis; push de aviso fire-and-forget em `avisos-actions.ts`; o push de mensalidade (vence amanhã/hoje/atraso) abre `/conta`, onde Mensalidades começa aberta se houver alguma por pagar; botão WhatsApp em `/conta` › Mensalidades quando mensalidade atrasada |
 | — | **Bloqueio financeiro em reservas** | Mensalidade atrasada ≥10 dias bloqueia QR, presença manual e reservas de aulas; helper RPC `verificar_bloqueio_financeiro`; `AulasView` mostra botão desabilitado com aviso âmbar |
-| — | **Card "aptos a graduar" em /perfil** | Admin e professor vêem na sua página `/perfil` um card com alunos que cumprem requisitos de graduação |
+| — | **Card "aptos a graduar" em /conta** | Admin e professor vêem em Minha conta (`/conta`) um card com alunos que cumprem requisitos de graduação |
 | — | **Email no card do aluno** | `AlunoEditView` mostra campo email (read-only) buscado via `admin.getUserById`; ocultado para dependentes (`sem_login=true`) |
 | — | **Push para dependentes via responsável** | `push-sender` faz lookup em `dependentes` para substituir IDs de dependentes pelos dos responsáveis antes de buscar subscriptions |
 | — | **Push de avisos inclui professores** | Notificações de avisos publicados enviadas a alunos E professores |

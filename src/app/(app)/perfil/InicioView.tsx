@@ -2,7 +2,7 @@
 
 // NextImage: o nome "Image" é o construtor global usado na compressão WebP
 import NextImage from "next/image";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { Bell, Camera, Images, LayoutList, Loader2, Medal, Settings, Trophy, type LucideIcon } from "lucide-react";
@@ -50,6 +50,29 @@ function lerUltimaVista(): string | null {
   } catch {
     return null;
   }
+}
+
+// Dentro do <Link>: a pílula tocada fica logo activa enquanto o servidor responde
+// (e a activa de antes apaga-se), sem esperar pela casca toda
+function PilulaConteudo({ activa, label, icon: Icon }: { activa: boolean; label: string; icon: LucideIcon }) {
+  const { pending } = useLinkStatus();
+  const destacada = activa || pending;
+  return (
+    <span
+      data-pendente={pending && !activa ? "" : undefined}
+      className={cn(
+        "flex items-center gap-1.5 h-11 px-4 rounded-full text-sm font-semibold whitespace-nowrap transition-colors duration-fast",
+        destacada
+          ? "bg-brand text-white"
+          : "bg-surface border border-line text-fg hover:bg-canvas active:scale-[0.97]",
+        activa &&
+          "group-has-[[data-pendente]]/pilulas:bg-surface group-has-[[data-pendente]]/pilulas:text-fg group-has-[[data-pendente]]/pilulas:border group-has-[[data-pendente]]/pilulas:border-line",
+      )}
+    >
+      <Icon size={16} aria-hidden="true" className={pending ? "animate-pulse" : undefined} />
+      {label}
+    </span>
+  );
 }
 
 export function InicioView({ pessoa, separador, mensalidades, avisosNotif, children }: InicioViewProps) {
@@ -254,8 +277,8 @@ export function InicioView({ pessoa, separador, mensalidades, avisosNotif, child
         className="sticky z-30 bg-canvas pt-3"
         style={{ top: `var(--banner-h, ${SAFE_TOP})` }}
       >
-        <ul ref={pilulasRef} className="relative flex gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {PILULAS.map(({ id, label, icon: Icon }) => {
+        <ul ref={pilulasRef} className="group/pilulas relative flex gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {PILULAS.map(({ id, label, icon }) => {
             const activa = separador === id;
             return (
               <li key={id} className="shrink-0">
@@ -263,16 +286,9 @@ export function InicioView({ pessoa, separador, mensalidades, avisosNotif, child
                   href={id === "feed" ? "/perfil" : `/perfil?tab=${id}`}
                   scroll={false}
                   aria-current={activa ? "page" : undefined}
-                  className={cn(
-                    "flex items-center gap-1.5 h-11 px-4 rounded-full text-sm font-semibold whitespace-nowrap transition-colors duration-fast",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-canvas",
-                    activa
-                      ? "bg-brand text-white"
-                      : "bg-surface border border-line text-fg hover:bg-canvas active:scale-[0.97]",
-                  )}
+                  className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
                 >
-                  <Icon size={16} aria-hidden="true" />
-                  {label}
+                  <PilulaConteudo activa={activa} label={label} icon={icon} />
                 </Link>
               </li>
             );
