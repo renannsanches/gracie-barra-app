@@ -59,7 +59,7 @@ export function Medalha({
       className={cn(
         "rounded-full flex items-center justify-center shrink-0 ring-2 ring-white shadow-md",
         t.caixa,
-        bloqueada ? "bg-gray-100 text-gray-300 shadow-none" : CORES[nivel],
+        bloqueada ? "bg-subtle text-line-strong shadow-none" : CORES[nivel],
         className,
       )}
     >

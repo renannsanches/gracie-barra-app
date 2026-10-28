@@ -45,7 +45,7 @@ export function InstallPrompt() {
 
   // Cartão flutuante acima da barra inferior (quando existe) e do home indicator
   return (
-    <div className="install-prompt fixed left-3 right-3 z-50 flex items-center gap-3 rounded-2xl border border-gray-200 bg-surface py-2 pl-3 pr-1 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-base">
+    <div className="install-prompt fixed left-3 right-3 z-50 flex items-center gap-3 rounded-2xl border border-line bg-surface py-2 pl-3 pr-1 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-base">
       <Image
         src="/logo.webp"
         alt="Gracie Barra"
@@ -53,7 +53,7 @@ export function InstallPrompt() {
         height={40}
         className="shrink-0 rounded-lg"
       />
-      <span className="flex-1 text-sm font-medium text-ink">
+      <span className="flex-1 text-sm font-medium text-fg">
         Instalar Gracie Barra Famalicão
       </span>
       <button
@@ -66,7 +66,7 @@ export function InstallPrompt() {
       <button
         type="button"
         onClick={handleDismiss}
-        className="shrink-0 w-11 h-11 flex items-center justify-center text-gray-400"
+        className="shrink-0 w-11 h-11 flex items-center justify-center text-fg-subtle"
         aria-label="Fechar"
       >
         <X size={18} />

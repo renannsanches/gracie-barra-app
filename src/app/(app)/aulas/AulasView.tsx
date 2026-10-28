@@ -71,14 +71,14 @@ function Avatar({ reservante, size, highlight }: AvatarProps) {
       <img
         src={reservante.foto_url}
         alt={reservante.nome_completo}
-        className={cn("rounded-full object-cover shrink-0 border-2 border-white", dim, ring)}
+        className={cn("rounded-full object-cover shrink-0 border-2 border-surface", dim, ring)}
       />
     );
   }
   return (
     <div
       className={cn(
-        "rounded-full flex items-center justify-center shrink-0 border-2 border-white font-bold text-white",
+        "rounded-full flex items-center justify-center shrink-0 border-2 border-surface font-bold text-white",
         dim,
         ring,
         avatarCor(reservante.id),
@@ -105,7 +105,7 @@ function QuemReservou({ reservantes, aulaId, expandidoId, setExpandidoId, userId
   const extras = reservantes.length - 5;
 
   return (
-    <div className="mt-2 pt-2 border-t border-gray-100">
+    <div className="mt-2 pt-2 border-t border-line">
       <button
         type="button"
         onClick={() => setExpandidoId(aberto ? null : aulaId)}
@@ -117,9 +117,9 @@ function QuemReservou({ reservantes, aulaId, expandidoId, setExpandidoId, userId
           ))}
         </div>
         {extras > 0 && (
-          <span className="text-xs text-gray-500 font-medium">+{extras}</span>
+          <span className="text-xs text-fg-muted font-medium">+{extras}</span>
         )}
-        <span className="text-xs text-gray-400 ml-auto flex items-center gap-0.5">
+        <span className="text-xs text-fg-subtle ml-auto flex items-center gap-0.5">
           {aberto ? "Fechar" : "Ver quem vai"}
           <ChevronDown
             size={12}
@@ -133,10 +133,10 @@ function QuemReservou({ reservantes, aulaId, expandidoId, setExpandidoId, userId
           {reservantes.map((r) => (
             <div key={r.id} className="flex items-center gap-2.5">
               <Avatar reservante={r} size="md" highlight={r.id === userId} />
-              <span className="text-xs text-gray-700 font-medium">
+              <span className="text-xs text-fg font-medium">
                 {r.nome_completo.split(" ")[0]}
                 {r.nome_completo.split(" ").length > 1 && (
-                  <span className="text-gray-400 font-normal"> {r.nome_completo.split(" ").slice(1).join(" ")}</span>
+                  <span className="text-fg-subtle font-normal"> {r.nome_completo.split(" ").slice(1).join(" ")}</span>
                 )}
                 {r.id === userId && (
                   <span className="text-gb-blue font-semibold ml-1">(tu)</span>
@@ -338,7 +338,7 @@ export function AulasView({
       : DIAS_COMPLETO[diaAtivoDate.getDay()];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gb-gray">
+    <div className="min-h-screen flex flex-col bg-canvas">
       <PageHeader
         title="Aulas"
         subtitle={<span className="text-xs capitalize">{selecionadoCategoria}</span>}
@@ -353,7 +353,7 @@ export function AulasView({
                 className={cn(
                   "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                   selecionadoId === userId
-                    ? "bg-white text-gb-blue"
+                    ? "bg-surface text-gb-blue"
                     : "bg-white/10 text-white/70 hover:bg-white/20",
                 )}
               >
@@ -368,7 +368,7 @@ export function AulasView({
                 className={cn(
                   "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
                   selecionadoId === d.id
-                    ? "bg-white text-gb-blue"
+                    ? "bg-surface text-gb-blue"
                     : "bg-white/10 text-white/70 hover:bg-white/20",
                 )}
               >
@@ -412,6 +412,7 @@ export function AulasView({
                   <span
                     className={cn(
                       "absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold",
+                      // tema: fixo — visto branco sobre o dia activo (vermelho)
                       isActive ? "bg-white text-gb-blue" : "bg-green-500 text-white",
                     )}
                   >
@@ -427,16 +428,16 @@ export function AulasView({
       {/* key: a cascata repete ao trocar de dia ou de pessoa */}
       <div key={`${diaAtivo}-${selecionadoId}`} className="flex-1 px-4 py-4 pb-bottom-nav space-y-3 animar-lista">
 
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">
+        <p className="text-xs font-semibold text-fg-subtle uppercase tracking-wide px-1">
           {diaAtivoNome}
           {diaAtivoNome !== "Hoje" && ` — ${diaAtivoDate.getDate()} de ${MESES[diaAtivoDate.getMonth()]}`}
         </p>
 
         {aulasNoDia.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
-            <Clock size={36} className="text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium text-sm">Sem aulas neste dia</p>
-            <p className="text-gray-400 text-xs mt-1">Navega nos outros dias para ver mais</p>
+          <div className="bg-surface rounded-2xl border border-line p-10 text-center">
+            <Clock size={36} className="text-line mx-auto mb-3" />
+            <p className="text-fg-muted font-medium text-sm">Sem aulas neste dia</p>
+            <p className="text-fg-subtle text-xs mt-1">Navega nos outros dias para ver mais</p>
           </div>
         ) : (
           aulasNoDia.map((aula) => {
@@ -451,8 +452,8 @@ export function AulasView({
               <div
                 key={aula.id}
                 className={cn(
-                  "bg-white rounded-2xl border p-4",
-                  reservada ? "border-gb-blue/40 shadow-sm shadow-gb-blue/10" : "border-gray-100",
+                  "bg-surface rounded-2xl border p-4",
+                  reservada ? "border-gb-blue/40 shadow-sm shadow-gb-blue/10" : "border-line",
                 )}
               >
                 <div className="flex items-start gap-4">
@@ -471,13 +472,13 @@ export function AulasView({
                       <div
                         className={cn(
                           "w-16 h-16 rounded-xl flex flex-col items-center justify-center shrink-0",
-                          reservada ? "bg-gb-blue" : lotado ? "bg-gray-100" : "bg-gb-blue/10",
+                          reservada ? "bg-gb-blue" : lotado ? "bg-subtle" : "bg-gb-blue/10",
                         )}
                       >
                         <span
                           className={cn(
                             "text-lg font-black tabular-nums leading-tight",
-                            reservada ? "text-white" : lotado ? "text-gray-400" : "text-gb-blue",
+                            reservada ? "text-white" : lotado ? "text-fg-subtle" : "text-gb-blue",
                           )}
                         >
                           {formatarHorario(aula.horario)}
@@ -490,9 +491,9 @@ export function AulasView({
                     {(() => {
                       const tag = aula.turma ? getTurmaTag(aula.turma.nome) : null;
                       return (
-                        <p className="font-bold text-gray-900 text-sm leading-tight">
+                        <p className="font-bold text-fg text-sm leading-tight">
                           {aula.turma?.nome ?? "—"}
-                          {tag && <span className="font-normal text-gray-500"> · {formatarHorario(aula.horario)}</span>}
+                          {tag && <span className="font-normal text-fg-muted"> · {formatarHorario(aula.horario)}</span>}
                           {mostrarModalidade && aula.turma && nomesModalidade[aula.turma.modalidade_id] && (
                             <span className="ml-1.5 align-middle inline-block rounded-full bg-gb-blue/10 px-2 py-px text-xs font-semibold text-gb-blue">
                               {nomesModalidade[aula.turma.modalidade_id]}
@@ -503,7 +504,7 @@ export function AulasView({
                     })()}
 
                     <div className="flex items-center gap-2 mt-1.5">
-                      <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                      <div className="flex-1 bg-subtle rounded-full h-1.5 overflow-hidden">
                         <div
                           className={cn(
                             "h-full rounded-full transition-all",
@@ -516,10 +517,10 @@ export function AulasView({
                           style={{ width: `${Math.min(100, (aula.reservas_confirmadas / aula.lotacao_maxima) * 100)}%` }}
                         />
                       </div>
-                      <span className={cn("text-xs font-medium whitespace-nowrap", lotado ? "text-red-500" : "text-gray-500")}>
+                      <span className={cn("text-xs font-medium whitespace-nowrap", lotado ? "text-red-500" : "text-fg-muted")}>
                         {aula.reservas_confirmadas}/{aula.lotacao_maxima}
                       </span>
-                      <Users size={11} className={lotado ? "text-red-400" : "text-gray-400"} />
+                      <Users size={11} className={lotado ? "text-red-400" : "text-fg-subtle"} />
                     </div>
 
                     {reservada && (
@@ -546,7 +547,7 @@ export function AulasView({
                   {!reservada && !lotado && (
                     bloqueado ? (
                       <div className="flex-1 space-y-1.5">
-                        <div className="h-11 rounded-xl bg-amber-50 border border-amber-200 text-amber-400 text-sm flex items-center justify-center font-medium cursor-not-allowed select-none">
+                        <div className="h-11 rounded-xl bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/30 text-amber-400 text-sm flex items-center justify-center font-medium cursor-not-allowed select-none">
                           Reservar
                         </div>
                         <p className="text-xs text-amber-600 text-center leading-tight">
@@ -570,14 +571,14 @@ export function AulasView({
                       type="button"
                       onClick={() => handleCancelar(minhaReservaId!, aula.id)}
                       disabled={!!acao}
-                      className="flex-1 h-11 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium flex items-center justify-center gap-2 hover:bg-red-100 transition-[background-color,transform] duration-fast active:scale-[0.98] disabled:opacity-50"
+                      className="flex-1 h-11 rounded-xl bg-red-50 dark:bg-red-500/15 border border-red-200 dark:border-red-500/30 text-red-600 text-sm font-medium flex items-center justify-center gap-2 hover:bg-red-100 dark:hover:bg-red-500/15 transition-[background-color,transform] duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
                       {isLoadingCancel ? <Loader2 size={15} className="animate-spin" /> : <X size={14} />}
                       Cancelar reserva
                     </button>
                   )}
                   {lotado && !reservada && (
-                    <div className="flex-1 h-11 rounded-xl bg-gray-100 text-gray-400 text-sm flex items-center justify-center font-medium">
+                    <div className="flex-1 h-11 rounded-xl bg-subtle text-fg-subtle text-sm flex items-center justify-center font-medium">
                       Sem vagas
                     </div>
                   )}

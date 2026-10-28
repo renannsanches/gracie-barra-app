@@ -68,7 +68,7 @@ export function NovaConquistaModal({ conquistas }: { conquistas: ConquistaPorVer
                 />
               ))}
               {lista.length > 3 && (
-                <span className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-[15px] font-bold text-gray-600">
+                <span className="w-14 h-14 rounded-full bg-subtle flex items-center justify-center text-[15px] font-bold text-fg-muted">
                   +{lista.length - 3}
                 </span>
               )}
@@ -77,7 +77,7 @@ export function NovaConquistaModal({ conquistas }: { conquistas: ConquistaPorVer
         </div>
 
         <DialogTitle className="mt-5 text-center text-[19px]">{titulo}</DialogTitle>
-        <DialogDescription className="mt-2 text-center text-[14px] leading-snug text-gray-600">{texto}</DialogDescription>
+        <DialogDescription className="mt-2 text-center text-[14px] leading-snug text-fg-muted">{texto}</DialogDescription>
 
         <button
           type="button"
@@ -92,7 +92,7 @@ export function NovaConquistaModal({ conquistas }: { conquistas: ConquistaPorVer
         <button
           type="button"
           onClick={fechar}
-          className="mt-2 w-full h-11 text-[14px] text-gray-500 hover:text-gray-700"
+          className="mt-2 w-full h-11 text-[14px] text-fg-muted hover:text-fg"
         >
           Fechar
         </button>

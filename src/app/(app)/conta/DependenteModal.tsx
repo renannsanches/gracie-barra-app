@@ -12,9 +12,9 @@ import { historicoGraduacoesDependente } from "./dependente-historico-actions";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const MENS_BG: Record<StatusMensalidade, string> = {
-  pago:     "bg-green-50 border-green-100",
-  pendente: "bg-amber-50 border-amber-100",
-  atrasado: "bg-red-50 border-red-100",
+  pago:     "bg-green-50 dark:bg-green-500/15 border-green-100 dark:border-green-500/30",
+  pendente: "bg-amber-50 dark:bg-amber-500/15 border-amber-100 dark:border-amber-500/30",
+  atrasado: "bg-red-50 dark:bg-red-500/15 border-red-100 dark:border-red-500/30",
 };
 
 const MENS_TEXT: Record<StatusMensalidade, string> = {
@@ -90,7 +90,7 @@ export function DependenteModal({ dependente, onClose }: Props) {
         aria-describedby={undefined}
         className="p-0 pb-safe sm:p-0 sm:rounded-3xl max-h-[85vh]"
       >
-        <div className="sticky top-0 bg-white z-10 px-5 pt-5 pb-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="sticky top-0 bg-surface z-10 px-5 pt-5 pb-4 border-b border-line flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-gb-blue flex items-center justify-center overflow-hidden shrink-0">
               {dependente.foto_url ? (
@@ -103,14 +103,14 @@ export function DependenteModal({ dependente, onClose }: Props) {
             <div>
               <DialogTitle className="text-base">{dependente.nome_completo}</DialogTitle>
               {dependente.faixa && (
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-fg-subtle">
                   {labelCorFaixa(dependente.faixa)} · {dependente.graus} grau{dependente.graus !== 1 ? "s" : ""}
                 </p>
               )}
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Fechar" className="-mr-2 w-11 h-11 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors duration-fast">
-            <X size={20} className="text-gray-500" />
+          <button type="button" onClick={onClose} aria-label="Fechar" className="-mr-2 w-11 h-11 flex items-center justify-center rounded-xl hover:bg-subtle transition-colors duration-fast">
+            <X size={20} className="text-fg-muted" />
           </button>
         </div>
 
@@ -122,7 +122,7 @@ export function DependenteModal({ dependente, onClose }: Props) {
           ) : (
             <>
               {dependente.faixa && (
-                <div className="bg-gb-gray rounded-2xl p-4">
+                <div className="bg-canvas rounded-2xl p-4">
                   <FaixaBJJ
                     faixa={dependente.faixa}
                     graus={dependente.graus}
@@ -133,22 +133,22 @@ export function DependenteModal({ dependente, onClose }: Props) {
                 </div>
               )}
 
-              <div className="bg-white border border-gray-100 rounded-2xl p-4">
+              <div className="bg-surface border border-line rounded-2xl p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <CalendarDays size={16} className="text-gb-blue" />
-                  <h3 className="font-bold text-gray-900 text-sm">Presenças</h3>
+                  <h3 className="font-bold text-fg text-sm">Presenças</h3>
                 </div>
                 <div className="flex items-baseline gap-1 mb-3">
                   <span className="text-4xl font-black text-gb-blue">{presencasCount}</span>
-                  <span className="text-sm text-gray-400">aulas</span>
+                  <span className="text-sm text-fg-subtle">aulas</span>
                 </div>
                 {presencasRecentes.length > 0 && (
                   <div className="space-y-1">
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Últimas</p>
+                    <p className="text-xs font-medium text-fg-subtle uppercase tracking-wide mb-2">Últimas</p>
                     {presencasRecentes.map((p, i) => (
                       <div key={i} className="flex items-center gap-2 py-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-gb-blue shrink-0" />
-                        <p className="text-sm text-gray-700">
+                        <p className="text-sm text-fg">
                           {new Date(p.registrado_em).toLocaleDateString("pt-PT", {
                             day: "2-digit",
                             month: "short",
@@ -164,10 +164,10 @@ export function DependenteModal({ dependente, onClose }: Props) {
               </div>
 
               {mensalidades.length > 0 && (
-                <div className="bg-white border border-gray-100 rounded-2xl p-4">
+                <div className="bg-surface border border-line rounded-2xl p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <CreditCard size={16} className="text-gb-blue" />
-                    <h3 className="font-bold text-gray-900 text-sm">Mensalidades</h3>
+                    <h3 className="font-bold text-fg text-sm">Mensalidades</h3>
                   </div>
                   <div className="space-y-2">
                     {mensalidades.map((m) => {
@@ -178,14 +178,14 @@ export function DependenteModal({ dependente, onClose }: Props) {
                         className={`flex items-center justify-between rounded-xl border px-3 py-2.5 ${MENS_BG[ef]}`}
                       >
                         <div>
-                          <p className="text-[13px] font-semibold text-gray-800">{formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">
+                          <p className="text-[13px] font-semibold text-fg">{formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}</p>
+                          <p className="text-xs text-fg-subtle mt-0.5">
                             Venc. {formatarData(m.data_vencimento)}
                             {m.data_pagamento ? ` · Pago ${formatarData(m.data_pagamento)}` : ""}
                           </p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-[13px] font-bold text-gray-800">{formatarMoeda(m.valor)}</p>
+                          <p className="text-[13px] font-bold text-fg">{formatarMoeda(m.valor)}</p>
                           <DetalheMensalidade valor={m.valor} itens={m.itens} className="text-xs" />
                           <p className={`text-xs font-medium mt-0.5 ${MENS_TEXT[ef]}`}>
                             {MENS_STATUS_LABEL[ef]}
@@ -199,22 +199,22 @@ export function DependenteModal({ dependente, onClose }: Props) {
               )}
 
               {graduacoes.length > 0 && (
-                <div className="bg-white border border-gray-100 rounded-2xl p-4">
+                <div className="bg-surface border border-line rounded-2xl p-4">
                   <div className="flex items-center gap-2 mb-4">
                     <Award size={16} className="text-gb-blue" />
-                    <h3 className="font-bold text-gray-900 text-sm">Evolução</h3>
+                    <h3 className="font-bold text-fg text-sm">Evolução</h3>
                   </div>
                   <div className="relative pl-8">
                     {graduacoes.length > 1 && (
-                      <div className="absolute left-3 top-4 bottom-4 w-0.5 bg-gray-200 rounded-full" />
+                      <div className="absolute left-3 top-4 bottom-4 w-0.5 bg-line rounded-full" />
                     )}
                     {graduacoes.map((g) => (
                       <div key={g.id} className="relative mb-4 last:mb-0">
-                        <div className="absolute -left-8 top-0.5 w-6 h-6 rounded-full bg-gb-blue border-2 border-white flex items-center justify-center shadow-sm z-10">
+                        <div className="absolute -left-8 top-0.5 w-6 h-6 rounded-full bg-gb-blue border-2 border-surface flex items-center justify-center shadow-sm z-10">
                           <Award size={10} className="text-white" />
                         </div>
                         <div className="space-y-1.5">
-                          <p className="text-xs font-semibold text-gray-400">{formatarData(g.data_graduacao)}</p>
+                          <p className="text-xs font-semibold text-fg-subtle">{formatarData(g.data_graduacao)}</p>
                           <div className="flex items-center gap-2 flex-wrap">
                             {g.faixa_anterior && (
                               <>
@@ -225,7 +225,7 @@ export function DependenteModal({ dependente, onClose }: Props) {
                                   tamanho="sm"
                                   showLabel
                                 />
-                                <span className="text-gray-400 text-lg font-light">→</span>
+                                <span className="text-fg-subtle text-lg font-light">→</span>
                               </>
                             )}
                             <FaixaBJJ
@@ -237,7 +237,7 @@ export function DependenteModal({ dependente, onClose }: Props) {
                             />
                           </div>
                           {g.professor && (
-                            <p className="text-xs text-gray-400">{g.professor.nome_completo}</p>
+                            <p className="text-xs text-fg-subtle">{g.professor.nome_completo}</p>
                           )}
                         </div>
                       </div>

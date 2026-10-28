@@ -5,7 +5,7 @@ import { AppPageSkeleton } from "@/components/skeletons";
 export default function Loading() {
   return (
     <AppPageSkeleton title="Histórico de Presenças" icon={<CalendarDays size={20} />}>
-      <div className="bg-surface rounded-2xl border border-gray-100 p-4 space-y-4">
+      <div className="bg-surface rounded-2xl border border-line p-4 space-y-4">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-8 rounded-full" />
           <Skeleton className="h-5 w-32" />

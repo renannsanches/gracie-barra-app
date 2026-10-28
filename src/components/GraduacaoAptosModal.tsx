@@ -31,7 +31,7 @@ export function GraduacaoAptosModal({ janela }: { janela: string }) {
         <DialogTitle className="mt-4 text-center text-[17px] font-semibold">
           Alunos aptos a graduar
         </DialogTitle>
-        <div className="mt-2 space-y-3 text-center text-[14px] leading-snug text-gray-600">
+        <div className="mt-2 space-y-3 text-center text-[14px] leading-snug text-fg-muted">
           <p>Olá, professor.</p>
           <p>
             Existem alunos que atingiram os requisitos de tempo e estão aptos a

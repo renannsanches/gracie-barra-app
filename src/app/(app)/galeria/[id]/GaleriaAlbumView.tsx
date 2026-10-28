@@ -36,9 +36,9 @@ export function GaleriaAlbumView({ album, fotos }: Props) {
   return (
     <>
       {fotos.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
-          <ImageIcon size={36} className="text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">Nenhuma foto neste álbum</p>
+        <div className="bg-surface rounded-2xl border border-line p-10 text-center">
+          <ImageIcon size={36} className="text-line mx-auto mb-3" />
+          <p className="text-fg-muted font-medium">Nenhuma foto neste álbum</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 animar-lista">
@@ -47,7 +47,7 @@ export function GaleriaAlbumView({ album, fotos }: Props) {
               key={foto.id}
               type="button"
               onClick={() => open(idx)}
-              className="group relative aspect-square bg-gray-100 rounded-xl overflow-hidden focus:outline-none focus:ring-2 focus:ring-gb-blue transition-transform duration-fast ease-out-expo active:scale-[0.97]"
+              className="group relative aspect-square bg-subtle rounded-xl overflow-hidden focus:outline-none focus:ring-2 focus:ring-gb-blue transition-transform duration-fast ease-out-expo active:scale-[0.97]"
             >
               <Image
                 src={foto.url}

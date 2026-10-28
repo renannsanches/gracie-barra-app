@@ -84,8 +84,8 @@ export function FaixaBJJ({
       />
       {showLabel && (
         <div className="mt-1.5 text-center">
-          <p className="text-sm font-semibold text-gray-900">{beltLabel(faixa)}</p>
-          <p className="text-xs text-gray-500">{grausLabel}</p>
+          <p className="text-sm font-semibold text-fg">{beltLabel(faixa)}</p>
+          <p className="text-xs text-fg-muted">{grausLabel}</p>
         </div>
       )}
     </div>

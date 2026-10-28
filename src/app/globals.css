@@ -73,6 +73,12 @@
     --border: #343438;
     --input: #343438;
   }
+  /* O anel de foco com offset (ring-offset-2) deixa de ser branco no escuro */
+  .dark *,
+  .dark ::before,
+  .dark ::after {
+    --tw-ring-offset-color: rgb(var(--surface));
+  }
 
   * {
     @apply border-border;

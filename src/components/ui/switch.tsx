@@ -28,10 +28,10 @@ const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
       )}
       {...props}
     >
-      {/* tema: fixo — o botão do interruptor é sempre branco */}
       <span
         aria-hidden
         className={cn(
+          // tema: fixo — o botão do interruptor é sempre branco
           "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
           checked ? "translate-x-5" : "translate-x-0",
         )}

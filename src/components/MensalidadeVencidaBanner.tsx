@@ -24,7 +24,7 @@ export function MensalidadeVencidaBanner({ texto }: Props) {
   }, []);
 
   return (
-    <div ref={ref} className="sticky top-0 z-50 w-full bg-amber-50 border-b border-amber-200 shadow-sm pt-safe">
+    <div ref={ref} className="sticky top-0 z-50 w-full bg-amber-50 dark:bg-amber-500/15 border-b border-amber-200 dark:border-amber-500/30 shadow-sm pt-safe">
       <div className="max-w-screen-md mx-auto flex items-center gap-3 px-4 py-3">
         <div
           className="shrink-0 w-9 h-9 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-lg leading-none"
@@ -33,10 +33,10 @@ export function MensalidadeVencidaBanner({ texto }: Props) {
           !
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-amber-900 font-semibold text-[14px] leading-tight">
+          <p className="text-amber-900 dark:text-amber-300 font-semibold text-[14px] leading-tight">
             Atenção!
           </p>
-          <p className="text-amber-800 text-[13px] leading-snug mt-0.5">
+          <p className="text-amber-800 dark:text-amber-300 text-[13px] leading-snug mt-0.5">
             {texto}
           </p>
         </div>

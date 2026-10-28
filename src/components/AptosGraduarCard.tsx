@@ -25,7 +25,7 @@ export function AptosGraduarCard({ aptos }: { aptos: AptoGraduar[] }) {
             <Star size={16} className="shrink-0 text-emerald-500" aria-hidden="true" />
             <span className="text-sm font-semibold text-fg">Aptos a graduar</span>
             {aptos.length > 0 && (
-              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
+              <span className="rounded-full bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                 {aptos.length}
               </span>
             )}

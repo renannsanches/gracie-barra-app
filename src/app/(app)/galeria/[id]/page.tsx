@@ -27,7 +27,7 @@ export default async function GaleriaAlbumPage({ params }: Props) {
   if (!album) notFound();
 
   return (
-    <div className="min-h-screen flex flex-col bg-gb-gray">
+    <div className="min-h-screen flex flex-col bg-canvas">
       <PageHeader
         title={(album as Album).titulo}
         icon={<Images size={20} />}
