@@ -17,7 +17,7 @@ interface PresencasViewProps {
 
 export function PresencasView({ presencas, pessoas, responsavelId, initialMes, initialAno }: PresencasViewProps) {
   return (
-    <div className="min-h-screen flex flex-col bg-gb-gray">
+    <div className="min-h-screen flex flex-col bg-canvas">
       <PageHeader
         title="Histórico de Presenças"
         icon={<CalendarDays size={20} />}

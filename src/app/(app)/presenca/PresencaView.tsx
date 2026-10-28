@@ -226,7 +226,7 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
     nome.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
 
   return (
-    <div className="min-h-screen flex flex-col bg-gb-gray">
+    <div className="min-h-screen flex flex-col bg-canvas">
       <PageHeader title="Registrar Presença" subtitle={`Olá, ${primeiroNome}!`} />
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 pt-10 pb-bottom-nav animar-entrada">
@@ -241,8 +241,8 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
               <QrCode size={52} className="text-gb-blue" />
             </div>
             <div className="text-center">
-              <p className="text-gray-800 font-bold text-xl">Gerar QR Code</p>
-              <p className="text-gray-400 text-sm mt-1 leading-relaxed">
+              <p className="text-fg font-bold text-xl">Gerar QR Code</p>
+              <p className="text-fg-subtle text-sm mt-1 leading-relaxed">
                 Mostre o QR Code ao tablet da academia para registrar sua presença no treino
               </p>
             </div>
@@ -260,13 +260,14 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
         {estado === "gerando" && (
           <div className="flex flex-col items-center gap-4">
             <Loader2 size={52} className="animate-spin text-gb-blue" />
-            <p className="text-gray-500 font-medium">Gerando QR Code...</p>
+            <p className="text-fg-muted font-medium">Gerando QR Code...</p>
           </div>
         )}
 
         {estado === "exibindo" && (
           <div className="w-full max-w-sm flex flex-col items-center gap-5">
-            <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100">
+            {/* tema: fixo — o QR precisa de fundo branco para o tablet o ler */}
+            <div className="bg-white rounded-3xl p-6 shadow-xl border border-line">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img data-testid="qr-image" src={qrDataUrl} alt="QR Code de presença" width={280} height={280} />
             </div>
@@ -274,11 +275,11 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
             <div className="flex flex-col items-center gap-2 w-full max-w-xs">
               <div className="flex items-center gap-2">
                 <Clock size={18} className={urgente ? "text-red-500" : "text-gb-blue"} />
-                <span className={`font-bold text-2xl tabular-nums ${urgente ? "text-red-500" : "text-gray-700"}`}>
+                <span className={`font-bold text-2xl tabular-nums ${urgente ? "text-red-500" : "text-fg"}`}>
                   {segundos}s
                 </span>
               </div>
-              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div className="w-full h-2 bg-line rounded-full overflow-hidden">
                 <div
                   className={`h-full w-full rounded-full origin-left transition-transform duration-1000 ${urgente ? "bg-red-500" : "bg-gb-blue"}`}
                   style={{ transform: `scaleX(${segundos / 60})` }}
@@ -286,7 +287,7 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
               </div>
             </div>
 
-            <p className="text-gray-400 text-xs text-center">
+            <p className="text-fg-subtle text-xs text-center">
               Mostre este código ao tablet da academia
             </p>
           </div>
@@ -303,13 +304,13 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
             <div className="text-center animar-entrada" style={{ animationDelay: "200ms" }}>
               <p className="text-green-600 font-black text-3xl leading-tight">Presença</p>
               <p className="text-green-600 font-black text-3xl leading-tight">Registrada!</p>
-              <p className="text-gray-500 text-lg mt-3 font-medium">Bom treino! 🥋</p>
+              <p className="text-fg-muted text-lg mt-3 font-medium">Bom treino! 🥋</p>
             </div>
             {posTreino && <ResumoPosTreino posTreino={posTreino} />}
             <Button
               onClick={() => router.push("/perfil")}
               variant="outline"
-              className="w-full h-12 border-green-300 text-green-700 hover:bg-green-50"
+              className="w-full h-12 border-green-300 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-500/15"
             >
               Voltar ao perfil
             </Button>
@@ -318,14 +319,14 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
 
         {estado === "bloqueado" && (
           <div className="w-full max-w-sm flex flex-col items-center gap-6">
-            <div className="w-28 h-28 rounded-full bg-green-50 border-2 border-green-200 flex items-center justify-center">
+            <div className="w-28 h-28 rounded-full bg-green-50 dark:bg-green-500/15 border-2 border-green-200 dark:border-green-500/30 flex items-center justify-center">
               <CheckCircle2 size={52} className="text-green-500" />
             </div>
             <div className="text-center">
-              <p className="text-gray-800 font-bold text-xl">Presença registrada!</p>
-              <p className="text-gray-400 text-sm mt-2 leading-relaxed">
+              <p className="text-fg font-bold text-xl">Presença registrada!</p>
+              <p className="text-fg-subtle text-sm mt-2 leading-relaxed">
                 Você poderá registrar novamente em{" "}
-                <span className="font-bold text-gray-600">
+                <span className="font-bold text-fg-muted">
                   {minutosRestantes} minuto{minutosRestantes !== 1 ? "s" : ""}
                 </span>
               </p>
@@ -343,12 +344,12 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
 
         {estado === "expirado" && (
           <div className="w-full max-w-sm flex flex-col items-center gap-6">
-            <div className="w-28 h-28 rounded-full bg-orange-50 border-2 border-orange-200 flex items-center justify-center">
+            <div className="w-28 h-28 rounded-full bg-orange-50 dark:bg-orange-500/15 border-2 border-orange-200 dark:border-orange-500/30 flex items-center justify-center">
               <Clock size={52} className="text-orange-400" />
             </div>
             <div className="text-center">
-              <p className="text-gray-800 font-bold text-xl">QR Code expirado</p>
-              <p className="text-gray-400 text-sm mt-1">O código de 60 segundos expirou</p>
+              <p className="text-fg font-bold text-xl">QR Code expirado</p>
+              <p className="text-fg-subtle text-sm mt-1">O código de 60 segundos expirou</p>
             </div>
             <Button
               onClick={handleGerarQR}
@@ -362,7 +363,7 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
 
         {estado === "erro" && (
           <div className="w-full max-w-sm flex flex-col items-center gap-5">
-            <div className="rounded-xl bg-red-50 border border-red-200 px-5 py-4 text-sm text-red-700 w-full text-center">
+            <div className="rounded-xl bg-red-50 dark:bg-red-500/15 border border-red-200 dark:border-red-500/30 px-5 py-4 text-sm text-red-700 dark:text-red-300 w-full text-center">
               {erroMsg}
             </div>
             <Button
@@ -380,16 +381,16 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
       <Dialog open={modalAberto} onOpenChange={setModalAberto}>
         <DialogContent variant="sheet" showClose={false}>
             <DialogTitle className="mb-1">Registrar presença para quem?</DialogTitle>
-            <DialogDescription className="text-gray-400 mb-5">Selecione quem vai treinar hoje</DialogDescription>
+            <DialogDescription className="text-fg-subtle mb-5">Selecione quem vai treinar hoje</DialogDescription>
 
             <div className="space-y-3 mb-6">
               {podeTreinar && (
-                <label className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                <label className="flex items-center gap-3 p-3 rounded-2xl border border-line cursor-pointer hover:bg-subtle active:bg-subtle transition-colors">
                   <input
                     type="checkbox"
                     checked={selecionados.includes(profile.id)}
                     onChange={() => toggleSelecionado(profile.id)}
-                    className="h-5 w-5 rounded border-gray-300 text-gb-blue focus:ring-gb-blue/30 shrink-0"
+                    className="h-5 w-5 rounded border-line-strong text-gb-blue focus:ring-gb-blue/30 shrink-0"
                   />
                   <div className="w-10 h-10 rounded-full bg-gb-blue flex items-center justify-center overflow-hidden shrink-0">
                     {profile.foto_url ? (
@@ -400,8 +401,8 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm truncate">{profile.nome_completo}</p>
-                    <p className="text-xs text-gray-400">Eu</p>
+                    <p className="font-semibold text-fg text-sm truncate">{profile.nome_completo}</p>
+                    <p className="text-xs text-fg-subtle">Eu</p>
                   </div>
                   {selecionados.includes(profile.id) && (
                     <div className="ml-auto w-5 h-5 rounded-full bg-gb-blue flex items-center justify-center shrink-0">
@@ -412,12 +413,12 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
               )}
 
               {dependentes.map((dep) => (
-                <label key={dep.id} className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                <label key={dep.id} className="flex items-center gap-3 p-3 rounded-2xl border border-line cursor-pointer hover:bg-subtle active:bg-subtle transition-colors">
                   <input
                     type="checkbox"
                     checked={selecionados.includes(dep.id)}
                     onChange={() => toggleSelecionado(dep.id)}
-                    className="h-5 w-5 rounded border-gray-300 text-gb-blue focus:ring-gb-blue/30 shrink-0"
+                    className="h-5 w-5 rounded border-line-strong text-gb-blue focus:ring-gb-blue/30 shrink-0"
                   />
                   <div className="w-10 h-10 rounded-full bg-gb-blue/20 flex items-center justify-center overflow-hidden shrink-0">
                     {dep.foto_url ? (
@@ -428,8 +429,8 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm truncate">{dep.nome_completo}</p>
-                    <p className="text-xs text-gray-400">Dependente</p>
+                    <p className="font-semibold text-fg text-sm truncate">{dep.nome_completo}</p>
+                    <p className="text-xs text-fg-subtle">Dependente</p>
                   </div>
                   {selecionados.includes(dep.id) && (
                     <div className="ml-auto w-5 h-5 rounded-full bg-gb-blue flex items-center justify-center shrink-0">
@@ -466,26 +467,26 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
 function ResumoPosTreino({ posTreino }: { posTreino: PosTreino }) {
   const varias = posTreino.sequencias.length > 1;
   return (
-    <div className="w-full bg-white rounded-2xl border border-gray-100 p-4 space-y-3" data-testid="pos-treino">
+    <div className="w-full bg-surface rounded-2xl border border-line p-4 space-y-3" data-testid="pos-treino">
       {posTreino.sequencias.map((s) => (
-        <div key={s.alunoId} className="flex items-center gap-2 text-[14px] text-gray-700">
-          <Flame size={18} className={s.atual > 0 ? "text-orange-500" : "text-gray-300"} />
+        <div key={s.alunoId} className="flex items-center gap-2 text-[14px] text-fg">
+          <Flame size={18} className={s.atual > 0 ? "text-orange-500" : "text-line-strong"} />
           <span>
             {varias && <span className="font-semibold">{s.nome}: </span>}
             {s.atual > 0
-              ? <>Sequência de <span className="font-bold text-gray-900">{s.atual} semana{s.atual !== 1 ? "s" : ""}</span></>
-              : <>Esta semana: <span className="font-bold text-gray-900">{Math.min(s.semanaAulas, 2)}/2</span> aulas para a sequência</>}
+              ? <>Sequência de <span className="font-bold text-fg">{s.atual} semana{s.atual !== 1 ? "s" : ""}</span></>
+              : <>Esta semana: <span className="font-bold text-fg">{Math.min(s.semanaAulas, 2)}/2</span> aulas para a sequência</>}
           </span>
         </div>
       ))}
       {posTreino.novas.length > 0 && (
-        <div className="border-t border-gray-100 pt-3 space-y-2">
+        <div className="border-t border-line pt-3 space-y-2">
           {posTreino.novas.map((n) => (
             <div key={n.id} className="flex items-center gap-3 animate-in fade-in zoom-in-95 duration-500">
               <Medalha codigo={n.codigo} tamanho="sm" />
-              <p className="text-[14px] text-gray-800">
+              <p className="text-[14px] text-fg">
                 <span className="font-semibold">Nova medalha:</span> {CONQUISTAS_POR_CODIGO[n.codigo]?.titulo}
-                {varias && <span className="text-gray-500"> ({posTreino.sequencias.find((s) => s.alunoId === n.aluno_id)?.nome})</span>}
+                {varias && <span className="text-fg-muted"> ({posTreino.sequencias.find((s) => s.alunoId === n.aluno_id)?.nome})</span>}
               </p>
             </div>
           ))}

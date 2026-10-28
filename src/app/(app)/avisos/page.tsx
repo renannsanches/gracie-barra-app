@@ -29,7 +29,7 @@ export default async function AvisosPage() {
   const avisos = (data ?? []) as Aviso[];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gb-gray">
+    <div className="min-h-screen flex flex-col bg-canvas">
       <AvisosMarkRead />
       <PageHeader
         title="Avisos"
@@ -39,24 +39,24 @@ export default async function AvisosPage() {
 
       <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-3 animar-lista">
         {avisos.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
-            <Megaphone size={36} className="text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">Nenhum aviso no momento</p>
+          <div className="bg-surface rounded-2xl border border-line p-10 text-center">
+            <Megaphone size={36} className="text-line mx-auto mb-3" />
+            <p className="text-fg-muted font-medium">Nenhum aviso no momento</p>
           </div>
         ) : (
           avisos.map((a) => (
-            <div key={a.id} className="bg-white rounded-2xl border border-gray-100 p-5">
+            <div key={a.id} className="bg-surface rounded-2xl border border-line p-5">
               <div className="flex items-start gap-2 mb-2 flex-wrap">
-                <h2 className="font-bold text-gray-900 text-base leading-snug flex-1">{a.titulo}</h2>
+                <h2 className="font-bold text-fg text-base leading-snug flex-1">{a.titulo}</h2>
                 {a.fixado && (
-                  <Badge className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 shrink-0">
+                  <Badge className="bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 text-xs px-2 py-0.5 shrink-0">
                     <Pin size={10} className="mr-1 inline" />
                     Fixado
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{a.conteudo}</p>
-              <p className="text-xs text-gray-400 mt-3">{formatDate(a.created_at)}</p>
+              <p className="text-sm text-fg leading-relaxed whitespace-pre-wrap">{a.conteudo}</p>
+              <p className="text-xs text-fg-subtle mt-3">{formatDate(a.created_at)}</p>
             </div>
           ))
         )}

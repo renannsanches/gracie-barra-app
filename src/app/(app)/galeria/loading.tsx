@@ -7,7 +7,7 @@ export default function Loading() {
     <AppPageSkeleton title="Galeria" icon={<Images size={20} />} back={{ href: "/perfil", label: "Início" }}>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="bg-surface rounded-2xl border border-gray-100 overflow-hidden">
+          <div key={i} className="bg-surface rounded-2xl border border-line overflow-hidden">
             <Skeleton className="aspect-square w-full rounded-none" />
             <div className="p-3 space-y-2">
               <Skeleton className="h-4 w-3/4" />

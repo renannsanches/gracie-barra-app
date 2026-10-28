@@ -111,35 +111,35 @@ export function PresencasCalendario({ presencas, pessoas = [], responsavelId = "
   return (
     <div className="space-y-4">
       {/* Seletor de mês + resumo */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4">
+      <div className="bg-surface rounded-2xl border border-line p-4">
         <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={() => navMes(-1)}
             title="Mês anterior"
-            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-subtle transition-colors"
           >
-            <ChevronLeft size={18} className="text-gray-600" />
+            <ChevronLeft size={18} className="text-fg-muted" />
           </button>
           <div className="text-center">
-            <p className="font-bold text-gray-900 text-sm">{MESES[mes]}</p>
-            <p className="text-xs text-gray-400">{ano}</p>
+            <p className="font-bold text-fg text-sm">{MESES[mes]}</p>
+            <p className="text-xs text-fg-subtle">{ano}</p>
           </div>
           <button
             type="button"
             onClick={() => navMes(1)}
             disabled={esMesAtual}
             title="Próximo mês"
-            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-subtle transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <ChevronRight size={18} className="text-gray-600" />
+            <ChevronRight size={18} className="text-fg-muted" />
           </button>
         </div>
         <div className="mt-3 text-center">
           <p className="text-2xl font-black tabular-nums" style={{ color: corAtual }}>
             {presencasNoMes.length}
           </p>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-fg-subtle mt-0.5">
             presença{presencasNoMes.length !== 1 ? "s" : ""} em {MESES[mes].toLowerCase()}
           </p>
         </div>
@@ -159,7 +159,7 @@ export function PresencasCalendario({ presencas, pessoas = [], responsavelId = "
                 style={
                   selecionado
                     ? { backgroundColor: p.cor, color: "#ffffff" }
-                    : { backgroundColor: "#ffffff", color: "#6B7280", border: "1px solid #E5E7EB" }
+                    : { backgroundColor: "rgb(var(--surface))", color: "rgb(var(--fg-muted))", border: "1px solid rgb(var(--line))" }
                 }
               >
                 {p.nome.split(" ")[0]}
@@ -170,10 +170,10 @@ export function PresencasCalendario({ presencas, pessoas = [], responsavelId = "
       )}
 
       {/* Calendário */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4">
+      <div className="bg-surface rounded-2xl border border-line p-4">
         <div className="grid grid-cols-7 mb-2">
           {DIAS_SEMANA.map((d, i) => (
-            <div key={i} className="text-center text-xs font-semibold text-gray-400 py-1">{d}</div>
+            <div key={i} className="text-center text-xs font-semibold text-fg-subtle py-1">{d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -189,8 +189,8 @@ export function PresencasCalendario({ presencas, pessoas = [], responsavelId = "
                   treinou
                     ? { backgroundColor: corAtual, color: "#ffffff", fontWeight: 700 }
                     : eHoje
-                    ? { backgroundColor: "#F5F5F5", border: `2px solid ${corAtual}`, color: corAtual, fontWeight: 700 }
-                    : { backgroundColor: "#F9FAFB", color: "#9CA3AF" }
+                    ? { backgroundColor: "rgb(var(--canvas))", border: `2px solid ${corAtual}`, color: corAtual, fontWeight: 700 }
+                    : { backgroundColor: "rgb(var(--subtle))", color: "rgb(var(--fg-subtle))" }
                 }
               >
                 {dia}
@@ -201,22 +201,22 @@ export function PresencasCalendario({ presencas, pessoas = [], responsavelId = "
         <div className="mt-3 flex items-center justify-center gap-4">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: corAtual }} />
-            <span className="text-xs text-gray-400">Treinou</span>
+            <span className="text-xs text-fg-subtle">Treinou</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-gray-50 border border-gray-200" />
-            <span className="text-xs text-gray-400">Sem treino</span>
+            <div className="w-3 h-3 rounded-sm bg-subtle border border-line" />
+            <span className="text-xs text-fg-subtle">Sem treino</span>
           </div>
         </div>
       </div>
 
       {/* Lista */}
       {presencasNoMes.length > 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-50">
-            <h3 className="font-bold text-gray-900 text-sm">Registros de {MESES[mes].toLowerCase()}</h3>
+        <div className="bg-surface rounded-2xl border border-line overflow-hidden">
+          <div className="px-4 py-3 border-b border-line">
+            <h3 className="font-bold text-fg text-sm">Registros de {MESES[mes].toLowerCase()}</h3>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-line">
             {presencasNoMes.map((p, i) => (
               <div key={p.id ?? i} className="px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
@@ -233,20 +233,20 @@ export function PresencasCalendario({ presencas, pessoas = [], responsavelId = "
                     >
                       {primeiroNome}
                     </span>
-                    <p className="text-sm font-medium text-gray-900 capitalize truncate">
+                    <p className="text-sm font-medium text-fg capitalize truncate">
                       {formatarDataLista(p.registrado_em)}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 ml-2 shrink-0">
-                  <span className="text-sm text-gray-400 tabular-nums">{formatarHora(p.registrado_em)}</span>
+                  <span className="text-sm text-fg-subtle tabular-nums">{formatarHora(p.registrado_em)}</span>
                   {onExcluirPresenca && p.id && (
                     <button
                       type="button"
                       onClick={() => handleExcluir(p.id!)}
                       disabled={excluindo === p.id}
                       title="Excluir presença"
-                      className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                      className="w-6 h-6 rounded-md flex items-center justify-center text-line-strong hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/15 transition-colors disabled:opacity-50"
                     >
                       {excluindo === p.id
                         ? <Loader2 size={12} className="animate-spin" />
@@ -260,9 +260,9 @@ export function PresencasCalendario({ presencas, pessoas = [], responsavelId = "
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-          <CalendarDays size={36} className="text-gray-200 mx-auto mb-2" />
-          <p className="text-gray-400 text-sm">Nenhuma presença em {MESES[mes].toLowerCase()}</p>
+        <div className="bg-surface rounded-2xl border border-line p-8 text-center">
+          <CalendarDays size={36} className="text-line mx-auto mb-2" />
+          <p className="text-fg-subtle text-sm">Nenhuma presença em {MESES[mes].toLowerCase()}</p>
         </div>
       )}
     </div>

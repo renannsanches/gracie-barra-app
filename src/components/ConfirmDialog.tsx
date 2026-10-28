@@ -86,11 +86,11 @@ export function ConfirmHost() {
         <AlertDialog.Overlay className="fixed inset-0 z-[70] bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-base data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-fast" />
         <div className="pointer-events-none fixed inset-0 z-[70] flex items-center justify-center p-4">
           <AlertDialog.Content className="pointer-events-auto w-full max-w-sm rounded-2xl bg-surface p-6 shadow-xl focus:outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:duration-base data-[state=open]:ease-out-expo data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-fast">
-            <AlertDialog.Title className="text-lg font-bold text-gray-900 leading-snug">
+            <AlertDialog.Title className="text-lg font-bold text-fg leading-snug">
               {p?.titulo}
             </AlertDialog.Title>
             {p?.descricao ? (
-              <AlertDialog.Description className="mt-2 text-sm text-gray-500 leading-relaxed">
+              <AlertDialog.Description className="mt-2 text-sm text-fg-muted leading-relaxed">
                 {p.descricao}
               </AlertDialog.Description>
             ) : (

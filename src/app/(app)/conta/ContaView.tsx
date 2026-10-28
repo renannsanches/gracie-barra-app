@@ -7,8 +7,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   User, Phone, Calendar, Mail, LogOut, ShieldCheck, Settings, LayoutDashboard,
-  Award, Camera, Loader2, Check, X, CreditCard, Users, ChevronRight, ChevronDown,
+  Award, Camera, Loader2, Check, X, CreditCard, Users, ChevronRight, ChevronDown, Moon,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useTemaAtivo, usePreferenciaTema } from "@/components/useTema";
+import { gravarPreferencia } from "@/lib/tema";
 import { createClient } from "@/lib/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
@@ -360,7 +363,7 @@ export function ContaView({
           <AccordionCard
             open={dadosOpen}
             onToggle={() => setDadosOpen((o) => !o)}
-            icon={<ShieldCheck size={16} className="text-gray-400" />}
+            icon={<ShieldCheck size={16} className="text-fg-subtle" />}
             title="Dados pessoais"
             action={
               !editando ? (
@@ -421,7 +424,7 @@ export function ContaView({
                       value={form.novoEmail}
                       onChange={(e) => setForm((f) => ({ ...f, novoEmail: e.target.value }))}
                     />
-                    <p className="text-xs text-gray-400 px-1">
+                    <p className="text-xs text-fg-subtle px-1">
                       Deixa em branco para manter {email}. Ao alterar, receberás um email de confirmação.
                     </p>
                     {emailMsgOk && (
@@ -430,12 +433,12 @@ export function ContaView({
                   </div>
 
                   {profile.faixa && (
-                    <div className="rounded-xl bg-gb-gray px-4 py-3">
-                      <p className="text-xs text-gray-400 font-medium mb-1">Faixa / Graus / Categoria</p>
-                      <p className="text-sm text-gray-500 capitalize">
+                    <div className="rounded-xl bg-canvas px-4 py-3">
+                      <p className="text-xs text-fg-subtle font-medium mb-1">Faixa / Graus / Categoria</p>
+                      <p className="text-sm text-fg-muted capitalize">
                         {labelCorFaixa(profile.faixa)} · {profile.graus} grau{profile.graus !== 1 ? "s" : ""} · {profile.categoria}
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">Apenas o professor pode alterar</p>
+                      <p className="text-xs text-fg-subtle mt-1">Apenas o professor pode alterar</p>
                     </div>
                   )}
 
@@ -495,7 +498,7 @@ export function ContaView({
           {mostrarFaixa && <AccordionCard
             open={faixaOpen}
             onToggle={() => setFaixaOpen((o) => !o)}
-            icon={<Award size={16} className="text-gray-400" />}
+            icon={<Award size={16} className="text-fg-subtle" />}
             title="Faixa e graduação"
           >
               <div className="space-y-3">
@@ -504,49 +507,49 @@ export function ContaView({
                     <div className="flex items-center gap-3">
                       <FaixaBJJ faixa={profile.faixa} graus={profile.graus} categoria={profile.categoria} tamanho="sm" className="flex-1" />
                       <div className="text-right shrink-0">
-                        <p className="text-[14px] font-medium text-gray-900">{labelCorFaixa(profile.faixa)}</p>
-                        <p className="text-[12px] text-gray-400">{profile.graus} {profile.graus === 1 ? "grau" : "graus"} · <span className="capitalize">{profile.categoria}</span></p>
+                        <p className="text-[14px] font-medium text-fg">{labelCorFaixa(profile.faixa)}</p>
+                        <p className="text-[12px] text-fg-subtle">{profile.graus} {profile.graus === 1 ? "grau" : "graus"} · <span className="capitalize">{profile.categoria}</span></p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-gb-gray rounded-xl p-3 text-center">
-                        <p className="text-[22px] font-medium text-gray-900 leading-none">{totalAulas}</p>
-                        <p className="text-xs text-gray-400 mt-1">Total de aulas</p>
+                      <div className="bg-canvas rounded-xl p-3 text-center">
+                        <p className="text-[22px] font-medium text-fg leading-none">{totalAulas}</p>
+                        <p className="text-xs text-fg-subtle mt-1">Total de aulas</p>
                       </div>
-                      <div className="bg-gb-gray rounded-xl p-3 text-center">
-                        <p className="text-[22px] font-medium text-gray-900 leading-none">{aulasMes}</p>
-                        <p className="text-xs text-gray-400 mt-1">Esse mês</p>
+                      <div className="bg-canvas rounded-xl p-3 text-center">
+                        <p className="text-[22px] font-medium text-fg leading-none">{aulasMes}</p>
+                        <p className="text-xs text-fg-subtle mt-1">Esse mês</p>
                       </div>
-                      <div className="bg-gb-gray rounded-xl p-3 text-center">
-                        <p className="text-[22px] font-medium text-gray-900 leading-none">
+                      <div className="bg-canvas rounded-xl p-3 text-center">
+                        <p className="text-[22px] font-medium text-fg leading-none">
                           {ultimoTreino ? formatarData(ultimoTreino).split("/").slice(0, 2).join("/") : "—"}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">Último treino</p>
+                        <p className="text-xs text-fg-subtle mt-1">Último treino</p>
                       </div>
                     </div>
                   </>
                 ) : (
                   <div className="text-center py-4">
-                    <Award size={32} className="text-gray-300 mx-auto mb-2" />
-                    <p className="text-gray-400 text-sm">Graduação a ser definida pelo professor</p>
+                    <Award size={32} className="text-line-strong mx-auto mb-2" />
+                    <p className="text-fg-subtle text-sm">Graduação a ser definida pelo professor</p>
                   </div>
                 )}
 
                 {historicoGraduacoes.length > 0 && (
                   <div className="pt-2">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Minha Evolução</p>
+                    <p className="text-xs font-semibold text-fg-subtle uppercase tracking-wide mb-4">Minha Evolução</p>
                     <div className="relative pl-9">
                       {historicoGraduacoes.length > 1 && (
-                        <div className="absolute left-3 top-5 bottom-5 w-0.5 bg-gray-200 rounded-full" />
+                        <div className="absolute left-3 top-5 bottom-5 w-0.5 bg-line rounded-full" />
                       )}
                       {historicoGraduacoes.map((g) => (
                         <div key={g.id} className="relative mb-5 last:mb-0">
-                          <div className="absolute -left-9 top-1 w-7 h-7 rounded-full bg-gb-blue border-2 border-white flex items-center justify-center shadow-sm z-10">
+                          <div className="absolute -left-9 top-1 w-7 h-7 rounded-full bg-gb-blue border-2 border-surface flex items-center justify-center shadow-sm z-10">
                             <Award size={12} className="text-white" />
                           </div>
                           <div className="space-y-2">
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                            <p className="text-xs font-semibold text-fg-subtle uppercase tracking-wide">
                               {formatarData(g.data_graduacao)}
                             </p>
                             <div className="flex items-center gap-3 flex-wrap">
@@ -559,7 +562,7 @@ export function ContaView({
                                     tamanho="sm"
                                     showLabel
                                   />
-                                  <span className="text-gray-400 text-xl font-light shrink-0">→</span>
+                                  <span className="text-fg-subtle text-xl font-light shrink-0">→</span>
                                 </>
                               )}
                               <FaixaBJJ faixa={g.faixa_nova} graus={g.graus_nova} categoria={inferCategoria(g.faixa_nova)} tamanho="sm" showLabel />
@@ -567,10 +570,10 @@ export function ContaView({
                             {(g.professor || g.observacoes) && (
                               <div className="space-y-0.5 pt-1">
                                 {g.professor && (
-                                  <p className="text-xs text-gray-400">{g.professor.nome_completo}</p>
+                                  <p className="text-xs text-fg-subtle">{g.professor.nome_completo}</p>
                                 )}
                                 {g.observacoes && (
-                                  <p className="text-xs text-gray-500 italic">&ldquo;{g.observacoes}&rdquo;</p>
+                                  <p className="text-xs text-fg-muted italic">&ldquo;{g.observacoes}&rdquo;</p>
                                 )}
                               </div>
                             )}
@@ -588,7 +591,7 @@ export function ContaView({
             <AccordionCard
               open={mensalidadesOpen}
               onToggle={() => setMensalidadesOpen((o) => !o)}
-              icon={<CreditCard size={16} className="text-gray-400" />}
+              icon={<CreditCard size={16} className="text-fg-subtle" />}
               title="Mensalidades"
             >
               <div className="space-y-2">
@@ -597,14 +600,14 @@ export function ContaView({
                   return (
                   <div
                     key={m.id}
-                    className="flex items-center justify-between gap-3 py-2.5 border-b border-gray-100 last:border-0"
+                    className="flex items-center justify-between gap-3 py-2.5 border-b border-line last:border-0"
                   >
                     <div className="min-w-0">
-                      <p className="text-[14px] font-medium text-gray-900">{formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}</p>
-                      <p className="text-[12px] text-gray-400 mt-0.5">Vence em {formatarData(m.data_vencimento)}</p>
+                      <p className="text-[14px] font-medium text-fg">{formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}</p>
+                      <p className="text-[12px] text-fg-subtle mt-0.5">Vence em {formatarData(m.data_vencimento)}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-[14px] font-medium text-gray-900">{m.valor != null ? formatarMoeda(m.valor) : "—"}</p>
+                      <p className="text-[14px] font-medium text-fg">{m.valor != null ? formatarMoeda(m.valor) : "—"}</p>
                       {m.valor != null && <DetalheMensalidade valor={m.valor} itens={m.itens} className="text-xs" />}
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mt-1 ${
                         ef === "pago"
@@ -646,7 +649,7 @@ export function ContaView({
             <AccordionCard
               open={dependentesOpen}
               onToggle={() => setDependentesOpen((o) => !o)}
-              icon={<Users size={16} className="text-gray-400" />}
+              icon={<Users size={16} className="text-fg-subtle" />}
               title="Dependentes"
             >
               <div className="space-y-1">
@@ -654,9 +657,9 @@ export function ContaView({
                   const ultimaMens = dep.mensalidades[0];
                   const ultimaMensEf = ultimaMens ? getEffectiveStatus(ultimaMens) : null;
                   const mensStatusColor: Record<StatusMensalidade, string> = {
-                    pago:     "text-green-600 bg-green-50",
-                    pendente: "text-amber-600 bg-amber-50",
-                    atrasado: "text-red-600 bg-red-50",
+                    pago:     "text-green-600 bg-green-50 dark:bg-green-500/15",
+                    pendente: "text-amber-600 bg-amber-50 dark:bg-amber-500/15",
+                    atrasado: "text-red-600 bg-red-50 dark:bg-red-500/15",
                   };
                   const mensStatusLabel: Record<StatusMensalidade, string> = {
                     pago:     "Em dia",
@@ -667,7 +670,7 @@ export function ContaView({
                   return (
                     <div
                       key={dep.id}
-                      className="w-full flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0 text-left"
+                      className="w-full flex items-center gap-3 py-2.5 border-b border-line last:border-0 text-left"
                     >
                       <div className="relative shrink-0">
                         <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden">
@@ -682,7 +685,7 @@ export function ContaView({
                           type="button"
                           onClick={(e) => handleDepAvatarClick(e, dep.id)}
                           disabled={!!uploadingDepId}
-                          className="absolute -bottom-0.5 -right-0.5 w-[18px] h-[18px] rounded-full bg-brand border-[1.5px] border-white flex items-center justify-center shadow"
+                          className="absolute -bottom-0.5 -right-0.5 w-[18px] h-[18px] rounded-full bg-brand border-[1.5px] border-surface flex items-center justify-center shadow"
                           aria-label={`Alterar foto de ${dep.nome_completo}`}
                         >
                           {isUploadingThis
@@ -697,10 +700,10 @@ export function ContaView({
                         className="flex-1 min-w-0 flex items-center gap-3 text-left"
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="text-[14px] font-medium text-gray-900 truncate">{dep.nome_completo}</p>
+                          <p className="text-[14px] font-medium text-fg truncate">{dep.nome_completo}</p>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             {dep.faixa && (
-                              <p className="text-[12px] text-gray-400">
+                              <p className="text-[12px] text-fg-subtle">
                                 {labelCorFaixa(dep.faixa)} · {dep.graus} grau{dep.graus !== 1 ? "s" : ""} · <span className="capitalize">{dep.categoria}</span>
                               </p>
                             )}
@@ -714,7 +717,7 @@ export function ContaView({
                         {dep.faixa && (
                           <FaixaBJJ faixa={dep.faixa} graus={dep.graus} categoria={dep.categoria} tamanho="sm" />
                         )}
-                        <ChevronRight size={16} className="text-gray-300 shrink-0" />
+                        <ChevronRight size={16} className="text-line-strong shrink-0" />
                       </button>
                     </div>
                   );
@@ -724,6 +727,13 @@ export function ContaView({
           )}
         </section>
         )}
+
+        <section className="space-y-2" aria-labelledby="sec-preferencias">
+          <TituloSecao id="sec-preferencias">Preferências</TituloSecao>
+          <div className="bg-surface rounded-2xl border border-line overflow-hidden">
+            <LinhaModoEscuro />
+          </div>
+        </section>
 
         {/* Academia — só staff */}
         {isStaff && (
@@ -792,6 +802,31 @@ function LinhaLink({
   );
 }
 
+function LinhaModoEscuro() {
+  const ativo = useTemaAtivo() === "escuro";
+  const segueSistema = usePreferenciaTema() === null;
+  return (
+    <div className="flex items-center gap-3 min-h-14 px-4 py-3">
+      <span className="w-9 h-9 rounded-lg bg-brand/10 text-brand flex items-center justify-center shrink-0">
+        <Moon size={18} />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span id="modo-escuro-label" className="block text-sm font-medium text-fg">
+          Modo escuro
+        </span>
+        {segueSistema && (
+          <span className="block text-xs text-fg-muted mt-0.5">Segue o sistema</span>
+        )}
+      </span>
+      <Switch
+        checked={ativo}
+        onCheckedChange={(v) => gravarPreferencia(v ? "escuro" : "claro")}
+        aria-labelledby="modo-escuro-label"
+      />
+    </div>
+  );
+}
+
 function BotaoSair({ saindo, onClick }: { saindo: boolean; onClick: () => void }) {
   return (
     <button
@@ -822,7 +857,7 @@ function AccordionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+    <div className="bg-surface border border-line rounded-xl overflow-hidden">
       <div
         role="button"
         tabIndex={0}
@@ -835,22 +870,22 @@ function AccordionCard({
             onToggle();
           }
         }}
-        className="w-full flex items-center justify-between px-4 py-3.5 cursor-pointer active:bg-gray-50 transition-colors duration-fast"
+        className="w-full flex items-center justify-between px-4 py-3.5 cursor-pointer active:bg-subtle transition-colors duration-fast"
       >
         <div className="flex items-center gap-2">
           {icon}
-          <span className="text-[13px] font-medium text-gray-900">{title}</span>
+          <span className="text-[13px] font-medium text-fg">{title}</span>
         </div>
         <div className="flex items-center gap-2.5">
           {action}
           <ChevronDown
             size={16}
-            className={`text-gray-400 transition-transform duration-200 ease-in-out${open ? " rotate-180" : ""}`}
+            className={`text-fg-subtle transition-transform duration-200 ease-in-out${open ? " rotate-180" : ""}`}
           />
         </div>
       </div>
       <div inert={!open} className={`overflow-hidden transition-[max-height] duration-base ease-in-out ${open ? "max-h-[2000px]" : "max-h-0"}`}>
-        <div className="px-4 pb-4 border-t border-gray-100 pt-3">
+        <div className="px-4 pb-4 border-t border-line pt-3">
           {children}
         </div>
       </div>
@@ -868,11 +903,11 @@ function InfoRow({
   value: string;
 }) {
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
-      <div className="text-gray-400 shrink-0 w-5 text-center">{icon}</div>
+    <div className="flex items-center gap-3 py-2.5 border-b border-line last:border-0">
+      <div className="text-fg-subtle shrink-0 w-5 text-center">{icon}</div>
       <div className="min-w-0">
-        <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-        <p className="text-[14px] text-gray-900 break-words">{value}</p>
+        <p className="text-xs text-fg-subtle mb-0.5">{label}</p>
+        <p className="text-[14px] text-fg break-words">{value}</p>
       </div>
     </div>
   );

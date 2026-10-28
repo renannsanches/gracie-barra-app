@@ -73,6 +73,7 @@ npm run test:e2e:report   # ver relatório HTML do último run
 | `financeiro.spec.ts` | Marcar mensalidade como paga + desmarcar (admin) |
 | `gamificacao.spec.ts` | Pílulas do Início (/perfil), /conquistas, abas do /ranking (aluno de teste fica oculto do ranking) |
 | `feed.spec.ts` | Corre como staff (projecto admin): publica, põe gosto, comenta e apaga (limpa os posts `e2e-feed-*` e os ficheiros); graduação pela ficha do aluno de teste → post "recebeu a faixa" no Início, que sai ao apagar a graduação e não aparece com `ocultar_ranking = true` (repõe faixa, graus, categoria e `ocultar_ranking` no fim) |
+| `tema.spec.ts` | Interruptor em Minha conta liga/desliga `dark`, persiste no reload, /admin fica sempre claro, segue o esquema do sistema em /perfil mas não em /admin/alunos |
 
 A BD dos testes é a de produção: o `global-setup` põe `ocultar_ranking = true` nos utilizadores de teste para não aparecerem no ranking real.
 
@@ -401,8 +402,10 @@ ActionResult = { ok: boolean; erro?: string }  // retorno padrão de Server Acti
 | `FotosCarrossel` | Carrossel de fotos de um post (até 10) |
 | `CurtidasSheet` / `ComentariosSheet` | Bottom sheets com quem deu gosto e com os comentários (máx. 300 caracteres) |
 | `PostComposer` | Compositor de publicações (staff): texto ≤2000, até 10 fotos comprimidas no cliente, 4 MB no total por envio (limite do body na Vercel) |
-| `ContaView` | Minha conta em `/conta` (antiga `PerfilView`): dados, faixa, mensalidades, dependentes, Dashboard (staff); `BottomNav` marca Início também em `/conta` |
-| `FeedbackHosts` | `<Toaster>` (sonner, topo) + host do `confirmar()`; montado nos layouts `(app)` e `admin` |
+| `ContaView` | Minha conta em `/conta` (antiga `PerfilView`): dados, faixa, mensalidades, dependentes, Dashboard (staff); `BottomNav` marca Início também em `/conta`; secção Preferências com o interruptor "Modo escuro" |
+| `FeedbackHosts` | `<Toaster>` (sonner, topo) + host do `confirmar()`; montado nos layouts `(app)` e `admin`; o tema do Toaster segue o tema activo |
+| `TemaScope` | Em `(app)/layout.tsx`: põe/tira `dark` no `<html>` conforme a rota (só as do aluno, `ROTAS_COM_TEMA` em `src/lib/tema.ts`), a preferência (`localStorage["tema"]` = claro/escuro; vazio = segue o sistema) e o `prefers-color-scheme`; tira-o ao sair (ex.: para /admin). O script sem flash está no `<head>` do layout raiz (`scriptTema()`) e actualiza o `theme-color` |
+| `useTemaAtivo` / `usePreferenciaTema` | Hooks em `src/components/useTema.ts`: tema aplicado agora (`claro`/`escuro`) e preferência guardada (`null` = sistema); reagem ao evento `tema-mudou` |
 
 ---
 
@@ -419,10 +422,13 @@ surface    // #FFFFFF — cards
 success / warning / destructive
 whatsapp / whatsapp-dark          // botões "Falar com a Simone"
 fg / fg-muted / line              // texto principal / secundário / bordas (--fg, --fg-muted, --line em globals.css)
+subtle / fg-subtle / line-strong     // fundo de blocos, texto terciário, borda forte (têm valor próprio em `.dark`)
 // gb-blue, gb-black, gb-gray… continuam como aliases (gb-blue é o vermelho, nome histórico)
 ```
 
 Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-sheet`, `pb-bottom-nav`; `duration-fast`/`duration-base` + `ease-out-expo`; `animar-entrada` / `animar-lista` (entrada de conteúdo). Texto nunca abaixo de 12px (`text-xs`). Avatares de utilizador em `<img>` (URL sobrescrito no upload), logos em `next/image`. O viewport usa `viewportFit: "cover"` e **não bloqueia o zoom** — em ecrãs táteis os campos ficam ≥16px para o iOS não fazer zoom ao focar.
+
+**Modo escuro:** classe `dark` no `<html>`, só nas rotas do aluno (`/admin` e `/tablet` ficam sempre claros — o tablet é Safari 15). Os ficheiros do aluno usam só tokens semânticos (`bg-surface`, `bg-canvas`, `bg-subtle`, `text-fg*`, `border-line*`…); cores fixas de propósito (ex.: caixa branca do QR) levam o comentário `tema: fixo` na mesma linha ou na anterior. O guarda `src/lib/tema-cores.test.ts` falha com `bg-white`, `text-gray-N`, `text-ink`… Canais RGB em `.dark` de `globals.css`, nunca `oklch()`.
 
 **Theme color PWA:** `#ED1C24` · **Fonte principal:** SF Pro Display (local woff2) + Geist · **Locale:** pt-PT · **Interface:** português europeu · **Código:** inglês · **Mobile-first**
 
@@ -520,14 +526,14 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | — | **Modalidades** | `/admin/modalidades`; card Modalidades na ficha (valor por aluno, total, "Atualizar pendentes" quando muda); `mensalidades.itens` (jsonb) guarda a composição e `valor` continua a ser o total; detalhe "JJ 50 € · Capoeira 20 €" no Financeiro, ficha, perfil do aluno e relatórios; `turmas.modalidade_id` filtra `/aulas` e é validado em `reservar` |
 | — | **Colégio e descontos** | Modalidade "Jiu-Jitsu · Colégio" 13 € com `desconta_noutro_local`: ao juntar uma modalidade de outro local, o editor passa o Colégio a "pago no colégio" (`cobrar=false`) e cria "Desconto aluno do Colégio −13 €" (editável); ao sair, reverte. Ficha mostra "Onde treina"; filtros de grupo (Cadastros, Financeiro) usam locais derivados; descontos manuais no editor |
 | 17 | **Gamificação** | `/ranking` (mês/ano, Adultos/Kids pela regra da graduação, empates 1,1,3, opção de ocultar); `/conquistas` (sequência = semanas seg–dom com ≥2 aulas, semana sem ninguém na academia é pausa; medalhas de aulas 10–500, sequências 4–52, Mês perfeito, Top 3 do mês desde 2026-10, 1/2/3 anos). Regras em `src/lib/gamificacao.ts` (testadas com vitest); gravação em `src/lib/conquistas-sync.ts` — depois do QR (ecrã de confirmação), na presença manual do tablet (`after`) e no cron diário `type=conquistas` (`?dry=1` só conta). Push agrupado por pessoa; backfill antigo não gera push |
-| 18 | **Feed da academia (PR 1)** | `/perfil` é o Início com pílulas Feed · Ranking · Conquistas · Galeria; `/conta` = Minha conta. Staff publica/edita/apaga (texto + até 10 fotos); aluno/responsável/professor põem gosto e comentam. Tabelas `feed_*` + bucket `feed` (migrações `20261026120000_feed.sql` e `20261027120000_feed_jpeg.sql`, já aplicadas em produção). Push: novo post → alunos/responsáveis/professores activos (menos o autor); comentário → só o autor do post; gostos não notificam. Regras puras em `src/lib/feed.ts` (testadas); loaders partilhados `dados.ts` em ranking/conquistas/galeria. Desvio ao spec §5.2: sem linha "Notificações" em Minha conta (não existe toggle de push); a linha "Modo escuro" vem no PR 3 |
+| 18 | **Feed da academia (PR 1)** | `/perfil` é o Início com pílulas Feed · Ranking · Conquistas · Galeria; `/conta` = Minha conta. Staff publica/edita/apaga (texto + até 10 fotos); aluno/responsável/professor põem gosto e comentam. Tabelas `feed_*` + bucket `feed` (migrações `20261026120000_feed.sql` e `20261027120000_feed_jpeg.sql`, já aplicadas em produção). Push: novo post → alunos/responsáveis/professores activos (menos o autor); comentário → só o autor do post; gostos não notificam. Regras puras em `src/lib/feed.ts` (testadas); loaders partilhados `dados.ts` em ranking/conquistas/galeria. Desvio ao spec §5.2: sem linha "Notificações" em Minha conta (não existe toggle de push); a linha "Modo escuro" veio no PR 3 |
 | 18 | **Feed (PR 2) — posts automáticos** | Autor "Gracie Barra Famalicão" (`autor_id` null); staff pode editá-los e juntar fotos. **Graduação**: `registrarGraduacao` publica "X recebeu a faixa Y." só com faixa nova que **sobe** (não só graus, nem o primeiro registo, nem correcções/descidas; ordem de `graduacao-rules`, infantis abaixo das de adulto), aluno visível no ranking e `data_graduacao` entre hoje e 7 dias atrás (Lisboa); nome como no ranking; sem push; `excluirGraduacao` apaga o post e as fotos. **Pódio**: cron diário `type=feed_podio` publica o Top 3 Adultos e Kids do mês anterior (regras do `/ranking`, mínimo 4 aulas, desde 2026-10 → o primeiro sai a 1 de novembro) com push a alunos, responsáveis e professores activos. Regras em `src/lib/feed-automatico.ts` (testadas), gravação em `src/lib/feed-servidor.ts`, cartões `PostGraduacao`/`PostPodio`. Migração `20261028120000_feed_dados.sql` (coluna `dados`) já aplicada |
+| 18 | **Modo escuro (PR 3)** | Segue o sistema por defeito; interruptor em Minha conta › Preferências guarda a escolha por dispositivo (`localStorage["tema"]`), sem flash no carregamento (script no `<head>`). Cobre as páginas do aluno (grupo `(app)`), Minha conta e feed; `/admin` e `/tablet` ficam sempre claros. ~260 cores fixas passaram a tokens semânticos (`subtle`, `fg-subtle`, `line-strong` novos) com guarda em vitest; `theme-color` e Toaster seguem o tema. Regras puras em `src/lib/tema.ts` (testadas), `TemaScope` + `useTema`. Sem migração de BD |
 
 ### ❌ Por implementar
 
 | Fase | Funcionalidade | Prioridade |
 |------|---------------|------------|
-| 18 | **Modo escuro** — PR 3 do mesmo spec; traz a linha "Modo escuro" em Minha conta | Baixa |
 | 18 | **Vídeo no feed via Bunny Stream** — decisão do dono; o feed arranca só com fotos (spec §3) | Baixa |
 | 15 | **UI/UX Polishing** — feito (PRs #61–#63): tokens, safe areas, zoom, skeletons, barra inferior, toasts, diálogos/confirmações, UI optimista, micro-interacções, cores/tipografia consistentes. Opcional: Barlow Condensed nos números (`docs/plano-fluidez-ui.md`) | — |
 

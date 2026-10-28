@@ -50,9 +50,9 @@ export function ConquistasView({ pessoas, embutido = false }: { pessoas: PessoaC
               claro
                 ? p.id === pessoa?.id
                   ? "bg-brand text-white"
-                  : "bg-surface border border-line text-fg-muted hover:text-ink"
+                  : "bg-surface border border-line text-fg-muted hover:text-fg"
                 : p.id === pessoa?.id
-                  ? "bg-white text-gray-900"
+                  ? "bg-surface dark:bg-line-strong text-fg"
                   : "bg-white/10 text-white/70 hover:text-white",
             )}
           >
@@ -63,7 +63,7 @@ export function ConquistasView({ pessoas, embutido = false }: { pessoas: PessoaC
     );
 
   return (
-    <div className={embutido ? "flex flex-col" : "min-h-screen flex flex-col bg-gb-gray"}>
+    <div className={embutido ? "flex flex-col" : "min-h-screen flex flex-col bg-canvas"}>
       {!embutido && (
         <PageHeader
           title="Conquistas"
@@ -79,7 +79,7 @@ export function ConquistasView({ pessoas, embutido = false }: { pessoas: PessoaC
       <div className={embutido ? "space-y-3 animar-lista" : "flex-1 px-4 py-5 pb-bottom-nav space-y-3 animar-lista"}>
         {embutido && seletor(true)}
         {!pessoa ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-[14px] text-gray-500">
+          <div className="bg-surface rounded-2xl border border-line p-8 text-center text-[14px] text-fg-muted">
             Sem alunos associados a esta conta.
           </div>
         ) : (
@@ -118,32 +118,32 @@ function PainelPessoa({ pessoa }: { pessoa: PessoaConquistas }) {
   return (
     <>
       {/* Sequência */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4" data-testid="card-sequencia">
+      <div className="bg-surface rounded-2xl border border-line p-4" data-testid="card-sequencia">
         <div className="flex items-center gap-4">
           <div
             className={cn(
               "w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0",
-              sequencia.atual > 0 ? "bg-orange-50 text-orange-500" : "bg-gray-100 text-gray-300",
+              sequencia.atual > 0 ? "bg-orange-50 dark:bg-orange-500/15 text-orange-500" : "bg-subtle text-line-strong",
             )}
           >
             <Flame size={22} />
-            <span className="text-[20px] font-black leading-none tabular-nums text-gray-900">{sequencia.atual}</span>
+            <span className="text-[20px] font-black leading-none tabular-nums text-fg">{sequencia.atual}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[15px] font-semibold text-gray-900">
+            <p className="text-[15px] font-semibold text-fg">
               {sequencia.atual === 1 ? "1 semana seguida" : `${sequencia.atual} semanas seguidas`}
             </p>
-            <p className="text-[12px] text-gray-500 mt-0.5">
+            <p className="text-[12px] text-fg-muted mt-0.5">
               Meta: {sequencia.meta} aulas por semana · Melhor: {sequencia.melhor}
             </p>
             <div className="flex items-center gap-1.5 mt-2">
               {Array.from({ length: sequencia.meta }, (_, i) => (
                 <span
                   key={i}
-                  className={cn("w-2.5 h-2.5 rounded-full", i < sequencia.semanaAulas ? "bg-orange-500" : "bg-gray-200")}
+                  className={cn("w-2.5 h-2.5 rounded-full", i < sequencia.semanaAulas ? "bg-orange-500" : "bg-line")}
                 />
               ))}
-              <span className="text-[12px] text-gray-500 ml-1">
+              <span className="text-[12px] text-fg-muted ml-1">
                 Esta semana: {Math.min(sequencia.semanaAulas, sequencia.meta)}/{sequencia.meta}
               </span>
             </div>
@@ -152,19 +152,19 @@ function PainelPessoa({ pessoa }: { pessoa: PessoaConquistas }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center">
-          <p className="text-[22px] font-medium text-gray-900 leading-none">{pessoa.totalAulas}</p>
-          <p className="text-xs text-gray-400 mt-1">Total de aulas</p>
+        <div className="bg-surface rounded-2xl border border-line p-3 text-center">
+          <p className="text-[22px] font-medium text-fg leading-none">{pessoa.totalAulas}</p>
+          <p className="text-xs text-fg-subtle mt-1">Total de aulas</p>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center">
-          <p className="text-[22px] font-medium text-gray-900 leading-none">{pessoa.conquistas.length}</p>
-          <p className="text-xs text-gray-400 mt-1">Medalhas</p>
+        <div className="bg-surface rounded-2xl border border-line p-3 text-center">
+          <p className="text-[22px] font-medium text-fg leading-none">{pessoa.conquistas.length}</p>
+          <p className="text-xs text-fg-subtle mt-1">Medalhas</p>
         </div>
       </div>
 
       {GRUPOS.map(({ grupo, titulo }) => (
-        <div key={grupo} className="bg-white rounded-2xl border border-gray-100 p-4">
-          <p className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-3">{titulo}</p>
+        <div key={grupo} className="bg-surface rounded-2xl border border-line p-4">
+          <p className="text-[13px] font-semibold text-fg-muted uppercase tracking-wide mb-3">{titulo}</p>
           <div className="grid grid-cols-3 gap-x-2 gap-y-4">
             {CONQUISTAS.filter((d) => d.grupo === grupo).map((def) => {
               const ganhas = porCodigo.get(def.codigo) ?? [];
@@ -186,25 +186,25 @@ function PainelPessoa({ pessoa }: { pessoa: PessoaConquistas }) {
                       </span>
                     )}
                   </div>
-                  <p className={cn("text-[12px] font-semibold leading-tight", ganha ? "text-gray-900" : "text-gray-400")}>
+                  <p className={cn("text-[12px] font-semibold leading-tight", ganha ? "text-fg" : "text-fg-subtle")}>
                     {def.titulo}
                   </p>
                   {ganha ? (
-                    <p className="text-xs text-gray-400">{formatarData(ganhas[0].conquistadaEm)}</p>
+                    <p className="text-xs text-fg-subtle">{formatarData(ganhas[0].conquistadaEm)}</p>
                   ) : progresso ? (
                     <div className="w-full px-2">
-                      <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-1 bg-subtle rounded-full overflow-hidden">
                         <div
                           className="h-full bg-gray-400 rounded-full"
                           style={{ width: `${Math.round((progresso.atual / progresso.alvo) * 100)}%` }}
                         />
                       </div>
-                      <p className="text-xs text-gray-400 mt-1 tabular-nums">
+                      <p className="text-xs text-fg-subtle mt-1 tabular-nums">
                         {progresso.atual}/{progresso.alvo}
                       </p>
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-400 leading-tight">{def.descricao}</p>
+                    <p className="text-xs text-fg-subtle leading-tight">{def.descricao}</p>
                   )}
                 </div>
               );
@@ -214,11 +214,11 @@ function PainelPessoa({ pessoa }: { pessoa: PessoaConquistas }) {
       ))}
 
       {pessoa.podeRanking && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3">
-          <Trophy size={18} className="text-gray-400 shrink-0" />
+        <div className="bg-surface rounded-2xl border border-line p-4 flex items-center gap-3">
+          <Trophy size={18} className="text-fg-subtle shrink-0" />
           <div className="flex-1">
-            <p className="text-[14px] font-medium text-gray-900">Aparecer no ranking</p>
-            <p className="text-[12px] text-gray-500 leading-snug">
+            <p className="text-[14px] font-medium text-fg">Aparecer no ranking</p>
+            <p className="text-[12px] text-fg-muted leading-snug">
               Se desligares, não apareces aos outros alunos e não concorres ao Top 3 do mês.
             </p>
           </div>

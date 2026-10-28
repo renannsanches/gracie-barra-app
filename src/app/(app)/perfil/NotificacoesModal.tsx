@@ -104,7 +104,7 @@ export function NotificacoesModal({ mensalidades, avisos, onClose }: Props) {
     <Dialog open onOpenChange={(aberto) => { if (!aberto) onClose(); }}>
       <DialogContent showClose={false} aria-describedby={undefined} className="p-0 max-w-sm overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between pl-4 pr-1 py-1 border-b border-gray-100">
+        <div className="flex items-center justify-between pl-4 pr-1 py-1 border-b border-line">
           <DialogTitle className="text-[15px] font-semibold">Notificações</DialogTitle>
           <button
             type="button"
@@ -112,16 +112,16 @@ export function NotificacoesModal({ mensalidades, avisos, onClose }: Props) {
             className="w-11 h-11 flex items-center justify-center"
             aria-label="Fechar"
           >
-            <span className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors duration-fast">
+            <span className="w-7 h-7 rounded-full bg-subtle flex items-center justify-center text-fg-muted hover:bg-line transition-colors duration-fast">
               <X size={14} />
             </span>
           </button>
         </div>
 
         {/* Feed */}
-        <div className="divide-y divide-gray-50 max-h-[65vh] overflow-y-auto">
+        <div className="divide-y divide-line max-h-[65vh] overflow-y-auto">
           {todos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-2 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-10 gap-2 text-fg-subtle">
               <BellOff size={28} />
               <p className="text-sm">Sem notificações recentes</p>
             </div>
@@ -133,9 +133,9 @@ export function NotificacoesModal({ mensalidades, avisos, onClose }: Props) {
                   className={`mt-0.5 w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center ${
                     item.tipo === "mensalidade"
                       ? item.urgente
-                        ? "bg-red-100 text-red-600"
-                        : "bg-amber-100 text-amber-600"
-                      : "bg-blue-50 text-blue-500"
+                        ? "bg-red-100 dark:bg-red-500/15 text-red-600"
+                        : "bg-amber-100 dark:bg-amber-500/15 text-amber-600"
+                      : "bg-blue-50 dark:bg-blue-500/15 text-blue-500"
                   }`}
                 >
                   {item.tipo === "mensalidade" ? (
@@ -147,9 +147,9 @@ export function NotificacoesModal({ mensalidades, avisos, onClose }: Props) {
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-gray-900 leading-snug">{item.titulo}</p>
-                  <p className="text-[12px] text-gray-500 mt-0.5 leading-snug">{item.corpo}</p>
-                  <p className="text-xs text-gray-400 mt-1">{tempoRelativo(item.timestamp)}</p>
+                  <p className="text-[13px] font-semibold text-fg leading-snug">{item.titulo}</p>
+                  <p className="text-[12px] text-fg-muted mt-0.5 leading-snug">{item.corpo}</p>
+                  <p className="text-xs text-fg-subtle mt-1">{tempoRelativo(item.timestamp)}</p>
                 </div>
               </div>
             ))

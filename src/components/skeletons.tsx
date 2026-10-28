@@ -42,7 +42,7 @@ export function CardListSkeleton({ count = 3, className }: { count?: number; cla
   return (
     <div className={cn("space-y-3", className)}>
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="bg-surface rounded-2xl border border-gray-100 p-5 space-y-3">
+        <div key={i} className="bg-surface rounded-2xl border border-line p-5 space-y-3">
           <Skeleton className="h-5 w-2/3" />
           <Skeleton className="h-3.5 w-full" />
           <Skeleton className="h-3.5 w-4/5" />
@@ -79,7 +79,7 @@ export function AdminPageSkeleton({ rows = 8 }: { rows?: number }) {
         <Skeleton className="h-10 flex-1 max-w-xs rounded-xl" />
         <Skeleton className="h-10 w-28 rounded-xl" />
       </div>
-      <div className="bg-surface rounded-2xl border border-gray-100 divide-y divide-gray-100">
+      <div className="bg-surface rounded-2xl border border-line divide-y divide-line">
         {Array.from({ length: rows }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-3.5">
             <Skeleton className="h-9 w-9 rounded-full shrink-0" />
