@@ -3,6 +3,7 @@
     { "path": "/api/push/send?type=mensalidade", "schedule": "0 9 * * *" },
     { "path": "/api/push/send?type=graduacao", "schedule": "0 9 * * *" },
     { "path": "/api/push/send?type=responsavel_aula", "schedule": "0 8 * * *" },
-    { "path": "/api/push/send?type=conquistas", "schedule": "0 9 * * *" }
+    { "path": "/api/push/send?type=conquistas", "schedule": "0 9 * * *" },
+    { "path": "/api/push/send?type=feed_podio", "schedule": "0 9 * * *" }
   ]
 }

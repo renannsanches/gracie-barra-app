@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
+import { apagarPostGraduacao, publicarPostGraduacao } from "@/lib/feed-servidor";
 import type { CorFaixa, CategoriaFaixa, HistoricoGraduacao } from "@/lib/types";
 
 export async function registrarGraduacao(
@@ -43,7 +44,17 @@ export async function registrarGraduacao(
     .single();
 
   if (error) return { ok: false, erro: error.message };
+  await publicarPostGraduacao(admin, {
+    graduacaoId: (data as HistoricoGraduacao).id,
+    alunoId,
+    faixaAnterior,
+    faixaNova,
+    graus: grausNova,
+    categoria,
+    dataGraduacao,
+  });
   revalidatePath(`/admin/alunos/${alunoId}`);
+  revalidatePath("/perfil");
   return { ok: true, graduacao: data as HistoricoGraduacao };
 }
 
@@ -60,6 +71,8 @@ export async function excluirGraduacao(
     .eq("id", id);
 
   if (error) return { ok: false, erro: error.message };
+  await apagarPostGraduacao(admin, id);
   revalidatePath(`/admin/alunos/${alunoId}`);
+  revalidatePath("/perfil");
   return { ok: true };
 }

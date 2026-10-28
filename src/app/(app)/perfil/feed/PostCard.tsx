@@ -14,12 +14,15 @@ import {
   type PostFeed,
   type Sessao,
 } from "@/lib/feed";
+import { ehDadosGraduacao, ehDadosPodio } from "@/lib/feed-automatico";
 import { alternarCurtida } from "./membro-actions";
 import { apagarPost, type PostEditado } from "./staff-actions";
 import { PostComposer } from "./PostComposer";
 import { AvatarAutor, CurtidasSheet } from "./CurtidasSheet";
 import { ComentariosSheet } from "./ComentariosSheet";
 import { FotosCarrossel } from "./FotosCarrossel";
+import { PostGraduacao } from "./PostGraduacao";
+import { PostPodio } from "./PostPodio";
 
 const ITEM_MENU =
   "flex h-11 cursor-pointer select-none items-center gap-2.5 rounded-lg px-3 text-sm font-medium outline-none transition-colors duration-fast data-[highlighted]:bg-canvas";
@@ -123,6 +126,9 @@ export function PostCard({
   const quando = tempoRelativo(post.criadoEm, agora);
   const podeEditar = podeEditarPost(sessao, post.autor.id);
   const podeApagar = podeApagarPost(sessao);
+  // `dados` mal formados (vêm da BD sem validação): o post aparece como um manual
+  const dadosGraduacao = ehDadosGraduacao(post.dados) ? post.dados : null;
+  const dadosPodio = ehDadosPodio(post.dados) ? post.dados : null;
 
   return (
     <article data-testid="post" className="rounded-2xl border border-line bg-surface p-4">
@@ -176,7 +182,27 @@ export function PostCard({
       </header>
 
       {conteudo.texto && (
-        <p className="mt-3 whitespace-pre-line break-words text-[15px] leading-relaxed text-fg">{conteudo.texto}</p>
+        <p
+          className={cn(
+            // No pódio o texto repete a lista: fica só para os leitores de ecrã
+            dadosPodio
+              ? "sr-only"
+              : "mt-3 whitespace-pre-line break-words text-[15px] leading-relaxed text-fg",
+          )}
+        >
+          {conteudo.texto}
+        </p>
+      )}
+
+      {dadosGraduacao && (
+        <div className="mt-3">
+          <PostGraduacao dados={dadosGraduacao} />
+        </div>
+      )}
+      {dadosPodio && (
+        <div className="mt-3">
+          <PostPodio dados={dadosPodio} />
+        </div>
       )}
 
       {conteudo.fotos.length > 0 && (
