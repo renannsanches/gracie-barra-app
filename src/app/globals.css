@@ -18,9 +18,12 @@
     --ink: 10 10 10;           /* #0A0A0A — headers escuros */
     --canvas: 245 245 245;     /* #F5F5F5 — fundo das páginas */
     --surface: 255 255 255;    /* cards */
+    --subtle: 243 244 246;     /* #F3F4F6 — fundos internos, chips, hover */
     --fg: 17 24 39;            /* #111827 — texto principal */
     --fg-muted: 107 114 128;   /* #6B7280 — texto secundário */
+    --fg-subtle: 156 163 175;  /* #9CA3AF — texto terciário, ícones apagados */
     --line: 229 231 235;       /* #E5E7EB — bordas e divisórias */
+    --line-strong: 209 213 219; /* #D1D5DB — bordas de campos */
 
     /* Estado */
     --success: 22 163 74;      /* #16A34A */
@@ -46,6 +49,29 @@
 
     /* Barra de navegação inferior (aluno) */
     --bottom-nav-h: 4rem;
+  }
+
+  /*
+   * Modo escuro — só nas páginas do aluno (src/lib/tema.ts põe a classe no
+   * <html>). Admin e tablet nunca a recebem, por isso lá os tokens ficam claros.
+   */
+  .dark {
+    color-scheme: dark;
+
+    --canvas: 14 14 16;        /* #0E0E10 */
+    --surface: 28 28 30;       /* #1C1C1E */
+    --subtle: 44 44 46;        /* #2C2C2E */
+    --fg: 244 244 245;         /* #F4F4F5 */
+    --fg-muted: 161 161 170;   /* #A1A1AA */
+    --fg-subtle: 113 113 122;  /* #71717A */
+    --line: 52 52 56;          /* #343438 */
+    --line-strong: 72 72 76;   /* #48484C */
+
+    --background: #0E0E10;
+    --foreground: #F4F4F5;
+    --muted-foreground: #A1A1AA;
+    --border: #343438;
+    --input: #343438;
   }
 
   * {
@@ -140,12 +166,12 @@ html:has([data-bottom-nav]) .install-prompt {
   gap: 0.35rem;
   height: 2.75rem;
   padding: 0 0.6rem;
-  border: 1px solid rgb(209 213 219);
-  background: white;
+  border: 1px solid rgb(var(--line-strong));
+  background: rgb(var(--surface));
   border-radius: 0.5rem;
 }
 .gb-phone-input .PhoneInputCountrySelectArrow {
-  color: rgb(107 114 128);
+  color: rgb(var(--fg-muted));
   opacity: 1;
 }
 .gb-phone-input .PhoneInputInput:focus-visible {
