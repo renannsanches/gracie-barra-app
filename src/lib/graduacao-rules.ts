@@ -56,6 +56,15 @@ const INFANTIL_IDADE_MIN: Partial<Record<CorFaixa, number>> = {
   verde_branca: 13, verde: 13, verde_preta: 13,
 };
 
+// ── Ordem global das faixas (para comparar "mais alta") ───────────────────────
+// Adulto = cadeia ADULTO_PROXIMA_FAIXA + coral e vermelha; as infantis (INFANTIL_SEQUENCIA) ficam
+// todas abaixo da primeira faixa de adulto. A branca é partilhada (posição 0).
+const ADULTO_SEQUENCIA: CorFaixa[] = (() => {
+  const seq: CorFaixa[] = ["branca"];
+  for (let f = ADULTO_PROXIMA_FAIXA.branca; f; f = ADULTO_PROXIMA_FAIXA[f]) seq.push(f);
+  return [...seq, "coral", "vermelha"];
+})();
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function isInfantilBelt(faixa: CorFaixa): boolean {
@@ -66,6 +75,15 @@ export function resolveCategoria(faixa: CorFaixa, categoria: CategoriaFaixa): "a
   if (isInfantilBelt(faixa)) return "infantil";
   if (categoria === "infantil") return "infantil";
   return "adulto";
+}
+
+/** Posição da faixa na ordem global: infantis abaixo das de adulto (branca = 0). -1 se desconhecida. */
+export function ordemFaixa(faixa: CorFaixa): number {
+  if (faixa === "branca") return 0;
+  const kids = INFANTIL_SEQUENCIA.indexOf(faixa);
+  if (kids !== -1) return kids;
+  const adulto = ADULTO_SEQUENCIA.indexOf(faixa);
+  return adulto === -1 ? -1 : INFANTIL_SEQUENCIA.length + adulto;
 }
 
 function diffMonths(from: Date, to: Date): number {

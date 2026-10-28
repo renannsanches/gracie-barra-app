@@ -8,13 +8,13 @@ import { sendPushNovoPost } from "@/lib/push-sender";
 import {
   BUCKET_FEED,
   ERRO_POST_INEXISTENTE,
-  caminhoNoBucket,
   eStaff,
   podeApagarPost,
   podeEditarPost,
   validarPost,
   type Sessao,
 } from "@/lib/feed";
+import { apagarPostEFotos, caminhosDeUrls, removerDoBucket, type Admin } from "@/lib/feed-servidor";
 import type { ActionResult } from "@/lib/types";
 import { ehUuid } from "./dados";
 
@@ -36,28 +36,6 @@ const FALHA_UPLOAD: Falha = { ok: false, erro: "Não foi possível enviar as fot
 const TAMANHO_MAXIMO_FOTO = 5 * 1024 * 1024;
 // WebP por defeito; JPEG quando o browser não gera WebP (Safari/iPhone). Extensão no bucket por tipo.
 const EXTENSAO_POR_TIPO: Record<string, string> = { "image/webp": "webp", "image/jpeg": "jpg" };
-
-type Admin = ReturnType<typeof createAdminClient>;
-
-// Remove ficheiros do bucket sem nunca lançar: uma falha aqui só deixa lixo, não pode estragar
-// o resultado da acção
-async function removerDoBucket(admin: Admin, caminhos: string[]): Promise<void> {
-  if (caminhos.length === 0) return;
-  try {
-    const { error } = await admin.storage.from(BUCKET_FEED).remove(caminhos);
-    if (error) console.error("[feed] remover do bucket", error.message, caminhos);
-  } catch (e) {
-    console.error("[feed] remover do bucket", e, caminhos);
-  }
-}
-
-// Caminhos no bucket de URLs guardados pelo servidor numa linha de post. Só entram os que
-// estão na pasta deste post: qualquer outro caminho que apareça na linha fica intocado.
-function caminhosDeUrls(postId: string, urls: string[]): string[] {
-  return urls
-    .map((u) => caminhoNoBucket(u))
-    .filter((c): c is string => c !== null && c.startsWith(`${postId}/`));
-}
 
 function lerTexto(formData: FormData): string {
   const texto = formData.get("texto");
@@ -241,20 +219,8 @@ export async function apagarPost(postId: string): Promise<ActionResult> {
   if (!ehUuid(postId)) return POST_INEXISTENTE;
   if (!podeApagarPost({ userId: guard.userId, perfil: guard.perfil })) return SEM_PERMISSAO;
 
-  const admin = createAdminClient();
-  const { data: post, error: erroLeitura } = await admin
-    .from("feed_posts")
-    .select("fotos")
-    .eq("id", postId)
-    .maybeSingle();
-  if (erroLeitura) return { ok: false, erro: erroLeitura.message };
-  if (!post) return POST_INEXISTENTE;
-
-  // A cascata leva gostos e comentários. A linha sai primeiro: se o storage falhar, fica só lixo.
-  const { error } = await admin.from("feed_posts").delete().eq("id", postId);
-  if (error) return { ok: false, erro: error.message };
-
-  await removerDoBucket(admin, caminhosDeUrls(postId, ((post.fotos as string[] | null) ?? []).filter((u) => typeof u === "string")));
+  const resultado = await apagarPostEFotos(createAdminClient(), postId);
+  if (!resultado.ok) return resultado;
 
   revalidatePath("/perfil");
   return { ok: true };

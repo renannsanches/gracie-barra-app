@@ -9,6 +9,8 @@ import {
   descodificarCursor,
   nomeCurto,
   type AutorFeed,
+  type DadosGraduacao,
+  type DadosPodio,
   type PaginaFeed,
   type PostFeed,
   type TipoPost,
@@ -29,6 +31,7 @@ interface LinhaPost {
   fotos: string[] | null;
   criado_em: string;
   editado_em: string | null;
+  dados: DadosGraduacao | DadosPodio | null;
 }
 
 interface LinhaPerfil {
@@ -61,7 +64,7 @@ export async function carregarPaginaFeed(
 ): Promise<PaginaFeed> {
   let consulta = admin
     .from("feed_posts")
-    .select("id, autor_id, tipo, texto, fotos, criado_em, editado_em")
+    .select("id, autor_id, tipo, texto, fotos, criado_em, editado_em, dados")
     .order("criado_em", { ascending: false })
     .order("id", { ascending: false })
     .limit(POSTS_POR_PAGINA + 1);
@@ -117,6 +120,7 @@ export async function carregarPaginaFeed(
     curtidas: curtidas[i],
     curtiEu: curtidosPorMim.has(p.id),
     comentarios: comentarios[i],
+    dados: (p.dados ?? null) as DadosGraduacao | DadosPodio | null,
   }));
 
   const ultimo = mostrados[mostrados.length - 1];
