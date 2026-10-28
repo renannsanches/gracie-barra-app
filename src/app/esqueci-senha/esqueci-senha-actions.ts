@@ -12,7 +12,7 @@ export async function enviarResetSenha(email: string) {
     headersList.get("origin") ??
     (xForwardedHost ? `${xForwardedProto}://${xForwardedHost}` : null) ??
     "http://localhost:3000";
-  const redirectTo = `${origin}/auth/callback?next=/nova-senha`;
+  const redirectTo = `${origin}/nova-senha`;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   return { ok: !error };

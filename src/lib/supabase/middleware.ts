@@ -32,14 +32,11 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Recovery codes sometimes land at / when the redirectTo URL isn't whitelisted in Supabase.
-  // Rescue them so the code isn't lost when the root page redirects to /login.
+  // Recovery codes land at / when the redirectTo URL isn't whitelisted in Supabase.
+  // Send directly to /nova-senha so the client-side PKCE exchange can run there.
   if (pathname === "/" && request.nextUrl.searchParams.get("code")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/auth/callback";
-    if (!url.searchParams.get("next")) {
-      url.searchParams.set("next", "/nova-senha");
-    }
+    url.pathname = "/nova-senha";
     return NextResponse.redirect(url);
   }
 
