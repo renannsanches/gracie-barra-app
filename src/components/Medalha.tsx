@@ -57,7 +57,7 @@ export function Medalha({
       aria-hidden="true"
       style={style}
       className={cn(
-        "rounded-full flex items-center justify-center shrink-0 ring-2 ring-white shadow-md",
+        "rounded-full flex items-center justify-center shrink-0 ring-2 ring-surface shadow-md",
         t.caixa,
         bloqueada ? "bg-subtle text-line-strong shadow-none" : CORES[nivel],
         className,
