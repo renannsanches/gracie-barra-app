@@ -7,8 +7,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   User, Phone, Calendar, Mail, LogOut, ShieldCheck, Settings, LayoutDashboard,
-  Award, Camera, Loader2, Check, X, CreditCard, Users, ChevronRight, ChevronDown,
+  Award, Camera, Loader2, Check, X, CreditCard, Users, ChevronRight, ChevronDown, Moon,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useTemaAtivo, usePreferenciaTema } from "@/components/useTema";
+import { gravarPreferencia } from "@/lib/tema";
 import { createClient } from "@/lib/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
@@ -725,6 +728,13 @@ export function ContaView({
         </section>
         )}
 
+        <section className="space-y-2" aria-labelledby="sec-preferencias">
+          <TituloSecao id="sec-preferencias">Preferências</TituloSecao>
+          <div className="bg-surface rounded-2xl border border-line overflow-hidden">
+            <LinhaModoEscuro />
+          </div>
+        </section>
+
         {/* Academia — só staff */}
         {isStaff && (
           <section className="space-y-2" aria-labelledby="sec-academia">
@@ -789,6 +799,31 @@ function LinhaLink({
       </span>
       <ChevronRight size={18} className="text-fg-muted shrink-0" aria-hidden="true" />
     </Link>
+  );
+}
+
+function LinhaModoEscuro() {
+  const ativo = useTemaAtivo() === "escuro";
+  const segueSistema = usePreferenciaTema() === null;
+  return (
+    <div className="flex items-center gap-3 min-h-14 px-4 py-3">
+      <span className="w-9 h-9 rounded-lg bg-brand/10 text-brand flex items-center justify-center shrink-0">
+        <Moon size={18} />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span id="modo-escuro-label" className="block text-sm font-medium text-fg">
+          Modo escuro
+        </span>
+        {segueSistema && (
+          <span className="block text-xs text-fg-muted mt-0.5">Segue o sistema</span>
+        )}
+      </span>
+      <Switch
+        checked={ativo}
+        onCheckedChange={(v) => gravarPreferencia(v ? "escuro" : "claro")}
+        aria-labelledby="modo-escuro-label"
+      />
+    </div>
   );
 }
 
