@@ -1,7 +1,18 @@
 import Image from "next/image";
 import { EsqueciSenhaForm } from "./EsqueciSenhaForm";
 
-export default function EsqueciSenhaPage() {
+const MENSAGENS: Record<string, string> = {
+  link: "O link expirou ou já foi usado. Pede um novo abaixo.",
+};
+
+export default async function EsqueciSenhaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ erro?: string }>;
+}) {
+  const { erro } = await searchParams;
+  const erroInicial = erro ? MENSAGENS[erro] ?? "" : "";
+
   return (
     <div className="min-h-screen flex flex-col">
       <div className="bg-gb-black py-10 px-6 flex flex-col items-center">
@@ -19,7 +30,7 @@ export default function EsqueciSenhaPage() {
           <p className="text-gray-500 text-sm mb-8">
             Indica o teu email e enviamos um link para criares uma nova senha.
           </p>
-          <EsqueciSenhaForm />
+          <EsqueciSenhaForm erroInicial={erroInicial} />
         </div>
       </div>
     </div>

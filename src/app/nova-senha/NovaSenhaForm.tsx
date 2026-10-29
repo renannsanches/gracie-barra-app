@@ -1,16 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { atualizarSenha } from "./nova-senha-actions";
+import { atualizarSenha, validarLinkRecuperacao } from "./nova-senha-actions";
 import { senhaValida, REGRA_SENHA_TEXTO } from "@/lib/senha";
 
-export function NovaSenhaForm() {
+const MSG_LINK_EXPIRADO = "O link expirou ou já foi usado. Pede um novo em \"Esqueci a senha\".";
+
+/**
+ * `tokenHash` vem do link do email. Quando existe, o aluno tem de carregar em
+ * "Continuar" para gastar o token — assim um scanner de email que só abre o link
+ * não o invalida. Sem `tokenHash` (sessão já criada, ex. por /auth/callback com
+ * `?code=`) vai direto para o formulário.
+ */
+export function NovaSenhaForm({ tokenHash }: { tokenHash?: string }) {
   const router = useRouter();
+  const [linkValidado, setLinkValidado] = useState(!tokenHash);
+  const [validando, setValidando] = useState(false);
+  const [erroLink, setErroLink] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [showSenha, setShowSenha] = useState(false);
@@ -21,6 +33,24 @@ export function NovaSenhaForm() {
 
   const senhaOk = senhaValida(senha);
   const confirmacaoOk = senha === confirmar;
+
+  async function continuar() {
+    if (!tokenHash) return;
+    setErroLink("");
+    setValidando(true);
+    try {
+      const res = await validarLinkRecuperacao(tokenHash);
+      if (res.ok) {
+        setLinkValidado(true);
+      } else if (res.codigo === "otp_expired" || res.codigo === "invalid_token") {
+        setErroLink(MSG_LINK_EXPIRADO);
+      } else {
+        setErroLink(`${MSG_LINK_EXPIRADO} Se o problema continuar, fala com a academia.`);
+      }
+    } finally {
+      setValidando(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,7 +67,7 @@ export function NovaSenhaForm() {
       } else if (res.codigo === "same_password") {
         setErro("A nova senha tem de ser diferente da senha atual.");
       } else if (res.codigo === "session_not_found" || res.codigo === "user_not_found") {
-        setErro("O link expirou ou já foi usado. Pede um novo em \"Esqueci a senha\".");
+        setErro(MSG_LINK_EXPIRADO);
       } else {
         setErro("Não foi possível atualizar a senha agora. Tenta novamente em instantes.");
       }
@@ -54,6 +84,36 @@ export function NovaSenhaForm() {
         </div>
         <h2 className="text-xl font-bold text-gray-900">Senha atualizada!</h2>
         <p className="text-gray-500 text-sm">A redirecionar para o teu perfil…</p>
+      </div>
+    );
+  }
+
+  if (!linkValidado) {
+    return (
+      <div className="space-y-5">
+        <p className="text-sm text-gray-600">
+          Carrega em <span className="font-semibold">Continuar</span> para definires a tua nova senha.
+        </p>
+
+        {erroLink && (
+          <div role="alert" className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 space-y-2">
+            <p>{erroLink}</p>
+            <Link href="/esqueci-senha" className="inline-block font-semibold underline">
+              Pedir novo link
+            </Link>
+          </div>
+        )}
+
+        <Button type="button" className="w-full" onClick={continuar} disabled={validando}>
+          {validando ? (
+            <>
+              <Loader2 size={16} className="animate-spin mr-2" />
+              A verificar…
+            </>
+          ) : (
+            "Continuar"
+          )}
+        </Button>
       </div>
     );
   }

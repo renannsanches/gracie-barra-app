@@ -77,6 +77,7 @@ npm run test:e2e:report   # ver relatório HTML do último run
 | `financeiro.spec.ts` | Marcar mensalidade como paga + desmarcar (admin) |
 | `gamificacao.spec.ts` | Pílulas do Início (/perfil), /conquistas, abas do /ranking (aluno de teste fica oculto do ranking) |
 | `feed.spec.ts` | Corre como staff (projecto admin): publica, põe gosto, comenta e apaga (limpa os posts `e2e-feed-*` e os ficheiros); graduação pela ficha do aluno de teste → post "recebeu a faixa" no Início, que sai ao apagar a graduação e não aparece com `ocultar_ranking = true` (repõe faixa, graus, categoria e `ocultar_ranking` no fim) |
+| `reset-senha.spec.ts` | Sem login, com tokens falsos: `/nova-senha?token_hash=…` mostra "Continuar" (e não o campo de senha), Continuar com token inválido mostra "link expirou", `/auth/callback` com `type=recovery` não verifica no GET, `/esqueci-senha?erro=link` |
 | `tema.spec.ts` | Interruptor em Minha conta liga/desliga `dark`, persiste no reload, /admin fica sempre claro, segue o esquema do sistema em /perfil mas não em /admin/alunos |
 
 A BD dos testes é a de produção: o `global-setup` põe `ocultar_ranking = true` nos utilizadores de teste para não aparecerem no ranking real.
@@ -173,7 +174,7 @@ As horas da Vercel são **UTC**: 09:00 UTC = 10:00 em Lisboa no verão (09:00 no
 /login                  → autenticação (email + password, via route handler /api/auth/login)
 /cadastro               → onboarding multi-step (3 tipos de perfil; email + password + código OTP de confirmação)
 /esqueci-senha          → pedido de reset de password
-/nova-senha             → formulário de nova password
+/nova-senha             → nova password; com `?token_hash=&type=recovery` mostra primeiro "Continuar" (o clique gasta o token)
 /aula-experimental      → PÚBLICA (sem login): agendamento de aula experimental → tabela agendamentos_experimental, depois abre WhatsApp
 /perfil                 → Início: pílulas Feed · Ranking · Conquistas · Galeria (`?tab=`); staff vê no separador Feed o card recolhível de aptos a graduar e o compositor de publicações; aqui vivem os modais de medalhas novas e de aptos a graduar (o modal/banner de mensalidade em atraso vivem em `(app)/layout.tsx`)
 /conta                  → Minha conta: dados, faixa, mensalidades, dependentes, Dashboard (staff), Sair
@@ -245,7 +246,7 @@ As horas da Vercel são **UTC**: 09:00 UTC = 10:00 em Lisboa no verão (09:00 no
 
 **Auth callback** (`src/app/auth/callback/route.ts`): suporta dois fluxos distintos:
 - `?code=...` — PKCE (login social, magic link)
-- `?token_hash=...&type=recovery` — OTP recovery (reset de password via `resetPasswordForEmail`) → redireciona para `/nova-senha`
+- `?token_hash=...&type=recovery` — OTP recovery (reset de password via `resetPasswordForEmail`). **O GET não gasta o token**: reencaminha para `/nova-senha?token_hash=…&type=recovery`, onde o aluno carrega em "Continuar" e só então a server action `validarLinkRecuperacao` faz o `verifyOtp` (scanners de email não clicam). Falha com `next=/nova-senha` → `/esqueci-senha?erro=link`
 - O `resetPasswordForEmail` usa o fluxo OTP, não PKCE — ambos têm de ser tratados no callback ou o link de reset quebra.
 
 **Auth guard nas Server Actions** (`src/lib/auth-guard.ts`):
@@ -587,7 +588,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | `/api/push/send` bloqueada pelo middleware | Adicionar à lista de paths públicos — é chamada pelo Vercel Cron sem sessão de utilizador |
 | Pódio do feed a notificar duas vezes | O cron `feed_podio` corre todos os dias mas só publica nos dias 1 a 3 do mês (Lisboa; `dry` ignora a janela), para um post apagado não ressuscitar com novo push; é idempotente por mês (`referencia` única). Só manda push quem **insere** o post: se já existia ou o insert dá 23505 (outro pedido ganhou), não há push |
 | `proxy.ts` não suportado no Vercel | Usar `middleware.ts` (hoje `src/middleware.ts`) — em 2026-05 o Vercel não reconheceu `proxy.ts` como middleware. O Next 16 renomeou oficialmente o ficheiro para `proxy.ts` e deixou `middleware` deprecated; **não migrar sem testar** em produção com rollback à mão |
-| Reset de password abre "link inválido ou expirado" | O template "Reset Password" do Supabase ainda é o `{{ .ConfirmationURL }}` por defeito (fluxo PKCE, só funciona no mesmo browser que pediu o reset). Correcção manual no Dashboard do Supabase: usar um link com `token_hash` + `type=recovery` para `/auth/callback`. O código já trata o caso; o PR #44 (aberto) só acrescenta logging no Sentry |
+| Reset de password abre "link inválido ou expirado" | O template "Reset Password" do Supabase é o `{{ .ConfirmationURL }}` por defeito (fluxo PKCE: só funciona no mesmo browser que pediu o reset). **Código corrigido no PR #72** (página `/nova-senha` com botão "Continuar", ver 6.2). **Falta o passo manual, só depois do deploy:** Dashboard Supabase → Authentication → Email Templates → Reset Password → link `{{ .SiteURL }}/nova-senha?token_hash={{ .TokenHash }}&type=recovery` (Site URL = domínio de produção). Rollback: repor `{{ .ConfirmationURL }}`; o código serve os dois formatos. Estado: ⏳ template por aplicar (actualizar esta linha quando estiver feito) |
 | Login do tablet/iPad (Safari 15) falha em silêncio | O tablet da recepção é um iPad Air em iPadOS 15. Manter `.browserslistrc` com `safari >= 15` / `ios_saf >= 15`; autenticar por route handler (`/api/auth/login`) + `window.location.assign()`, não Server Action + `router.push()`; diagnosticar com `?debug=1` (`DebugConsole`). Sem `oklch()` nas cores |
 | Migration do repo diverge da BD | Ver "Drift entre migrations do repo e produção" na secção 7 |
 | Hook RTK (se o utilizador o tiver) esconde merges no `git log` e faz `grep` varrer `.claude/worktrees/` | Usar `rtk proxy git log …` / `rtk proxy grep …`, ou as ferramentas Grep/Glob |
@@ -600,7 +601,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 |--------|---------|------------|
 | **Multi-tenancy "fantasma"** | `academias` e `academia_id` (12 tabelas, nullable, sem default) existem mas **nada no código os usa** (confirmado em 2026-10-29): as RLS filtram só por `perfil`, as páginas admin usam `createAdminClient()` com `select("*")`; numa análise de 2026-07-23 o RPC do QR e `/api/admin/delete-user` também não verificavam tenant. **Bloqueio duro para vender a uma 2.ª academia** — ver Horizonte 2 | Alta (só para comercialização) |
 | Migrations do repo ≠ produção | Ver "Drift" na secção 7; quem recriar a BD a partir dos `.sql` não obtém a BD real | Média |
-| Testes E2E cobrem 6 fluxos (`cadastro`, `presenca`, `financeiro`, `gamificacao`, `feed`, `tema`); `financeiro.spec.ts` tem 2 testes que falham na árvore limpa ("marks mensalidade as pago" / "unmarks"): **7/9 é o estado de referência**. Testes unitários (8 ficheiros) só para a lógica pura de `src/lib` (gamificação, feed, Início, push, tema, relatório de alunos) | Risco em refactors; não culpar a mudança em curso pelas 2 falhas sem confirmar | Média |
+| Testes E2E cobrem 7 fluxos (`cadastro`, `presenca`, `financeiro`, `gamificacao`, `feed`, `tema`, `reset-senha`); `financeiro.spec.ts` tem 2 testes que falham na árvore limpa ("marks mensalidade as pago" / "unmarks"): **7/9 é o estado de referência**. Testes unitários (8 ficheiros) só para a lógica pura de `src/lib` (gamificação, feed, Início, push, tema, relatório de alunos) | Risco em refactors; não culpar a mudança em curso pelas 2 falhas sem confirmar | Média |
 | Cadastro sem rollback transaccional | Perfis parciais se mensalidades falharem | Média |
 | Uploads de Storage não atómicos | Ficheiros órfãos se DB falhar a seguir | Média |
 | Race condition na capacidade de aulas | Exceder lotação com utilizadores simultâneos | Baixa (academia pequena) |
@@ -677,7 +678,7 @@ Verificado em 2026-10-29. Antes de os mergear, rebasear/reconciliar com `master`
 | #65 | `feat/home-compacta` | Home compacta por perfil + `/perfil/conta` | **Rascunho** ("validar antes do merge"). Anterior ao Início novo do feed (#67) e a `/conta` — provável conflito; talvez superado |
 | #64 | `fix/aptos-graduar-noah-segundo` | Põe um aluno específico em 2.º na lista de aptos a graduar | Ajuste pontual de ordem. Em 2026-10-16 a produção chegou a correr este ramo antes do merge — comparar sempre o SHA do deploy |
 | #52 | `fix/grupos-criar-ativo` | Botão "Criar grupo" sempre activo | Pequeno; verificar se `/admin/grupos` ainda tem o problema |
-| #44 | `fix/reset-senha-callback-logging` | Log do motivo real de falha no `/auth/callback` (Sentry) | Só diagnóstico; não resolve o template do Supabase (ver secção 12) |
+| #44 | `fix/reset-senha-callback-logging` | Log do motivo real de falha no `/auth/callback` (Sentry) | **Superado** pelo #72 (`captureMessage` na action `validarLinkRecuperacao`); fechar |
 | #40 | `feat/push-lembrete-vencimento` | Push de lembrete de vencimento (dia 5) + cron mensal | Funcionalidade nova, por rever |
 | #39 | `feat/mensagens-erro-auth` | Mensagens de erro de auth em PT-PT | Pode estar parcialmente superado por #42/#43 |
 | #36 | `claude/graduation-list-display-5helk4` | Layout do card "Aptos a Graduar" (faixa grande cortava o nome) | Provável obsoleto: o card foi refeito (#37, depois Início/feed) |
