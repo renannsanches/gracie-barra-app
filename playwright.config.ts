@@ -34,7 +34,7 @@ export default defineConfig({
         storageState: "./e2e/.auth/admin.json",
         viewport: { width: 1280, height: 800 },
       },
-      testMatch: ["**/financeiro.spec.ts", "**/feed.spec.ts"],
+      testMatch: ["**/financeiro.spec.ts", "**/feed.spec.ts", "**/tema.spec.ts"],
     },
   ],
 });

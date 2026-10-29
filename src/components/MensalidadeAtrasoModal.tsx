@@ -46,7 +46,7 @@ export function MensalidadeAtrasoModal({ mensagem }: Props) {
         <DialogTitle className="mt-4 text-center text-[17px] font-semibold">
           Mensalidade em atraso
         </DialogTitle>
-        <DialogDescription className="mt-2 text-center text-[14px] leading-snug text-gray-600">
+        <DialogDescription className="mt-2 text-center text-[14px] leading-snug text-fg-muted">
           {mensagem}
         </DialogDescription>
 
@@ -54,7 +54,7 @@ export function MensalidadeAtrasoModal({ mensagem }: Props) {
           <button
             type="button"
             onClick={fechar}
-            className="w-full py-3 rounded-xl border border-gray-200 text-gray-700 text-[15px] font-medium hover:bg-gray-50 transition-colors duration-fast"
+            className="w-full py-3 rounded-xl border border-line text-fg text-[15px] font-medium hover:bg-subtle transition-colors duration-fast"
           >
             Fechar
           </button>

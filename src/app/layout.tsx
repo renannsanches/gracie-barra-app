@@ -6,6 +6,7 @@ import { ServiceWorkerUpdater } from "@/components/ServiceWorkerUpdater";
 import { DebugConsole } from "@/components/DebugConsole";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { scriptTema } from "@/lib/tema";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -99,6 +100,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-PT" className={cn("font-sans", geist.variable, sfPro.variable)} suppressHydrationWarning>
+      <head>
+        {/* Modo escuro antes da primeira pintura (só nas páginas do aluno) */}
+        <script dangerouslySetInnerHTML={{ __html: scriptTema() }} />
+      </head>
       <body className="min-h-screen bg-gb-gray font-sans antialiased">
         {children}
         <InstallPrompt />

@@ -93,7 +93,7 @@ export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, gru
   );
 
   return (
-    <div className={embutido ? "flex flex-col" : "min-h-screen flex flex-col bg-gb-gray"}>
+    <div className={embutido ? "flex flex-col" : "min-h-screen flex flex-col bg-canvas"}>
       {!embutido && (
         <PageHeader
           title="Ranking de presenças"
@@ -110,11 +110,11 @@ export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, gru
         {embutido && <div className="grid grid-cols-2 gap-2">{segmentos(true)}</div>}
 
         {eu && oculto && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-3" data-testid="ranking-oculto">
-            <EyeOff size={18} className="text-gray-400 mt-0.5 shrink-0" />
+          <div className="bg-surface rounded-2xl border border-line p-4 flex items-start gap-3" data-testid="ranking-oculto">
+            <EyeOff size={18} className="text-fg-subtle mt-0.5 shrink-0" />
             <div className="flex-1">
-              <p className="text-[14px] font-semibold text-gray-900">Estás oculto do ranking</p>
-              <p className="text-[12px] text-gray-500 mt-0.5 leading-snug">
+              <p className="text-[14px] font-semibold text-fg">Estás oculto do ranking</p>
+              <p className="text-[12px] text-fg-muted mt-0.5 leading-snug">
                 Os outros alunos não te vêem e não concorres ao Top 3 do mês.
               </p>
             </div>
@@ -123,10 +123,10 @@ export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, gru
         )}
 
         {minhasLinhas.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gb-blue/30 p-3 space-y-1.5">
+          <div className="bg-surface rounded-2xl border border-gb-blue/30 p-3 space-y-1.5">
             {minhasLinhas.map((l) => (
-              <p key={l.alunoId} className="text-[13px] text-gray-700">
-                <span className="font-semibold text-gray-900">{l.alunoId === eu?.id ? "A tua posição" : l.nome}</span>
+              <p key={l.alunoId} className="text-[13px] text-fg">
+                <span className="font-semibold text-fg">{l.alunoId === eu?.id ? "A tua posição" : l.nome}</span>
                 {": "}
                 <span className="font-bold text-gb-blue">{l.posicao}.º</span> com {l.aulas} aula{l.aulas !== 1 ? "s" : ""}
               </p>
@@ -135,15 +135,15 @@ export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, gru
         )}
 
         {linhas.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-            <Trophy size={32} className="mx-auto text-gray-200" />
-            <p className="text-[14px] text-gray-500 mt-3">Ainda ninguém treinou neste período.</p>
+          <div className="bg-surface rounded-2xl border border-line p-8 text-center">
+            <Trophy size={32} className="mx-auto text-line" />
+            <p className="text-[14px] text-fg-muted mt-3">Ainda ninguém treinou neste período.</p>
           </div>
         ) : (
           <>
             <Podio linhas={podio} minhas={minhas} />
             {resto.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-100" data-testid="ranking-lista">
+              <div className="bg-surface rounded-2xl border border-line divide-y divide-line" data-testid="ranking-lista">
                 {resto.map((l) => (
                   <LinhaLista key={l.alunoId} linha={l} destaque={minhas.has(l.alunoId)} />
                 ))}
@@ -154,7 +154,7 @@ export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, gru
 
         {eu && !oculto && (
           <div className="flex items-center justify-between gap-3 px-1 pt-2">
-            <p className="text-[12px] text-gray-500 leading-snug">
+            <p className="text-[12px] text-fg-muted leading-snug">
               Aparecer no ranking. Se desligares, não concorres ao Top 3 do mês.
             </p>
             <Switch checked={!oculto} onCheckedChange={alterarVisibilidade} disabled={aGuardar} aria-label="Aparecer no ranking" />
@@ -191,9 +191,9 @@ function Segmentos<T extends string>({
             claro
               ? valor === o.valor
                 ? "bg-brand text-white"
-                : "text-fg-muted hover:text-ink"
+                : "text-fg-muted hover:text-fg"
               : valor === o.valor
-                ? "bg-white text-gray-900"
+                ? "bg-surface dark:bg-line-strong text-fg"
                 : "text-white/60 hover:text-white",
           )}
         >
@@ -241,7 +241,7 @@ function Podio({ linhas, minhas }: { linhas: (LinhaRanking & { posicao: number }
   // 2.º à esquerda, 1.º ao centro, 3.º à direita
   const ordem = linhas.length === 3 ? [linhas[1], linhas[0], linhas[2]] : linhas;
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 px-3 pt-5 pb-4 grid grid-cols-3 gap-2 items-end" data-testid="ranking-podio">
+    <div className="bg-surface rounded-2xl border border-line px-3 pt-5 pb-4 grid grid-cols-3 gap-2 items-end" data-testid="ranking-podio">
       {ordem.map((l) => {
         const primeiro = l === linhas[0];
         return (
@@ -250,19 +250,19 @@ function Podio({ linhas, minhas }: { linhas: (LinhaRanking & { posicao: number }
               <Avatar linha={l} tamanho={primeiro ? "lg" : "sm"} />
               <span
                 className={cn(
-                  "absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-black ring-2 ring-white",
+                  "absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-black ring-2 ring-surface",
                   COR_PODIO[l.posicao] ?? COR_PODIO[3],
                 )}
               >
                 {l.posicao}
               </span>
             </div>
-            <p className={cn("text-[13px] font-semibold leading-tight w-full truncate", minhas.has(l.alunoId) ? "text-gb-blue" : "text-gray-900")}>
+            <p className={cn("text-[13px] font-semibold leading-tight w-full truncate", minhas.has(l.alunoId) ? "text-gb-blue" : "text-fg")}>
               {l.nome}
             </p>
             <Faixa linha={l} />
-            <p className="text-[12px] text-gray-500">
-              <span className="font-bold text-gray-900">{l.aulas}</span> aula{l.aulas !== 1 ? "s" : ""}
+            <p className="text-[12px] text-fg-muted">
+              <span className="font-bold text-fg">{l.aulas}</span> aula{l.aulas !== 1 ? "s" : ""}
             </p>
           </div>
         );
@@ -273,14 +273,14 @@ function Podio({ linhas, minhas }: { linhas: (LinhaRanking & { posicao: number }
 
 function LinhaLista({ linha, destaque }: { linha: LinhaRanking & { posicao: number }; destaque: boolean }) {
   return (
-    <div className={cn("flex items-center gap-3 px-3 py-2.5", destaque && "bg-red-50")}>
-      <span className="w-7 text-center text-[14px] font-bold text-gray-400 tabular-nums">{linha.posicao}</span>
+    <div className={cn("flex items-center gap-3 px-3 py-2.5", destaque && "bg-red-50 dark:bg-red-500/15")}>
+      <span className="w-7 text-center text-[14px] font-bold text-fg-subtle tabular-nums">{linha.posicao}</span>
       <Avatar linha={linha} tamanho="sm" />
       <div className="flex-1 min-w-0">
-        <p className={cn("text-[14px] font-medium truncate", destaque ? "text-gb-blue" : "text-gray-900")}>{linha.nome}</p>
+        <p className={cn("text-[14px] font-medium truncate", destaque ? "text-gb-blue" : "text-fg")}>{linha.nome}</p>
         <Faixa linha={linha} />
       </div>
-      <span className="text-[14px] font-bold text-gray-900 tabular-nums">{linha.aulas}</span>
+      <span className="text-[14px] font-bold text-fg tabular-nums">{linha.aulas}</span>
     </div>
   );
 }

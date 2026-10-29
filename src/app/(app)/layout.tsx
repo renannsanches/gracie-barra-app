@@ -3,6 +3,7 @@ import { MensalidadeVencidaBanner } from "@/components/MensalidadeVencidaBanner"
 import { MensalidadeAtrasoModal } from "@/components/MensalidadeAtrasoModal";
 import { BottomNav } from "@/components/BottomNav";
 import { FeedbackHosts } from "@/components/FeedbackHosts";
+import { TemaScope } from "@/components/TemaScope";
 import { getDiasAtraso, getMaiorAtraso } from "@/lib/mensalidade-status";
 import type { Mensalidade } from "@/lib/types";
 
@@ -26,7 +27,13 @@ export default async function AppLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return <>{children}</>;
+  if (!user)
+    return (
+      <>
+        <TemaScope />
+        {children}
+      </>
+    );
 
   const [{ data: selfMensalidades }, { data: dependentesData }, { data: ultimoAviso }] =
     await Promise.all([
@@ -106,6 +113,7 @@ export default async function AppLayout({
 
   return (
     <>
+      <TemaScope />
       {banner}
       {modal}
       {children}

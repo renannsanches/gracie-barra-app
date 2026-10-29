@@ -92,7 +92,7 @@ export function TurmasAlunoView({ aulas: aulasProp }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gb-gray">
+    <div className="min-h-screen flex flex-col bg-canvas">
       <PageHeader
         title="Turmas"
         icon={<Calendar size={20} />}
@@ -104,15 +104,15 @@ export function TurmasAlunoView({ aulas: aulasProp }: Props) {
       <div className="flex-1 px-4 py-5 pb-bottom-nav space-y-4 animar-lista">
 
         {datas.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
-            <Calendar size={36} className="text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">Sem aulas agendadas</p>
-            <p className="text-gray-400 text-sm mt-1">Não há aulas nas próximas 3 semanas</p>
+          <div className="bg-surface rounded-2xl border border-line p-10 text-center">
+            <Calendar size={36} className="text-line mx-auto mb-3" />
+            <p className="text-fg-muted font-medium">Sem aulas agendadas</p>
+            <p className="text-fg-subtle text-sm mt-1">Não há aulas nas próximas 3 semanas</p>
           </div>
         ) : (
           datas.map((data) => (
             <div key={data} className="space-y-2">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1">
+              <p className="text-xs font-semibold text-fg-muted uppercase tracking-wide px-1">
                 {formatarDataCompleta(data)}
               </p>
 
@@ -126,8 +126,8 @@ export function TurmasAlunoView({ aulas: aulasProp }: Props) {
                   <div
                     key={aula.id}
                     className={cn(
-                      "bg-white rounded-2xl border p-4 flex items-center gap-4",
-                      hasReserva ? "border-gb-blue/30" : "border-gray-100"
+                      "bg-surface rounded-2xl border p-4 flex items-center gap-4",
+                      hasReserva ? "border-gb-blue/30" : "border-line"
                     )}
                   >
                     {/* Thumbnail */}
@@ -158,9 +158,9 @@ export function TurmasAlunoView({ aulas: aulasProp }: Props) {
                         {(() => {
                           const tag = aula.turma ? getTurmaTag(aula.turma.nome) : null;
                           return (
-                            <p className="font-bold text-gray-900 text-sm">
+                            <p className="font-bold text-fg text-sm">
                               {aula.turma?.nome ?? "—"}
-                              {tag && <span className="font-normal text-gray-500"> · {formatarHorario(aula.horario)}</span>}
+                              {tag && <span className="font-normal text-fg-muted"> · {formatarHorario(aula.horario)}</span>}
                             </p>
                           );
                         })()}
@@ -168,16 +168,16 @@ export function TurmasAlunoView({ aulas: aulasProp }: Props) {
                           <span className={cn(
                             "text-xs px-2 py-0.5 rounded-full font-medium",
                             aula.turma.categoria === "adulto"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-purple-100 text-purple-700"
+                              ? "bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300"
+                              : "bg-purple-100 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300"
                           )}>
                             {aula.turma.categoria}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 mt-1">
-                        <Users size={12} className={lotado ? "text-red-400" : "text-gray-400"} />
-                        <span className={cn("text-xs", lotado ? "text-red-500 font-medium" : "text-gray-400")}>
+                        <Users size={12} className={lotado ? "text-red-400" : "text-fg-subtle"} />
+                        <span className={cn("text-xs", lotado ? "text-red-500 font-medium" : "text-fg-subtle")}>
                           {lotado
                             ? "Lotado"
                             : `${vagasLivres} vaga${vagasLivres !== 1 ? "s" : ""} livre${vagasLivres !== 1 ? "s" : ""}`
@@ -199,7 +199,7 @@ export function TurmasAlunoView({ aulas: aulasProp }: Props) {
                           type="button"
                           onClick={() => handleCancelar(aula.minha_reserva_id!, aula.id)}
                           disabled={isLoading}
-                          className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-medium transition-colors disabled:opacity-50 px-2 py-1.5 rounded-xl hover:bg-red-50"
+                          className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 dark:hover:text-red-300 font-medium transition-colors disabled:opacity-50 px-2 py-1.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-500/15"
                         >
                           {isLoading
                             ? <Loader2 size={12} className="animate-spin" />
@@ -208,7 +208,7 @@ export function TurmasAlunoView({ aulas: aulasProp }: Props) {
                           Cancelar
                         </button>
                       ) : lotado ? (
-                        <span className="text-xs text-gray-300 font-medium px-2">Lotado</span>
+                        <span className="text-xs text-line-strong font-medium px-2">Lotado</span>
                       ) : (
                         <button
                           type="button"

@@ -65,7 +65,7 @@ export function BottomNav({ ultimoAvisoEm }: { ultimoAvisoEm: string | null }) {
     <nav
       data-bottom-nav
       aria-label="Navegação principal"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-surface/95 backdrop-blur pb-safe"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur pb-safe"
     >
       <ul className="mx-auto grid h-16 max-w-lg grid-cols-5">
         {TABS.map(({ href, label, icon: Icon, extra }) => {
@@ -79,7 +79,7 @@ export function BottomNav({ ultimoAvisoEm }: { ultimoAvisoEm: string | null }) {
                 aria-current={ativo ? "page" : undefined}
                 className={cn(
                   "group relative flex flex-1 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors duration-fast",
-                  ativo ? "text-brand" : "text-gray-500 hover:text-gray-800",
+                  ativo ? "text-brand" : "text-fg-muted hover:text-fg",
                 )}
               >
                 {centro ? (

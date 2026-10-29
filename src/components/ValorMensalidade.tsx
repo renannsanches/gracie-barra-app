@@ -16,7 +16,7 @@ export function DetalheMensalidade({ valor, itens, className }: DetalheProps) {
   const { linhas, ajuste, temDetalhe } = descreverItens(valor, itens);
   if (!temDetalhe) return null;
   return (
-    <span className={cn("block text-xs font-normal text-gray-500 tabular-nums whitespace-normal", className)}>
+    <span className={cn("block text-xs font-normal text-fg-muted tabular-nums whitespace-normal", className)}>
       {linhas.map((l) => `${l.nome} ${formatarEuro(l.valor)}`).join(" · ")}
       {ajuste !== 0 && ` · Ajuste ${ajuste > 0 ? "+" : "−"}${formatarEuro(Math.abs(ajuste))}`}
     </span>

@@ -13,7 +13,7 @@ export default async function GaleriaPage() {
   const lista = await carregarAlbuns(supabase);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gb-gray">
+    <div className="min-h-screen flex flex-col bg-canvas">
       <PageHeader
         title="Galeria"
         icon={<Images size={20} />}
