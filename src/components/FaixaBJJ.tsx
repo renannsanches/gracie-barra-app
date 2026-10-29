@@ -56,7 +56,9 @@ export function FaixaBJJ({
   showLabel = false,
   className,
 }: FaixaBJJProps) {
-  const isInfantil = categoria === "infantil";
+  // "adulto_infantil" desenha-se pela faixa (as de criança só existem no mapa infantil)
+  const isInfantil =
+    categoria === "infantil" || (categoria === "adulto_infantil" && inferCategoria(faixa) === "infantil");
   const map = isInfantil ? INFANTIL_MAP : ADULTO_MAP;
   const nome = map[faixa];
 
