@@ -2,6 +2,8 @@
 
 > Gerado com a skill `ui-ux-pro-max` + auditoria do código em 2026-10-16.
 > Objectivo: a app **parecer instantânea** e **consistente** em todo o lado, sem mudar a identidade Gracie Barra.
+>
+> **Estado (2026-10-29): CONCLUÍDO.** Fases 0–4 entregues nos PRs #61, #62 e #63 (merge em 2026-10-16). Só ficou por fazer o opcional Barlow Condensed (ver Fase 4). O diagnóstico abaixo descreve a app **antes** destes PRs — não é o estado actual. Histórico em [`CHANGELOG.md`](CHANGELOG.md); estado actual em `CLAUDE.md`.
 
 ---
 
@@ -114,7 +116,7 @@ Cada fase = 1 PR para `master` em `renannsanches/gracie-barra-app`, com preview 
 ---
 
 ## 4. Fora de âmbito (de propósito)
-- **Dark mode** — só 3 classes `dark:` no código; seria um projecto à parte.
+- **Dark mode** — só 3 classes `dark:` no código; seria um projecto à parte. **Entretanto feito** no PR #69 (2026-10-28), em separado desta fase.
 - **Partir os componentes gigantes** (`CadastroForm` 2020 linhas, `AlunoEditView` 1445, `PerfilView` 1073) — só se tocam nas zonas que as fases acima exigem.
 - **View Transitions API** — não corre no Safari 15 do tablet; pode entrar mais tarde como melhoria progressiva só na área do aluno.
 
@@ -128,4 +130,4 @@ Cada fase = 1 PR para `master` em `renannsanches/gracie-barra-app`, com preview 
 - [ ] Sem scroll horizontal a 375 px
 - [ ] Nada debaixo do notch / home indicator no PWA iOS
 - [ ] `/tablet` testado (ou pelo menos sem APIs fora do Safari 15)
-- [ ] `npm run build` verde + `npm run test:e2e` sem novas falhas (7/9 é a referência actual)
+- [ ] `npm run build` verde + `npm run test:e2e` sem novas falhas (7/9 era a referência na altura, por 2 testes de `financeiro.spec.ts` que já falhavam; ver `CLAUDE.md` §13 para o estado actual)

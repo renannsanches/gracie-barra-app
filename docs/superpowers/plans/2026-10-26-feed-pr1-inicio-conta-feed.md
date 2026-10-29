@@ -1,5 +1,7 @@
 # Feed — PR 1: Início novo, Minha conta e feed manual — Implementation Plan
 
+> **Estado: implementado — PR #67, em produção desde 2026-10-27.** Mantido como registo; os checkboxes abaixo não foram actualizados.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Professores e admins publicam texto + fotos num feed que abre no Início; alunos e responsáveis dão gosto e comentam; os dados pessoais passam para uma página nova "Minha conta".

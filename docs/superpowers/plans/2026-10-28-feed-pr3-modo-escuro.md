@@ -1,5 +1,7 @@
 # Modo escuro (PR 3 do feed) — plano de implementação
 
+> **Estado: implementado — PR #69, em produção desde 2026-10-28.** Mantido como registo; os checkboxes abaixo não foram actualizados.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Tema escuro em todas as páginas do aluno (grupo `(app)`), a seguir o sistema por defeito, com interruptor em Minha conta, sem flash, e com admin/tablet sempre claros.
