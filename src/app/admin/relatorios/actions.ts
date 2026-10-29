@@ -1,6 +1,26 @@
 "use server";
 
-import { descreverItens, formatarEuro } from "@/lib/modalidades";
+import {
+  calcularPlano,
+  descreverItens,
+  formatarEuro,
+  idadeEmAnos,
+  listarGruposRef,
+  listarModalidades,
+  rotuloModalidade,
+  type DescontoPlano,
+  type LinhaPlano,
+} from "@/lib/modalidades";
+import {
+  alertasDoAluno,
+  categoriaRelatorio,
+  janelaMeses,
+  kidsComValorAdulto,
+  ordenarLinhas,
+  rotuloStatus,
+  type FiltroStatusAluno,
+  type LinhaRelatorioAluno,
+} from "@/lib/relatorio-alunos";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
 import { type ItemMensalidade, StatusMensalidade, StatusLancamento, TipoLancamento } from "@/lib/types";
@@ -195,6 +215,114 @@ export async function getRelatorioLancamentos(filtros: {
   });
 
   return { ok: true, dados };
+}
+
+type MensalidadeJanela = { aluno_id: string; mes_referencia: string; data_vencimento: string; valor: number };
+
+/** Mensalidades entre dois meses (inclusive), paginadas — o PostgREST devolve no máximo 1000 linhas por pedido. */
+async function mensalidadesNaJanela(
+  admin: ReturnType<typeof createAdminClient>,
+  inicio: string,
+  fim: string,
+): Promise<{ dados: MensalidadeJanela[]; erro?: string }> {
+  const dados: MensalidadeJanela[] = [];
+  const PAGE = 1000;
+  for (let de = 0; ; de += PAGE) {
+    const { data, error } = await admin
+      .from("mensalidades")
+      .select("aluno_id, mes_referencia, data_vencimento, valor")
+      .gte("mes_referencia", inicio)
+      .lte("mes_referencia", fim)
+      .order("id")
+      .range(de, de + PAGE - 1);
+    if (error) return { dados, erro: error.message };
+    dados.push(...((data ?? []) as MensalidadeJanela[]));
+    if (!data || data.length < PAGE) return { dados };
+  }
+}
+
+/** Uma linha por aluno (activos, inactivos ou todos): categoria, vencimento, valor, plano e alertas para conferir. */
+export async function getRelatorioAlunos(filtros: {
+  mes: string;
+  status: FiltroStatusAluno;
+}): Promise<{ ok: true; dados: LinhaRelatorioAluno[] } | { ok: false; erro: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+  if (!/^\d{4}-\d{2}$/.test(filtros.mes)) return { ok: false, erro: "Mês inválido." };
+  if (!["ativos", "inativos", "todos"].includes(filtros.status)) return { ok: false, erro: "Filtro de status inválido." };
+
+  const admin = createAdminClient();
+  const mesRef = `${filtros.mes}-01`;
+  const janela = janelaMeses(filtros.mes);
+
+  let alunosQuery = admin
+    .from("profiles")
+    .select("id, nome_completo, status, faixa, categoria, data_nascimento")
+    .eq("perfil", "aluno");
+  if (filtros.status === "ativos") alunosQuery = alunosQuery.eq("status", "ativo");
+  if (filtros.status === "inativos") alunosQuery = alunosQuery.neq("status", "ativo");
+
+  const [alunosRes, planoRes, descontosRes, modalidades, grupos, mensalidades] = await Promise.all([
+    alunosQuery,
+    admin.from("aluno_modalidades").select("aluno_id, modalidade_id, valor, cobrar"),
+    admin.from("aluno_descontos").select("aluno_id, descricao, valor, origem_modalidade_id"),
+    listarModalidades(admin),
+    listarGruposRef(admin),
+    mensalidadesNaJanela(admin, janela.inicio, janela.fim),
+  ]);
+
+  const erro = alunosRes.error?.message ?? planoRes.error?.message ?? descontosRes.error?.message ?? mensalidades.erro;
+  if (erro) return { ok: false, erro };
+
+  const rotulos = new Map(modalidades.map((m) => [m.id, rotuloModalidade(m, grupos)]));
+  const porModalidade = new Map(modalidades.map((m) => [m.id, m]));
+
+  const linhasPorAluno = new Map<string, LinhaPlano[]>();
+  for (const r of planoRes.data ?? []) {
+    const lista = linhasPorAluno.get(r.aluno_id) ?? [];
+    lista.push({ modalidade_id: r.modalidade_id, valor: Number(r.valor), cobrar: r.cobrar });
+    linhasPorAluno.set(r.aluno_id, lista);
+  }
+  const descontosPorAluno = new Map<string, DescontoPlano[]>();
+  for (const d of descontosRes.data ?? []) {
+    const lista = descontosPorAluno.get(d.aluno_id) ?? [];
+    lista.push({ descricao: d.descricao, valor: Number(d.valor), origem_modalidade_id: d.origem_modalidade_id });
+    descontosPorAluno.set(d.aluno_id, lista);
+  }
+  const mensalidadesPorAluno = new Map<string, MensalidadeJanela[]>();
+  for (const m of mensalidades.dados) {
+    const lista = mensalidadesPorAluno.get(m.aluno_id) ?? [];
+    lista.push(m);
+    mensalidadesPorAluno.set(m.aluno_id, lista);
+  }
+
+  const dados = (alunosRes.data ?? []).map((a): LinhaRelatorioAluno => {
+    const linhas = linhasPorAluno.get(a.id) ?? [];
+    const { total: plano } = calcularPlano(linhas, descontosPorAluno.get(a.id) ?? [], rotulos);
+    const doAluno = mensalidadesPorAluno.get(a.id) ?? [];
+    const doMes = doAluno.find((m) => m.mes_referencia === mesRef) ?? null;
+    const mensalidade = doMes ? { valor: Number(doMes.valor), data_vencimento: doMes.data_vencimento } : null;
+
+    return {
+      aluno_id: a.id,
+      nome: a.nome_completo ?? "—",
+      status: rotuloStatus(a.status),
+      categoria: categoriaRelatorio(a.faixa, a.categoria),
+      vencimento: mensalidade?.data_vencimento ?? null,
+      valor: mensalidade?.valor ?? null,
+      plano,
+      alertas: alertasDoAluno({
+        ativo: a.status === "ativo",
+        mensalidade,
+        outrasDatas: doAluno.filter((m) => m.mes_referencia !== mesRef).map((m) => m.data_vencimento),
+        plano,
+        temPlano: linhas.length > 0,
+        kidsValorAdulto: kidsComValorAdulto(idadeEmAnos(a.data_nascimento), linhas, porModalidade),
+      }),
+    };
+  });
+
+  return { ok: true, dados: ordenarLinhas(dados) };
 }
 
 export async function getCategoriasParaRelatorio(): Promise<{ id: string; nome: string }[]> {
