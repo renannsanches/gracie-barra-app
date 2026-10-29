@@ -11,6 +11,16 @@ export async function GET(request: NextRequest) {
   // Prevent open redirect: only allow relative paths
   const next = rawNext.startsWith("/") ? rawNext : "/perfil";
 
+  // Recuperação por token_hash: NÃO gastar o token num GET. Scanners de email
+  // (Gmail, Outlook SafeLinks) abrem o link antes do aluno e invalidariam o token.
+  // A página /nova-senha mostra "Continuar" e só o clique chama verifyOtp.
+  if (token_hash && type === "recovery") {
+    const destino = new URL("/nova-senha", origin);
+    destino.searchParams.set("token_hash", token_hash);
+    destino.searchParams.set("type", "recovery");
+    return NextResponse.redirect(destino);
+  }
+
   const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,6 +52,12 @@ export async function GET(request: NextRequest) {
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`);
     }
+  }
+
+  // Falha no fluxo de recuperação (código PKCE inválido ou de outro browser):
+  // levar o aluno a pedir um link novo, não ao login.
+  if (next === "/nova-senha") {
+    return NextResponse.redirect(`${origin}/esqueci-senha?erro=link`);
   }
 
   return NextResponse.redirect(`${origin}/login?erro=confirmacao`);

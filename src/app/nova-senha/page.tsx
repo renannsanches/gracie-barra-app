@@ -1,7 +1,19 @@
 import Image from "next/image";
 import { NovaSenhaForm } from "./NovaSenhaForm";
 
-export default function NovaSenhaPage() {
+/**
+ * O link do email traz `?token_hash=…&type=recovery`. Lê-se aqui, no servidor, e
+ * segue por prop para o formulário: o token só é gasto quando o aluno carrega em
+ * "Continuar" (ver `validarLinkRecuperacao`), nunca ao abrir a página.
+ */
+export default async function NovaSenhaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ token_hash?: string; type?: string }>;
+}) {
+  const { token_hash, type } = await searchParams;
+  const tokenHash = type === "recovery" && token_hash ? token_hash : undefined;
+
   return (
     <div className="min-h-screen flex flex-col">
       <div className="bg-gb-black py-10 px-6 flex flex-col items-center">
@@ -17,7 +29,7 @@ export default function NovaSenhaPage() {
         <div className="w-full max-w-sm">
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Nova senha</h2>
           <p className="text-gray-500 text-sm mb-8">Define uma nova senha para a tua conta.</p>
-          <NovaSenhaForm />
+          <NovaSenhaForm tokenHash={tokenHash} />
         </div>
       </div>
     </div>

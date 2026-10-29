@@ -8,10 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 
-export function EsqueciSenhaForm() {
+export function EsqueciSenhaForm({ erroInicial = "" }: { erroInicial?: string }) {
   const [email, setEmail] = useState("");
   const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState("");
+  const [erro, setErro] = useState(erroInicial);
   const [enviado, setEnviado] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
