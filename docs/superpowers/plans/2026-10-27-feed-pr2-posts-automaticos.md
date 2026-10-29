@@ -1,5 +1,7 @@
 # Feed — PR 2: Posts automáticos (graduação e pódio do mês) — Implementation Plan
 
+> **Estado: implementado — PR #68, em produção desde 2026-10-28.** Mantido como registo; os checkboxes abaixo não foram actualizados.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** O feed passa a publicar sozinho: um post quando um aluno recebe faixa nova, e um post com o pódio do mês anterior (Adultos e Kids) no início de cada mês.

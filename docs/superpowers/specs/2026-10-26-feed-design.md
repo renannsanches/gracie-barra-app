@@ -1,6 +1,6 @@
 # Feed da academia, Início novo e modo escuro — design
 
-> Aprovado em 2026-10-26. Próximo passo: plano de implementação.
+> Aprovado em 2026-10-26. **Implementado em 2026-10-27/28:** PR 1 = #67 (Início, Minha conta, feed manual), PR 2 = #68 (posts automáticos), PR 3 = #69 (modo escuro) — todos em produção. Falta só o vídeo (Bunny Stream; ver `CLAUDE.md` §14). O estado actual está em `CLAUDE.md`; este documento é o desenho original e pode divergir em detalhes.
 > Marcado **[decisão minha]** = escolha do Claude durante o brainstorming, não do dono — aceites na aprovação, mas revisíveis.
 
 ## 1. Contexto e porquê
