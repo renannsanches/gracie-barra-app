@@ -12,6 +12,11 @@ Histórico das alterações em produção (`renannsanches/gracie-barra-app`, ram
 
 ---
 
+## Novembro 2026
+
+### 2026-11-01
+- **Ícone pequeno das notificações push.** No Android o `badge` da notificação (círculo à esquerda) aparecia como um disco branco, porque `worker/index.ts` usava o PNG a cores (`icon-192x192.png`) e o Android só usa a transparência. Novo `public/badge-96x96.png`: silhueta branca do escudo (disco com o triângulo "G" vazado) sobre fundo transparente. O ícone grande (`icon`, logo a cores) não mudou. Sem migração. Os telemóveis só apanham o novo badge depois de o service worker actualizar.
+
 ## Outubro 2026
 
 ### 2026-10-29
