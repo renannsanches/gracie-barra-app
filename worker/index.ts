@@ -10,7 +10,8 @@ sw.addEventListener("push", (event) => {
     sw.registration.showNotification(data.title ?? "Gracie Barra Famalicão", {
       body: data.body ?? "",
       icon: "/icon-192x192.png",
-      badge: "/icon-192x192.png",
+      // Android só usa a transparência do badge (pinta de branco): tem de ser silhueta, não o ícone a cores
+      badge: "/badge-96x96.png",
       data: { url: data.url ?? "/" },
     })
   );
