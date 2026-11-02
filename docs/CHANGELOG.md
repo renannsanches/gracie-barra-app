@@ -12,6 +12,11 @@ Histórico das alterações em produção (`renannsanches/gracie-barra-app`, ram
 
 ---
 
+## Novembro 2026
+
+### 2026-11-02
+- **Recuperar conta apagada do Auth.** O trigger `handle_new_user` passa a usar `ON CONFLICT (id) DO NOTHING`. Assim dá para recriar no Auth (`admin.createUser({ id })`) um utilizador apagado e voltar a ligá-lo ao perfil que ficou em `profiles`. Usado para recuperar `simonefazolato@hotmail.com` (id `466820c7…`, apagado do Auth a 2026-06-02; o perfil, 6 mensalidades e 2 presenças tinham ficado órfãos). A conta foi recriada sem password e com o email confirmado; a password define-se em `/esqueci-senha`. Migração `20261102121551_handle_new_user_on_conflict.sql` (já aplicada em produção). **Nota:** um pedido de reset para um email sem conta responde "ok" e não envia nada (o Supabase faz isto para não revelar que emails existem). Ainda há 13 perfis com login sem utilizador no Auth.
+
 ## Outubro 2026
 
 ### 2026-10-29
