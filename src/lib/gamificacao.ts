@@ -110,14 +110,28 @@ function mesSeguinte(mes: string): string {
   return addDias(ultimoDiaDoMes(mes), 1).slice(0, 7);
 }
 
+/** Limites (inclusivos) de um mês YYYY-MM. */
+export function limitesMes(mes: string): { inicio: string; fim: string } {
+  return { inicio: `${mes}-01`, fim: ultimoDiaDoMes(mes) };
+}
+
 /** Limites (inclusivos) do mês ou do ano corrente. */
 export function limitesPeriodo(periodo: "mes" | "ano", hoje: string): { inicio: string; fim: string } {
-  if (periodo === "mes") {
-    const mes = hoje.slice(0, 7);
-    return { inicio: `${mes}-01`, fim: ultimoDiaDoMes(mes) };
-  }
+  if (periodo === "mes") return limitesMes(hoje.slice(0, 7));
   const ano = hoje.slice(0, 4);
   return { inicio: `${ano}-01-01`, fim: `${ano}-12-31` };
+}
+
+/** Meses (YYYY-MM) do ano de hoje, de janeiro até ao mês de hoje. */
+export function mesesDoAno(hoje: string): string[] {
+  const ano = hoje.slice(0, 4);
+  const ate = Number(hoje.slice(5, 7));
+  return Array.from({ length: ate }, (_, i) => `${ano}-${String(i + 1).padStart(2, "0")}`);
+}
+
+/** Período do ranking aceite: "ano" (o corrente) ou um mês do ano corrente até ao de hoje. */
+export function periodoRankingValido(periodo: string, hoje: string): boolean {
+  return periodo === "ano" || mesesDoAno(hoje).includes(periodo);
 }
 
 function aulasPorSemana(dias: string[]): Map<string, string[]> {

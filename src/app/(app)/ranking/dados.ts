@@ -1,11 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { createClient } from "@/lib/supabase/server";
-import { grupoRanking, hojeLisboa, limitesPeriodo, nomeRanking } from "@/lib/gamificacao";
+import { grupoRanking, hojeLisboa, limitesPeriodo, mesesDoAno, nomeRanking } from "@/lib/gamificacao";
 import type { LinhaRanking, RankingViewProps } from "./RankingView";
 
 export type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
 
-interface RankingRow {
+export interface RankingRow {
   aluno_id: string;
   nome_completo: string;
   foto_url: string | null;
@@ -15,7 +15,7 @@ interface RankingRow {
   aulas: number;
 }
 
-function paraLinhas(rows: RankingRow[] | null): LinhaRanking[] {
+export function paraLinhas(rows: RankingRow[] | null): LinhaRanking[] {
   return (rows ?? []).map((r) => {
     const grupo = grupoRanking(r.faixa, r.categoria);
     return {
@@ -55,14 +55,11 @@ export async function carregarRanking(supabase: SupabaseServer, userId: string):
   const referencia = treina ? profile : dependentes[0];
   const grupoPadrao = referencia ? grupoRanking(referencia.faixa, referencia.categoria) : "adulto";
 
-  const nomeMes = new Intl.DateTimeFormat("pt-PT", { month: "long", timeZone: "UTC" }).format(
-    new Date(`${mes.inicio}T12:00:00Z`),
-  );
-
   return {
     mes: paraLinhas(rankingMes.data as RankingRow[] | null),
     ano: paraLinhas(rankingAno.data as RankingRow[] | null),
-    rotuloMes: nomeMes,
+    mesAtual: hoje.slice(0, 7),
+    meses: mesesDoAno(hoje),
     rotuloAno: hoje.slice(0, 4),
     minhasPessoas: [userId, ...dependentes.map((d) => d.id)],
     grupoPadrao,
