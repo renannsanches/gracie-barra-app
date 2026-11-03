@@ -18,7 +18,7 @@ export interface SlotDisponivel {
   vagasRestantes: number;
 }
 
-const WHATSAPP_NUMERO = "14076941856";
+const WHATSAPP_NUMERO = "351922296501";
 
 const DIAS_COMPLETO = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];

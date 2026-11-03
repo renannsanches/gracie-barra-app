@@ -90,7 +90,7 @@ export async function registrarPresencaManual(
   const admin = createAdminClient();
 
   if (await estaBloqueadoFinanceiramente(alunoId, admin)) {
-    return { ok: false, erro: "Não foi possível registar presença. Falar com Simone." };
+    return { ok: false, erro: "Não foi possível registar presença. Falar com Carlos." };
   }
 
   const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000).toISOString();

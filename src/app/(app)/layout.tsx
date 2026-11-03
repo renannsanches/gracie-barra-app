@@ -98,16 +98,16 @@ export default async function AppLayout({
   let banner: React.ReactNode = null;
   if (dias >= THRESHOLD_DIAS) {
     const texto = usarSelf
-      ? `Olá. Sua mensalidade está vencida há ${dias} dias. Entre em contato com a Simone.`
-      : `Olá. A mensalidade de ${depMaior.nome} está vencida há ${dias} dias. Entre em contato com a Simone.`;
+      ? `Olá. Sua mensalidade está vencida há ${dias} dias. Entre em contato com o Carlos.`
+      : `Olá. A mensalidade de ${depMaior.nome} está vencida há ${dias} dias. Entre em contato com o Carlos.`;
     banner = <MensalidadeVencidaBanner texto={texto} />;
   }
 
   let modal: React.ReactNode = null;
   if (dias >= MODAL_THRESHOLD_DIAS) {
     const mensagem = usarSelf
-      ? "Olá, a sua mensalidade encontra-se em atraso. Caso precise de ajuda, contacte a Simone."
-      : `Olá, a mensalidade de ${depMaior.nome} encontra-se em atraso. Caso precise de ajuda, contacte a Simone.`;
+      ? "Olá, a sua mensalidade encontra-se em atraso. Caso precise de ajuda, contacte o Carlos."
+      : `Olá, a mensalidade de ${depMaior.nome} encontra-se em atraso. Caso precise de ajuda, contacte o Carlos.`;
     modal = <MensalidadeAtrasoModal mensagem={mensagem} />;
   }
 

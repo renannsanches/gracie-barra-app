@@ -57,7 +57,7 @@ function derivarNotifMensalidades(mensalidades: Mensalidade[]): NotifItem[] {
 
       if (diffDias === 0) {
         titulo = "Mensalidade a vencer hoje";
-        corpo = "A tua mensalidade vence hoje. Fala com a Simone para regularizar.";
+        corpo = "A tua mensalidade vence hoje. Fala com o Carlos para regularizar.";
       } else if (diffDias <= 5) {
         titulo = "Mensalidade em atraso";
         corpo = `A tua mensalidade está em atraso há ${diffDias} dia${diffDias > 1 ? "s" : ""}. Contacta a academia.`;

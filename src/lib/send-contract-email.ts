@@ -25,7 +25,7 @@ function buildEmailHtml(nome: string): string { return `<div style="margin:0;pad
                 <p style="margin:0 0 8px;font-size:15px;font-weight:bold;color:#15803d;">Opção A — Assinar digitalmente e enviar via WhatsApp</p>
                 <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#166534;">Preenche os teus dados e assina o contrato digitalmente (Adobe Acrobat, DocuSign ou qualquer app de assinatura). Depois, envia o ficheiro assinado para o nosso WhatsApp:</p>
                 <div style="text-align:center;">
-                  <a href="https://wa.me/14076941856?text=Olá,%20sou%20aluno%20da%20Gracie%20Barra%20Famalicão%20e%20quero%20enviar%20o%20meu%20contrato%20assinado." style="display:inline-block;background:#25D366;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:bold;">📲 Enviar pelo WhatsApp</a>
+                  <a href="https://wa.me/351922296501?text=Olá,%20sou%20aluno%20da%20Gracie%20Barra%20Famalicão%20e%20quero%20enviar%20o%20meu%20contrato%20assinado." style="display:inline-block;background:#25D366;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:bold;">📲 Enviar pelo WhatsApp</a>
                 </div>
               </div>
               <div style="background:#eff6ff;border-left:4px solid #2563eb;padding:20px;border-radius:8px;margin-bottom:30px;">

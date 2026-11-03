@@ -475,7 +475,7 @@ Interfaces também em `types.ts`: `Profile`, `Mensalidade`, `ItemMensalidade`, `
 | `InstallPrompt` | Banner PWA de instalação (respeita `pwa-install-dismissed` no localStorage) |
 | `ServiceWorkerUpdater` | Recarrega página quando novo SW disponível (desactivado em dev) |
 | `MensalidadeVencidaBanner` | Client component: banner âmbar fixo no topo quando mensalidade (própria ou de dependente) está atrasada ≥5 dias; publica a sua altura em `--banner-h` (as pílulas do Início prendem-se por baixo dela) |
-| `MensalidadeAtrasoModal` | Modal central 1x/dia (localStorage) quando atraso ≥2 dias; botão "Falar com Simone" abre WhatsApp com mensagem pré-preenchida |
+| `MensalidadeAtrasoModal` | Modal central 1x/dia (localStorage) quando atraso ≥2 dias; botão "Falar com Carlos" abre WhatsApp com mensagem pré-preenchida |
 | `Medalha` | Medalha redonda (bronze/prata/ouro) — número nos marcos de aulas e sequências, ícone nas especiais |
 | `NovaConquistaModal` | Modal em `/perfil` com medalhas ainda não vistas (próprio + dependentes); não aparece com o aviso de graduação nem com mensalidade ≥2 dias em atraso |
 | `GraduacaoAptosModal` | Modal 2x por semana (1º acesso a partir de segunda e a partir de quinta, hora de Lisboa) para admin/professor quando há ≥1 aluno apto a graduar; janela vista guardada em `user_metadata.aviso_graduacao_janela` (por conta, não por dispositivo); renderizado em `/perfil` |
@@ -538,7 +538,7 @@ ink        // #0A0A0A — headers escuros
 canvas     // #F5F5F5 — fundo das páginas
 surface    // #FFFFFF — cards
 success / warning / destructive
-whatsapp / whatsapp-dark          // botões "Falar com a Simone"
+whatsapp / whatsapp-dark          // botões "Falar com o Carlos"
 fg / fg-muted / line              // texto principal / secundário / bordas (--fg, --fg-muted, --line em globals.css)
 subtle / fg-subtle / line-strong     // fundo de blocos, texto terciário, borda forte (têm valor próprio em `.dark`)
 // gb-blue, gb-black, gb-gray… continuam como aliases (gb-blue é o vermelho, nome histórico)
@@ -610,7 +610,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | ~36 avisos de lint em código legado | 0 erros. 23 vêm de regras rebaixadas a aviso em `eslint.config.mjs` (`no-explicit-any` 11, `set-state-in-effect` 9, `purity` 3); os outros 13 são `no-unused-vars` 7, `no-img-element` 5, `exhaustive-deps` 1. Voltar a erro depois de corrigidos | Baixa |
 | Código/ficheiros mortos | `src/components/FaixaBelt.tsx` (ninguém importa); `@radix-ui/react-toast`, `react-avatar`, `react-separator` instalados sem uso; `public/fonts/* - Copia.woff2` duplicados; `img_2303.jpeg_…jpg` solto na raiz | Baixa |
 | `router.push` em vez de `<Link>` e overlays `fixed inset-0` à mão | ~22 `router.push` (a maioria redirecciona após acção); `GaleriaAlbumView.tsx` (lightbox) e `TabletScanner.tsx` ainda não usam `ui/dialog` | Baixa |
-| Número de WhatsApp fixo no código | `wa.me/14076941856` (prefixo +1, EUA) em 5 sítios — ver secção 16. **Confirmar com a academia que é o número certo** | Média |
+| Número de WhatsApp fixo no código | `wa.me/351922296501` (+351 922 296 501, Carlos) em 5 sítios — ver secção 16 | Média |
 
 ---
 
@@ -652,7 +652,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | — | **Email no card do aluno** | `AlunoEditView` mostra campo email (read-only) buscado via `admin.getUserById`; ocultado para dependentes (`sem_login=true`) |
 | — | **Push para dependentes via responsável** | `push-sender` faz lookup em `dependentes` para substituir IDs de dependentes pelos dos responsáveis antes de buscar subscriptions |
 | — | **Push de avisos inclui professores** | Notificações de avisos publicados enviadas a alunos E professores |
-| — | **Modal de mensalidade em atraso** | Atraso ≥2 dias (próprio ou de dependente) → modal 1x/dia no layout `(app)` com WhatsApp da Simone; some quando a mensalidade é paga |
+| — | **Modal de mensalidade em atraso** | Atraso ≥2 dias (próprio ou de dependente) → modal 1x/dia no layout `(app)` com WhatsApp do Carlos; some quando a mensalidade é paga |
 | — | **Modal de aptos a graduar (2x/semana)** | Admin/professor vêem em `/perfil`, no 1º acesso a partir de segunda e de quinta, aviso de que há alunos aptos (só se houver ≥1); controlo por conta em `user_metadata` |
 | — | **Grupos de alunos** | `/admin/grupos` (CRUD inline); campo Grupo em novo aluno e ficha (todos os perfis menos responsável); filtro por grupo em Cadastros e Financeiro (totais seguem o filtro); `/cadastro` atribui o grupo padrão |
 | — | **Modalidades** | `/admin/modalidades`; card Modalidades na ficha (valor por aluno, total, "Atualizar pendentes" quando muda); `mensalidades.itens` (jsonb) guarda a composição e `valor` continua a ser o total; detalhe "JJ 50 € · Capoeira 20 €" no Financeiro, ficha, perfil do aluno e relatórios; `turmas.modalidade_id` filtra `/aulas` e é validado em `reservar` |
@@ -747,5 +747,5 @@ Antes de escalar, estes valores precisam sair do código para a tabela `academia
 | `graciebarrafamalicao@gmail.com` | `src/lib/send-contract-email.ts` (e `GMAIL_USER` em env) |
 | PDF do contrato URL e logo | `src/lib/send-contract-email.ts` (URLs do Storage do Supabase escritos à mão) |
 | Preços (62 €/55 €) | Fallback em `src/app/cadastro/cadastro-actions.ts`; o valor normal já vem da modalidade padrão (`src/lib/modalidades.ts`, tabela `modalidades`) |
-| Número WhatsApp da academia (`14076941856`) | `MensalidadeAtrasoModal.tsx`, `MensalidadeVencidaBanner.tsx`, `ContaView.tsx`, `AulaExperimentalForm.tsx`, `send-contract-email.ts` |
+| Número WhatsApp da academia (`351922296501`) | `MensalidadeAtrasoModal.tsx`, `MensalidadeVencidaBanner.tsx`, `ContaView.tsx`, `AulaExperimentalForm.tsx`, `send-contract-email.ts` |
 | Org/project do Sentry e DSN do servidor | `next.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts` |

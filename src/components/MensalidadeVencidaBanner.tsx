@@ -41,7 +41,7 @@ export function MensalidadeVencidaBanner({ texto }: Props) {
           </p>
         </div>
         <a
-          href="https://wa.me/14076941856"
+          href="https://wa.me/351922296501"
           target="_blank"
           rel="noopener noreferrer"
           className="shrink-0 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[13px] font-medium whitespace-nowrap"

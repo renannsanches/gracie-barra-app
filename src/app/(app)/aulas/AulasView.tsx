@@ -551,7 +551,7 @@ export function AulasView({
                           Reservar
                         </div>
                         <p className="text-xs text-amber-600 text-center leading-tight">
-                          Não é possível reservar a aula. Falar com Simone.
+                          Não é possível reservar a aula. Falar com Carlos.
                         </p>
                       </div>
                     ) : (
