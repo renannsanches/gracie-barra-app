@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PresencasCalendario } from "@/components/PresencasCalendario";
+import { AdicionarPresencasDialog } from "./AdicionarPresencasDialog";
 import {
   formatarData, formatarMoeda, formatarMes, labelCorFaixa,
 } from "@/lib/utils";
@@ -32,8 +33,6 @@ import {
   desmarcarPago as serverDesmarcarPago,
   gerarProximoMes as serverGerarProximoMes,
   criarPrimeiraMensalidade as serverCriarPrimeiraMensalidade,
-  adicionarPresenca as serverAdicionarPresenca,
-  adicionarPresencas as serverAdicionarPresencas,
   excluirPresenca as serverExcluirPresenca,
   excluirMensalidade as serverExcluirMensalidade,
   editarMensalidade as serverEditarMensalidade,
@@ -209,10 +208,6 @@ export function AlunoEditView({
   // ── Presenças ──────────────────────────────────────────────────────────────
   const [presencas, setPresencas] = useState(presencasProp);
   const [mostraAddPresenca, setMostraAddPresenca] = useState(false);
-  const [dataPresencaInput, setDataPresencaInput] = useState("");
-  const [datasPresenca, setDatasPresenca] = useState<string[]>([]);
-  const [addPresencaLoading, setAddPresencaLoading] = useState(false);
-  const [addPresencaErro, setAddPresencaErro] = useState("");
 
   // ── Responsável ───────────────────────────────────────────────────────────
   const [responsavelId, setResponsavelId] = useState(responsavelProp?.id ?? "");
@@ -574,35 +569,6 @@ export function AlunoEditView({
       setLoteErro("Erro de rede. Tenta novamente.");
     } finally {
       setAcaoLote(false);
-    }
-  }
-
-  function handleAdicionarDataLista() {
-    if (!dataPresencaInput) return;
-    if (datasPresenca.includes(dataPresencaInput)) { setDataPresencaInput(""); return; }
-    setDatasPresenca(prev => [...prev, dataPresencaInput].sort());
-    setDataPresencaInput("");
-  }
-
-  async function handleAdicionarPresencas() {
-    if (datasPresenca.length === 0) return;
-    setAddPresencaLoading(true); setAddPresencaErro("");
-    try {
-      const result = await serverAdicionarPresencas(aluno.id, datasPresenca);
-      if (!result.ok) { setAddPresencaErro(result.erro ?? "Erro ao adicionar presenças."); return; }
-      if (result.novas && result.novas.length > 0) {
-        setPresencas(prev => [...result.novas!, ...prev]);
-      }
-      if (result.duplicadas && result.duplicadas.length > 0) {
-        setAddPresencaErro(`${result.adicionadas} adicionada(s). ${result.duplicadas.length} já existia(m).`);
-      } else {
-        setMostraAddPresenca(false);
-      }
-      setDatasPresenca([]);
-    } catch {
-      setAddPresencaErro("Erro de rede. Tenta novamente.");
-    } finally {
-      setAddPresencaLoading(false);
     }
   }
 
@@ -1507,74 +1473,19 @@ export function AlunoEditView({
             Histórico de presenças
             <span className="text-gray-400 font-normal text-sm">({presencas.length} no total)</span>
           </h2>
-          <Button size="sm" onClick={() => { setMostraAddPresenca((v) => !v); setAddPresencaErro(""); setDatasPresenca([]); setDataPresencaInput(""); }} className="bg-gb-blue hover:bg-gb-blue-dark text-white text-xs h-8 px-3">
+          <Button size="sm" onClick={() => setMostraAddPresenca(true)} className="bg-gb-blue hover:bg-gb-blue-dark text-white text-xs h-8 px-3">
             <Plus size={12} className="mr-1.5" />
             Adicionar presença
           </Button>
         </div>
 
-        {mostraAddPresenca && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Input
-                type="date"
-                value={dataPresencaInput}
-                max={hoje}
-                title="Data da presença"
-                onChange={(e) => setDataPresencaInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAdicionarDataLista()}
-                className="w-44"
-                disabled={addPresencaLoading}
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleAdicionarDataLista}
-                disabled={!dataPresencaInput || addPresencaLoading}
-                className="h-9 px-3"
-                title="Adicionar data à lista"
-              >
-                <Plus size={14} />
-              </Button>
-              <Button
-                type="button"
-                onClick={handleAdicionarPresencas}
-                disabled={datasPresenca.length === 0 || addPresencaLoading}
-                className="bg-gb-blue hover:bg-gb-blue-dark text-white text-xs h-9 px-4"
-              >
-                {addPresencaLoading
-                  ? <><Loader2 size={12} className="animate-spin mr-1.5" />Guardando...</>
-                  : <><Check size={12} className="mr-1.5" />Confirmar{datasPresenca.length > 0 ? ` (${datasPresenca.length})` : ""}</>
-                }
-              </Button>
-              <button
-                type="button"
-                onClick={() => { setMostraAddPresenca(false); setDatasPresenca([]); setDataPresencaInput(""); setAddPresencaErro(""); }}
-                className="text-sm text-gray-500 hover:text-gray-900"
-              >
-                Cancelar
-              </button>
-            </div>
-            {datasPresenca.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {datasPresenca.map(d => (
-                  <span key={d} className="flex items-center gap-1 bg-gray-100 text-xs px-2 py-1 rounded-full">
-                    {d.split("-").reverse().join("/")}
-                    <button
-                      type="button"
-                      onClick={() => setDatasPresenca(prev => prev.filter(x => x !== d))}
-                      className="text-gray-400 hover:text-gray-700 ml-0.5"
-                    >
-                      <X size={10} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            {addPresencaErro && <p className="text-sm text-red-600">{addPresencaErro}</p>}
-          </div>
-        )}
+        <AdicionarPresencasDialog
+          alunoId={aluno.id}
+          aberto={mostraAddPresenca}
+          onFechar={() => setMostraAddPresenca(false)}
+          onAdicionadas={(novas) => setPresencas((prev) =>
+            [...novas, ...prev].sort((x, y) => y.registrado_em.localeCompare(x.registrado_em)))}
+        />
 
         <PresencasCalendario presencas={presencas} onExcluirPresenca={handleExcluirPresenca} />
       </div>
