@@ -10,17 +10,6 @@ interface GerarResult extends ActionResult {
   mensalidade?: Mensalidade;
 }
 
-interface PresencaResult extends ActionResult {
-  presencaId?: string;
-  registrado_em?: string;
-}
-
-interface PresencaBatchResult extends ActionResult {
-  adicionadas?: number;
-  duplicadas?: string[];
-  novas?: { id: string; registrado_em: string; aluno_id: string }[];
-}
-
 export async function marcarPago(mensalidadeId: string, alunoId: string): Promise<ActionResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
@@ -161,82 +150,6 @@ export async function gerarProximoMes(alunoId: string): Promise<GerarResult> {
 
   revalidatePath(`/admin/alunos/${alunoId}`);
   return { ok: true, mensalidade: nova as Mensalidade };
-}
-
-export async function adicionarPresenca(alunoId: string, data: string): Promise<PresencaResult> {
-  const auth = await requireAdmin();
-  if (!auth.ok) return auth;
-
-  const hoje = new Date().toISOString().slice(0, 10);
-  if (data > hoje) return { ok: false, erro: "Não é possível registrar presença para data futura." };
-
-  const admin = createAdminClient();
-
-  const { data: existe } = await admin
-    .from("presencas")
-    .select("id")
-    .eq("aluno_id", alunoId)
-    .eq("dia_registro", data)
-    .maybeSingle();
-
-  if (existe) return { ok: false, erro: "Já existe uma presença neste dia." };
-
-  const { data: nova, error } = await admin
-    .from("presencas")
-    .insert({ aluno_id: alunoId, registrado_em: `${data}T12:00:00+00:00` })
-    .select("id, registrado_em")
-    .single();
-
-  if (error || !nova) return { ok: false, erro: error?.message ?? "Erro ao inserir." };
-
-  revalidatePath(`/admin/alunos/${alunoId}`);
-  return { ok: true, presencaId: nova.id, registrado_em: nova.registrado_em };
-}
-
-export async function adicionarPresencas(alunoId: string, datas: string[]): Promise<PresencaBatchResult> {
-  const auth = await requireAdmin();
-  if (!auth.ok) return auth;
-  if (!datas.length) return { ok: false, erro: "Nenhuma data fornecida." };
-
-  const hoje = new Date().toISOString().slice(0, 10);
-  const datasValidas = datas.filter(d => d <= hoje);
-  if (!datasValidas.length) return { ok: false, erro: "Todas as datas são futuras." };
-
-  const admin = createAdminClient();
-
-  const { data: existentes } = await admin
-    .from("presencas")
-    .select("dia_registro")
-    .eq("aluno_id", alunoId)
-    .in("dia_registro", datasValidas);
-
-  const jaExistem = new Set(existentes?.map(e => e.dia_registro) ?? []);
-  const novasDatas = datasValidas.filter(d => !jaExistem.has(d));
-  const duplicadas = datasValidas.filter(d => jaExistem.has(d));
-
-  if (novasDatas.length === 0) {
-    return { ok: true, adicionadas: 0, duplicadas, novas: [] };
-  }
-
-  const rows = novasDatas.map(d => ({
-    aluno_id: alunoId,
-    registrado_em: `${d}T12:00:00+00:00`,
-  }));
-
-  const { data: inseridas, error } = await admin
-    .from("presencas")
-    .insert(rows)
-    .select("id, registrado_em");
-
-  if (error) return { ok: false, erro: error.message };
-
-  revalidatePath(`/admin/alunos/${alunoId}`);
-  return {
-    ok: true,
-    adicionadas: inseridas?.length ?? 0,
-    duplicadas,
-    novas: inseridas?.map(r => ({ ...r, aluno_id: alunoId })) ?? [],
-  };
 }
 
 export async function editarMensalidade(
