@@ -35,8 +35,22 @@ test.describe("Gamificação", () => {
     await kids.click();
     await expect(kids).toHaveAttribute("aria-selected", "true");
 
-    const ano = page.getByRole("tab", { name: String(new Date().getFullYear()) });
-    await ano.click();
-    await expect(ano).toHaveAttribute("aria-selected", "true");
+    // Período: abre no mês actual; a bottom sheet deixa escolher o ano todo ou outro mês
+    const ano = String(new Date().getFullYear());
+    const mesAtual = new Intl.DateTimeFormat("pt-PT", { month: "long" }).format(new Date());
+    const nomeMesAtual = mesAtual.charAt(0).toUpperCase() + mesAtual.slice(1);
+    const periodo = page.getByTestId("ranking-periodo");
+    await expect(periodo).toHaveText(nomeMesAtual);
+
+    await periodo.click();
+    const sheet = page.getByRole("dialog", { name: "Período do ranking" });
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole("button", { name: `Todo ${ano}` }).click();
+    await expect(sheet).toBeHidden();
+    await expect(periodo).toHaveText(`Todo ${ano}`);
+
+    await periodo.click();
+    await sheet.getByRole("button", { name: nomeMesAtual }).click();
+    await expect(periodo).toHaveText(nomeMesAtual);
   });
 });
