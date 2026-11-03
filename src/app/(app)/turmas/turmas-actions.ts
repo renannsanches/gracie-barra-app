@@ -43,7 +43,7 @@ export async function reservar(aulaId: string): Promise<ActionResult> {
   if (aula.status !== "agendada") return { ok: false, erro: "Esta aula não está disponível." };
 
   if (await estaBloqueadoFinanceiramente(user.id, admin)) {
-    return { ok: false, erro: "Não é possível reservar a aula. Falar com Simone." };
+    return { ok: false, erro: "Não é possível reservar a aula. Falar com Carlos." };
   }
 
   const { count } = await admin

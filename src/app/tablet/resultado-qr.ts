@@ -36,8 +36,8 @@ const FALHA_GENERICA = "Não foi possível registrar a presença.";
 /** Título e texto do ecrã vermelho, a partir da mensagem da RPC ou da excepção. */
 export function erroDoRegisto(texto: string, code = "", fallback = FALHA_GENERICA): ErroInfo {
   const msg = texto.toLowerCase();
-  if (msg.includes("mensalidade_bloqueada") || msg.includes("falar com simone")) {
-    return { titulo: "Presença Não Registada", mensagem: "Não foi possível registar presença. Falar com Simone." };
+  if (msg.includes("mensalidade_bloqueada") || msg.includes("falar com carlos")) {
+    return { titulo: "Presença Não Registada", mensagem: "Não foi possível registar presença. Falar com Carlos." };
   }
   if (msg.includes("expir")) {
     return { titulo: "QR Code Expirado", mensagem: "O código expirou. Peça ao aluno gerar um novo." };

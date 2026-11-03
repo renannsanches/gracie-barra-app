@@ -42,7 +42,7 @@ const config: Config = {
         success: rgb("--success"),
         warning: rgb("--warning"),
         destructive: rgb("--destructive"),
-        // Cor oficial do WhatsApp (botões "Falar com a Simone")
+        // Cor oficial do WhatsApp (botões "Falar com o Carlos")
         whatsapp: { DEFAULT: "#25D366", dark: "#1EBE5B" },
         // Nomes históricos (gb-blue é o vermelho da marca) — aliases dos tokens acima
         gb: {

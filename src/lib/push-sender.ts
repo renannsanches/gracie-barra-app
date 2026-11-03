@@ -97,7 +97,7 @@ const MENSAGENS_MENS: Record<TipoNotifMens, { title: string; body: string }> = {
   },
   vence_hoje: {
     title: "Mensalidade vence hoje",
-    body: "A tua mensalidade vence hoje. Fala com a Simone para regularizar.",
+    body: "A tua mensalidade vence hoje. Fala com o Carlos para regularizar.",
   },
   atraso_3d: {
     title: "Mensalidade em atraso",
@@ -109,7 +109,7 @@ const MENSAGENS_MENS: Record<TipoNotifMens, { title: string; body: string }> = {
   },
   atraso_bloqueio: {
     title: "🚫 Acesso pode ser bloqueado",
-    body: "Mensalidade vencida há ≥10 dias. O acesso ao QR e às reservas pode ser bloqueado. Fala com a Simone.",
+    body: "Mensalidade vencida há ≥10 dias. O acesso ao QR e às reservas pode ser bloqueado. Fala com o Carlos.",
   },
 };
 

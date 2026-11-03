@@ -14,6 +14,9 @@ Histórico das alterações em produção (`renannsanches/gracie-barra-app`, ram
 
 ## Novembro 2026
 
+### 2026-11-03
+- **Nova administração: contacto passa de Simone para Carlos.** O nome "Simone" nas mensagens da app (modal e banner de mensalidade em atraso, avisos de bloqueio no tablet e nas reservas, push de mensalidade, sino) passa a "Carlos", e o WhatsApp da academia muda de `+1 (407) 694-1856` para `+351 922 296 501` (`wa.me/351922296501`) nos 5 sítios. Sem migração de BD; os acessos da Simone mantêm-se por agora. O novo administrador é o perfil `1249eaa6-515f-46ef-b570-5718fcb200cb` (já tinha `perfil = admin`).
+
 ### 2026-11-02
 - **Recuperar conta apagada do Auth.** O trigger `handle_new_user` passa a usar `ON CONFLICT (id) DO NOTHING`. Assim dá para recriar no Auth (`admin.createUser({ id })`) um utilizador apagado e voltar a ligá-lo ao perfil que ficou em `profiles`. Usado para recuperar `simonefazolato@hotmail.com` (id `466820c7…`, apagado do Auth a 2026-06-02; o perfil, 6 mensalidades e 2 presenças tinham ficado órfãos). A conta foi recriada sem password e com o email confirmado; a password define-se em `/esqueci-senha`. Migração `20261102121551_handle_new_user_on_conflict.sql` (já aplicada em produção). **Nota:** um pedido de reset para um email sem conta responde "ok" e não envia nada (o Supabase faz isto para não revelar que emails existem). Ainda há 13 perfis com login sem utilizador no Auth.
 

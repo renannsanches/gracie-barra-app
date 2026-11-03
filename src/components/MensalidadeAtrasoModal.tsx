@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 const STORAGE_KEY = "mensalidade-modal-ultimo-dia";
-const WHATSAPP_URL = `https://wa.me/14076941856?text=${encodeURIComponent(
-  "Olá, Simone, gostaria de regularizar minha mensalidade",
+const WHATSAPP_URL = `https://wa.me/351922296501?text=${encodeURIComponent(
+  "Olá, Carlos, gostaria de regularizar minha mensalidade",
 )}`;
 
 type Props = { mensagem: string };
@@ -65,7 +65,7 @@ export function MensalidadeAtrasoModal({ mensagem }: Props) {
             onClick={fechar}
             className="w-full py-3 rounded-xl bg-whatsapp hover:bg-whatsapp-dark text-white text-center text-[15px] font-semibold transition-colors duration-fast"
           >
-            Falar com Simone
+            Falar com Carlos
           </a>
         </div>
       </DialogContent>
