@@ -15,6 +15,7 @@ Histórico das alterações em produção (`renannsanches/gracie-barra-app`, ram
 ## Novembro 2026
 
 ### 2026-11-03
+- **Presença manual por aula.** Na ficha do aluno, "Adicionar presença" abre um diálogo com calendário: escolhe-se o dia e as aulas desse dia em que o aluno treinou (várias por dia, várias datas de uma vez). Cada aula vira uma presença à hora de início da aula (Lisboa), por isso conta no ranking e nas medalhas; aulas que já têm presença (QR ou manual) aparecem como "Já registada" e não se repetem. Duas turmas à mesma hora (ex.: GB1 e Kids às 18:00) contam como uma: escolher uma tira a outra. Dias sem aulas no sistema (antes de maio/2026) aceitam "presença sem aula" (12:00 UTC, como antes). Antes só dava para escolher datas e no máximo uma presença por dia. Novos `src/lib/presenca-manual.ts` (testado), `presencas-actions.ts` e `AdicionarPresencasDialog.tsx`; saíram `adicionarPresenca`/`adicionarPresencas` de `mensalidades-actions.ts`. Sem migração.
 - **Nova administração: contacto passa de Simone para Carlos.** O nome "Simone" nas mensagens da app (modal e banner de mensalidade em atraso, avisos de bloqueio no tablet e nas reservas, push de mensalidade, sino) passa a "Carlos", e o WhatsApp da academia muda de `+1 (407) 694-1856` para `+351 922 296 501` (`wa.me/351922296501`) nos 5 sítios. Sem migração de BD; os acessos da Simone mantêm-se por agora. O novo administrador é o perfil `1249eaa6-515f-46ef-b570-5718fcb200cb` (já tinha `perfil = admin`).
 
 ### 2026-11-02

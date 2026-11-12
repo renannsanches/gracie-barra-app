@@ -299,6 +299,8 @@ Aluno recebe confirmação via polling
 
 **Regra de bloqueio financeiro:** sem mensalidade = permitir; atrasado <10 dias = permitir; atrasado ≥10 dias = bloquear. Aplica-se a QR, presença manual no tablet e reservas de aulas. **Onde é aplicada:** só o RPC de produção do QR chama `verificar_bloqueio_financeiro`; a presença manual (`src/app/tablet/tablet-actions.ts`) e as reservas (`src/app/(app)/aulas/aulas-actions.ts`) repetem a regra em JS. Helpers em `src/lib/mensalidade-status.ts`.
 
+Presença manual pelo admin (ficha do aluno, `/admin/alunos/[id]` › Histórico de presenças › Adicionar presença): diálogo `AdicionarPresencasDialog` com calendário do mês; o staff escolhe o dia e as aulas desse dia (tabela `aulas`, turmas activas e não só experimentais; primeiro as da categoria do aluno). Grava **uma presença por aula, à hora de início da aula em Lisboa** (`presencas-actions.ts`), e pode haver várias no mesmo dia — o ranking conta cada uma. Sem `aula_id`: a ligação presença ↔ aula é pelo horário (horário mais próximo entre 60 min antes e 90 min depois; turmas à mesma hora — ex. GB1 e Kids às 18:00 — contam como uma só e excluem-se no diálogo; regras em `src/lib/presenca-manual.ts`, testadas), e aulas que já têm presença (QR incluído) aparecem como "Já registada". Dias sem aulas no sistema (antes de maio/2026) aceitam "presença sem aula", gravada às 12:00 UTC como antes. Depois de gravar corre `sincronizarConquistas` (`after`).
+
 Fluxo manual no tablet (sem QR): pesquisa aluno por nome → selecciona aula disponível (hoje ±2h) → verificação financeira em JS + cooldown de 1 h. O `aulaId` escolhido **não é gravado** — o insert só escreve `aluno_id` e `registrado_em`.
 
 **Intervalo mínimo entre presenças (cada caminho tem o seu):**
@@ -307,6 +309,7 @@ Fluxo manual no tablet (sem QR): pesquisa aluno por nome → selecciona aula dis
 |---------|-----------|------|
 | QR (`/presenca`) | 30 min | cliente, `INTERVALO_MIN_MS` em `PresencaView.tsx` |
 | Manual no tablet | 1 h | `tablet-actions.ts` |
+| Manual pelo admin (ficha do aluno) | nenhum; não repete uma aula que já tenha presença | `admin/alunos/[id]/presencas-actions.ts` |
 | RPC `registrar_presenca_por_token` (produção) | nenhum | — |
 
 **Reservas (`/aulas`):** o componente `AulasView` busca lista de alunos bloqueados financeiramente e desabilita o botão de reserva com aviso âmbar.
