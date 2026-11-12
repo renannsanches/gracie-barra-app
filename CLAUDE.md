@@ -3,6 +3,8 @@
 > Este ficheiro serve dois públicos: **programadores** que vão trabalhar no código, e **estrategistas de produto/negócio** com literacia tecnológica que precisam entender o que está construído, o que falta, e para onde vai.
 >
 > **Estado verificado em 2026-10-29 contra `master` de produção `2849e91` (PR #70).** O histórico completo, PR a PR, está em [`docs/CHANGELOG.md`](docs/CHANGELOG.md). Este ficheiro descreve o estado **actual**; o CHANGELOG descreve **como lá chegámos**. Quem fechar um PR deve actualizar os dois.
+>
+> **Rumo comercial (2026-11-12):** o app vai ser vendido a outras academias. Roadmap em [`docs/roadmap-saas.md`](docs/roadmap-saas.md) (Fases 0–3; a Fase 0 já passou) e plano de execução com as skills por item em [`docs/superpowers/plans/2026-11-12-roadmap-saas-mestre.md`](docs/superpowers/plans/2026-11-12-roadmap-saas-mestre.md). Resumo nas secções 14–16.
 
 ---
 
@@ -13,6 +15,8 @@
 1. **Controlo de presença** — substituir a folha de papel por QR Code no telemóvel do aluno + tablet fixo na recepção
 2. **Gestão administrativa** — CRUD de alunos, turmas, aulas, mensalidades, graduações e galeria num painel web
 3. **Comunicação** — avisos, galeria de fotos e histórico de progresso visível pelo aluno
+
+Hoje serve uma academia só. O plano é vendê-lo a outras academias (secção 15), com um nome comercial próprio, sem a marca "Gracie Barra" (por decidir no item 1.7 do roadmap).
 
 ### Quem usa e como
 
@@ -603,8 +607,11 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 
 | Débito | Impacto | Prioridade |
 |--------|---------|------------|
-| **Multi-tenancy "fantasma"** | `academias` e `academia_id` (12 tabelas, nullable, sem default) existem mas **nada no código os usa** (confirmado em 2026-10-29): as RLS filtram só por `perfil`, as páginas admin usam `createAdminClient()` com `select("*")`; numa análise de 2026-07-23 o RPC do QR e `/api/admin/delete-user` também não verificavam tenant. **Bloqueio duro para vender a uma 2.ª academia** — ver Horizonte 2 | Alta (só para comercialização) |
-| Migrations do repo ≠ produção | Ver "Drift" na secção 7; quem recriar a BD a partir dos `.sql` não obtém a BD real | Média |
+| **Multi-tenancy "fantasma"** | `academias` e `academia_id` (12 tabelas, nullable, sem default) existem mas **nada no código os usa** (confirmado em 2026-10-29): as RLS filtram só por `perfil`, as páginas admin usam `createAdminClient()` com `select("*")`; numa análise de 2026-07-23 o RPC do QR e `/api/admin/delete-user` também não verificavam tenant. **Bloqueio duro para vender a uma 2.ª academia** — resolve-se no item **1.1** do roadmap (secção 15) | Alta |
+| Migrations do repo ≠ produção | Ver "Drift" na secção 7; quem recriar a BD a partir dos `.sql` não obtém a BD real. Passo **T1** do roadmap: pré-requisito do ambiente de teste (T2) e do 1.1 | Alta |
+| Valores da academia e regras de negócio escritos no código | ~50 sítios com o nome da academia, WhatsApp e "Carlos" em textos, bloqueio de 10 dias copiado em 5 ficheiros — inventário na secção 16; resolve-se no item **1.3** | Alta (só para comercialização) |
+| Dia de vencimento por defeito inconsistente | `/cadastro` gera mensalidades no dia 5 (`cadastro-actions.ts`), mas `NovoAlunoForm.tsx` sugere dia 10 | Baixa |
+| Locale misturado na moeda | `FinanceiroView.tsx` formata EUR com `pt-BR`; o resto da app usa `pt-PT` | Baixa |
 | Testes E2E cobrem 7 fluxos (`cadastro`, `presenca`, `financeiro`, `gamificacao`, `feed`, `tema`, `reset-senha`); `financeiro.spec.ts` tem 2 testes que falham na árvore limpa ("marks mensalidade as pago" / "unmarks"): **7/9 é o estado de referência**. Testes unitários (8 ficheiros) só para a lógica pura de `src/lib` (gamificação, feed, Início, push, tema, relatório de alunos) | Risco em refactors; não culpar a mudança em curso pelas 2 falhas sem confirmar | Média |
 | Cadastro sem rollback transaccional | Perfis parciais se mensalidades falharem | Média |
 | Uploads de Storage não atómicos | Ficheiros órfãos se DB falhar a seguir | Média |
@@ -613,7 +620,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | ~36 avisos de lint em código legado | 0 erros. 23 vêm de regras rebaixadas a aviso em `eslint.config.mjs` (`no-explicit-any` 11, `set-state-in-effect` 9, `purity` 3); os outros 13 são `no-unused-vars` 7, `no-img-element` 5, `exhaustive-deps` 1. Voltar a erro depois de corrigidos | Baixa |
 | Código/ficheiros mortos | `src/components/FaixaBelt.tsx` (ninguém importa); `@radix-ui/react-toast`, `react-avatar`, `react-separator` instalados sem uso; `public/fonts/* - Copia.woff2` duplicados; `img_2303.jpeg_…jpg` solto na raiz | Baixa |
 | `router.push` em vez de `<Link>` e overlays `fixed inset-0` à mão | ~22 `router.push` (a maioria redirecciona após acção); `GaleriaAlbumView.tsx` (lightbox) e `TabletScanner.tsx` ainda não usam `ui/dialog` | Baixa |
-| Número de WhatsApp fixo no código | `wa.me/351922296501` (+351 922 296 501, Carlos) em 5 sítios — ver secção 16 | Média |
+| Número de WhatsApp fixo no código | `wa.me/351922296501` (+351 922 296 501, Carlos) em 5 sítios — ver secção 16; sai no item 1.3 | Média |
 
 ---
 
@@ -668,10 +675,25 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 
 ### ❌ Por implementar
 
-| Fase | Funcionalidade | Prioridade |
-|------|---------------|------------|
-| 18 | **Vídeo no feed via Bunny Stream** — decisão do dono; o feed arranca só com fotos (spec §3) | Baixa |
-| 15 | **UI/UX Polishing** — feito (PRs #61–#63): tokens, safe areas, zoom, skeletons, barra inferior, toasts, diálogos/confirmações, UI optimista, micro-interacções, cores/tipografia consistentes. Opcional: Barlow Condensed nos números (`docs/plano-fluidez-ui.md`) | — |
+Tudo o que falta vem do roadmap comercial ([`docs/roadmap-saas.md`](docs/roadmap-saas.md)); a coluna **Estado** desse ficheiro é a fonte de verdade. Ordem e skills: secção 15 e plano mestre.
+
+| # | Funcionalidade | Esforço | Estado |
+|---|---------------|---------|--------|
+| T1 | Reconciliar migrations do repo com a BD de produção | M | Por fazer |
+| T2 | Ambiente de teste separado (Supabase branch/staging + Preview da Vercel) | M | Por fazer |
+| 1.1 | **Multi-academia**: `academia_id` em todas as tabelas, RLS por academia, papéis por academia, criar academia, teste de isolamento | G | Por fazer |
+| 1.2 | **Cobrança automática**: Stripe Connect (cartão, SEPA, Apple/Google Pay), Asaas (Pix, boleto), webhooks, nova tentativa, baixa automática, reembolso; pagamento manual mantém-se | G | Por fazer |
+| 1.3 | **Configuração por academia** no lugar dos valores fixos (secção 16) | M | Por fazer |
+| 1.4 | **Entrada e migração**: assistente de configuração, importar CSV, exportar tudo | M | Por fazer |
+| 1.5 | **Cobrança do SaaS**: planos por alunos activos, teste de 30 dias, suspensão, painel super-admin | M | Por fazer |
+| 1.6 | **Privacidade e menores**: consentimento parental, foto de menor só com autorização, exportar/apagar dados, textos legais, barreira <13 anos (EUA) | G | Por fazer |
+| 1.7 | **Fiscal e marca** (decisões): exportação para software certificado AT, NF no Brasil, nome comercial | P | Por fazer |
+| 2.1–2.8 | **Paridade** (por pedido dos pilotos): idiomas, videoteca por faixa (Bunny Stream — era o "vídeo no feed"), lembrete por email/WhatsApp, funil de aula experimental, alerta de evasão, assinatura digital, relatórios de negócio, totem configurável | P–M | Por fazer |
+| Fase 3 | **Operação**: testes dos fluxos críticos, alertas de erro e backup testado, email com SPF/DKIM, limite e custo por academia, demo com dados fictícios, central de ajuda, páginas de venda | — | Por fazer |
+
+**Fora do escopo da v1:** catraca e leitor facial, presença por foto com IA, loja e estoque, comissão de instrutores, integração com campeonatos, visão de várias filiais. App nas lojas só se os pilotos pedirem.
+
+Fase 15 (UI/UX Polishing) está feita (PRs #61–#63); opcional: Barlow Condensed nos números (`docs/plano-fluidez-ui.md`).
 
 ### 🔀 PRs abertos em `renannsanches/gracie-barra-app` (não estão em produção)
 
@@ -695,60 +717,63 @@ Verificado em 2026-10-29. Antes de os mergear, rebasear/reconciliar com `master`
 
 ## 15. Roadmap de produto — visão estratégica
 
-O produto evolui em 3 horizontes. Cada horizonte só começa depois do anterior estar estável.
+Desde 2026-11-12 o rumo é **vender o app a outras academias**. O roadmap completo, com critérios de "pronto" e fontes, está em [`docs/roadmap-saas.md`](docs/roadmap-saas.md); a divisão em PRs e as skills a usar em cada item estão no plano mestre [`docs/superpowers/plans/2026-11-12-roadmap-saas-mestre.md`](docs/superpowers/plans/2026-11-12-roadmap-saas-mestre.md). Este resumo substitui os antigos Horizontes 2 (rede Gracie Barra) e 3 (white-label): o novo roadmap junta os dois.
 
-### Horizonte 1 — Estabilização Famalicão *(actual)*
-Consolidar o produto para a academia actual antes de qualquer expansão.
+### Horizonte 1 — Estabilização Famalicão *(concluído)*
+Relatórios (Fase 10), testes E2E dos fluxos críticos, Sentry, push (Fase 16), UI polishing (Fase 15), gamificação (Fase 17), feed e modo escuro (Fase 18) — todos em produção. Ficou em aberto: o destino dos PRs abertos (secção 14) e a reconciliação das migrations, que passou a ser o passo T1.
 
-**Pendente:**
-- ✅ Fase 10: Relatórios (Excel + PDF) — implementado
-- ✅ Testes E2E nos fluxos críticos (QR, cadastro, marcação de pago) — implementado
-- ✅ Logging com Sentry (free tier) — implementado e ligado no código (confirmar que `NEXT_PUBLIC_SENTRY_DSN` e `SENTRY_AUTH_TOKEN` estão na Vercel)
-- ✅ Notificações push (Fase 16) — implementado; fixes de professores e dependentes aplicados
-- ✅ UI Polishing (Fase 15) — feito (#61–#63)
-- ✅ Gamificação (Fase 17) e Feed + modo escuro (Fase 18) — feitos (#58, #67–#69)
+### Fases do roadmap comercial
 
-**Ainda por fazer neste horizonte:** decidir o destino dos PRs abertos (secção 14); reconciliar as migrations do repo com a BD real (secção 7); confirmar o número de WhatsApp (secção 13).
+| Fase | Objetivo | Pronto quando | Estado |
+|------|----------|---------------|--------|
+| 0. Gate | Saber se alguém paga e de quem é o app | 3 de 15 donos dispostos a pagar; titularidade acordada por escrito | ✅ Concluída (confirmado pelo dono em 2026-11-12) |
+| T. Pré-requisitos | Migrations fiéis à produção (T1) e ambiente de teste separado (T2) | Branch Supabase igual à produção; E2E e previews sem tocar na BD real | Por fazer |
+| 1. Bloqueadores | Poder cobrar de uma segunda academia com segurança (1.1–1.7) | 3 academias-piloto a operar sem mexer no código | Por fazer |
+| 2. Paridade | Fechar o que os concorrentes já têm (2.1–2.8), por pedido dos pilotos | Pilotos não citam falta de recurso ao cancelar | Por fazer |
+| 3. Operação | Suporte e escala sem apagar incêndios | Erros monitorados, backup testado, ajuda publicada | Por fazer |
 
-### Horizonte 2 — Rede Gracie Barra *(multi-tenant, mesma marca)*
-Expandir para outras unidades da Gracie Barra, cada uma com a sua configuração local.
+Lista de itens e estado: secção 14.
 
-**O que muda tecnicamente:**
-- Tornar `academia_id` `NOT NULL` com default e **usá-lo**: hoje a coluna já existe (nullable) em 12 tabelas, e a tabela `academias` também (migração `20260525130240_multi_tenant_academias.sql`), mas o código ignora ambas — ver "Multi-tenancy fantasma" na secção 13. Há tabelas novas (financeiro avulso, feed, push, modalidades…) que nem sequer têm a coluna
-- Reescrever RLS policies para filtrar por academia (ex. `is_staff_of(academia)`), pôr o tenant em `app_metadata`/JWT e filtrar todas as queries admin, RPCs e API routes
-- Preencher a tabela `academias` (nome, cidade, logo, cores, WhatsApp, email, preços, contrato PDF)
-- Roteamento por subdomínio (`famalicao.grb.app`, `porto.grb.app`) ou path
-- Context de tenant injectado no middleware e propagado às Server Actions
-- Painel super-admin para gerir todas as unidades
-- Config de preços e contacto vinda do DB, não hardcoded
+### Ordem de execução
+1. **T1 → T2.** O 1.1 reescreve a RLS e o acesso a dados de todas as tabelas; sem migrations fiéis e ambiente de teste, isso seria testado em produção (hoje dev, E2E e produção partilham a BD).
+2. **1.1 Multi-academia → 1.3 Configuração.** Quase tudo depende deles.
+3. **1.2 Cobrança automática.** Só faz sentido com cada academia isolada.
+4. **1.6 Privacidade e menores.** Antes de entrarem dados de academias de terceiros.
+5. **1.4 Entrada e migração → 1.5 Cobrança do SaaS.**
+6. **1.7 Fiscal e marca** em paralelo e cedo: o nome comercial define domínio e textos do 1.3.
+7. **Piloto com 3 academias** (uma Gracie Barra, uma independente em Portugal, uma no Brasil).
+8. **Fases 2 e 3** pela ordem do que os pilotos pedirem.
 
-**O que NÃO muda:** sistema de faixas BJJ, fluxo de QR, estrutura de turmas/aulas
+### Como se executa cada item
+Ciclo de skills (detalhe no plano mestre, secção A): `superpowers:brainstorming` (spec em `docs/superpowers/specs/`) → `superpowers:writing-plans` → `superpowers:using-git-worktrees` → `superpowers:test-driven-development` + `superpowers:subagent-driven-development` → `code-review` (+ `security-review` em dados, RLS e pagamentos) → `superpowers:verification-before-completion` → `superpowers:finishing-a-development-branch`. Cada item tem ainda as suas skills de domínio (ex.: `database-design:postgresql-table-design` no 1.1, `payment-processing:stripe-integration` no 1.2 e 1.5, `legal:compliance-check` no 1.6).
 
-**Modelo de negócio:** subscrição mensal por unidade (valor a definir)
+### Decisões técnicas já tomadas
+- `academia_id NOT NULL` em **todas** as tabelas (incluindo as que ainda não têm a coluna), papel por academia numa tabela de membros, tenant no JWT (`app_metadata`), RLS com `is_staff_of(academia)`.
+- Como `createAdminClient()` ignora a RLS, todo o acesso por ele tem de filtrar `academia_id` explicitamente; RPCs, crons, Storage e `/api/admin/delete-user` também.
+- Faixas e tempos por faixa/grau passam para configuração por academia (`graduacoes_config`), no lugar das constantes de `graduacao-rules.ts`.
+- Pagamento manual (dinheiro, transferência) continua disponível ao lado do Stripe/Asaas.
 
-### Horizonte 3 — Outras academias de artes marciais *(white-label)*
-Abrir o produto para academias de Karaté, Taekwondo, Judo, Muay Thai, etc.
-
-**Adicionalmente ao Horizonte 2:**
-- Sistema de graduação configurável (substituir enum `CorFaixa` fixo por tabela `graduacoes_config` por academia)
-- Componente `GraduacaoWidget` genérico em vez de `FaixaBJJ`
-- Terminologia configurável ("faixa" / "cinturão" / "dan" / "grau")
-- Self-service onboarding — academia cria conta e configura sozinha
-- Billing integrado (Stripe) — plataforma cobra as academias
-
-**Fora de âmbito neste horizonte:** outros desportos sem sistema de graduação (natação, tênis, etc.)
+### Decisões em aberto
+Resolução do tenant (subdomínio vs academia do utilizador), `profiles.perfil` global vs papel só por academia, Stripe Connect Standard vs Express, nome comercial e domínio. Ver plano mestre, secção F.
 
 ---
 
-## 16. Valores hardcoded a migrar para config (Horizonte 2)
+## 16. Valores hardcoded a migrar para config (item 1.3)
 
-Antes de escalar, estes valores precisam sair do código para a tabela `academias`:
+Checklist do item 1.3 do roadmap: tudo isto passa para a configuração da academia. Pronto quando uma busca em `src/` não encontra o nome da academia nem `351922296501` (guarda em vitest prevista). Inventário de 2026-11-12.
 
 | Valor | Localização actual |
 |-------|--------------------|
-| "Gracie Barra Famalicão" | `layout.tsx`, `InstallPrompt.tsx`, `login/page.tsx` (diz "Vila Nova de Famalicão"), `cadastro/CadastroForm.tsx` (múltiplos), `src/lib/feed.ts` (autor dos posts automáticos), `src/lib/push-sender.ts` |
-| `graciebarrafamalicao@gmail.com` | `src/lib/send-contract-email.ts` (e `GMAIL_USER` em env) |
-| PDF do contrato URL e logo | `src/lib/send-contract-email.ts` (URLs do Storage do Supabase escritos à mão) |
-| Preços (62 €/55 €) | Fallback em `src/app/cadastro/cadastro-actions.ts`; o valor normal já vem da modalidade padrão (`src/lib/modalidades.ts`, tabela `modalidades`) |
-| Número WhatsApp da academia (`351922296501`) | `MensalidadeAtrasoModal.tsx`, `MensalidadeVencidaBanner.tsx`, `ContaView.tsx`, `AulaExperimentalForm.tsx`, `send-contract-email.ts` |
-| Org/project do Sentry e DSN do servidor | `next.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts` |
+| Nome da academia ("Gracie Barra", "Famalicão") — ~50 ocorrências | `alt="Gracie Barra"` em ~14 logos (`login/page.tsx`, `TabletScanner.tsx`, `InstallPrompt.tsx`…); cabeçalhos em `login`, `esqueci-senha`, `nova-senha`, `aula-experimental`, `GBLogo.tsx`, `AdminSidebar.tsx`, `InicioView.tsx`, `PageHeader.tsx`; 8 cabeçalhos de PDF em `RelatoriosView.tsx`; `CadastroForm.tsx`; metadata em `layout.tsx`; autor dos posts automáticos em `src/lib/feed.ts`; texto do push em `src/lib/push-sender.ts` |
+| Email, contrato e logo do email | `src/lib/send-contract-email.ts`: remetente `graciebarrafamalicao@gmail.com` (e `GMAIL_USER` em env), URL do PDF do contrato e do projecto Supabase escritos à mão, assunto, HTML e nome do anexo |
+| WhatsApp da academia (`351922296501`) | `AulaExperimentalForm.tsx` (`WHATSAPP_NUMERO`), `MensalidadeAtrasoModal.tsx`, `MensalidadeVencidaBanner.tsx`, `ContaView.tsx`, `send-contract-email.ts` |
+| Nome do contacto ("Carlos") em textos | `(app)/layout.tsx`, `MensalidadeAtrasoModal.tsx`, `ContaView.tsx`, `NotificacoesModal.tsx`, `push-sender.ts`, `tablet-actions.ts`, `resultado-qr.ts`, `turmas-actions.ts`, `aulas-actions.ts`, `AulasView.tsx` |
+| Dia de vencimento (5) | `cadastro-actions.ts` (`new Date(y, m, 5)`), `AlunoEditView.tsx` (`…-05`); `NovoAlunoForm.tsx` sugere 10 (secção 13) |
+| Bloqueio por atraso (10 dias) | `src/lib/mensalidade-status.ts` (`isBloqueadoFinanceiramente`) **e** cópias em `(app)/aulas/page.tsx`, `aulas-actions.ts`, `turmas-actions.ts`, `tablet-actions.ts`; RPC `verificar_bloqueio_financeiro`; escalões 3/7/10 dias do push em `push-sender.ts` |
+| Avisos de atraso (2 e 5 dias) | `(app)/layout.tsx` (`MODAL_THRESHOLD_DIAS`, `THRESHOLD_DIAS`) |
+| Intervalos de presença (30 min, 1 h) e margem de aula (±2 h) | `PresencaView.tsx` (`INTERVALO_MIN_MS`, só no cliente); `tablet-actions.ts` (1 h e 120 min); janela 60/90 min da presença manual em `src/lib/presenca-manual.ts` |
+| Sequência mínima (2 aulas/semana) e outras regras de gamificação | `src/lib/gamificacao.ts` (`META_SEMANAL`, `MIN_AULAS_TOP3`, `DIAS_SEM_PUSH`); outro "2" solto em `graduacao-rules.ts`; `JANELA_GRADUACAO_DIAS` em `feed-automatico.ts`; `SEMANAS_JANELA` em `aula-experimental/page.tsx` |
+| Faixas e tempo por faixa/grau | Constantes em `src/lib/graduacao-rules.ts` (`ADULTO_MESES`, `ADULTO_MIN_MESES_FAIXA`, `INFANTIL_SEQUENCIA`, idades mínimas…); união `CorFaixa` em `src/lib/types.ts` |
+| Preços de fallback (62 €/55 €) | `cadastro-actions.ts`; o valor normal já vem da modalidade padrão (tabela `modalidades`) |
+| Moeda, fuso e locale | `formatarMoeda` (`src/lib/utils.ts`) e `formatarEuro` (`src/lib/modalidades.ts`) com " €"; `currency: "EUR"` em `RelatoriosView.tsx` e nas páginas de contas; `"Europe/Lisbon"` em `gamificacao.ts`, `presenca-manual.ts`, `feed.ts`, `aviso-graduacao.ts`; `pt-PT` em ~15 sítios (incluindo `<html lang>`) |
+| Org/project do Sentry e DSN do servidor | `next.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts` (configuração da plataforma, não da academia — fica fixo) |
