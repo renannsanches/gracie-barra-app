@@ -291,8 +291,8 @@ Tablet lê QR
     → RPC verifica: bloqueio financeiro? (verificar_bloqueio_financeiro ≥10 dias → RAISE 'mensalidade_bloqueada')
     → Marca o token como usado e insere uma presença por aluno do QR
     → Devolve jsonb { sucesso, mensagem, alunos: [{ aluno_nome, aluno_foto, aluno_faixa, aluno_graus }] }
-    ⚠ A versão em produção NÃO verifica reserva nem cooldown (as migrations do repo
-      dizem o contrário — estão desactualizadas). O único intervalo é o do /presenca
+    ⚠ A versão em produção NÃO verifica reserva nem cooldown (as migrations antigas
+      em supabase/migrations_arquivo/ dizem o contrário; a baseline tem a versão real). O único intervalo é o do /presenca
       (30 min, no cliente). Ver a definição real com pg_get_functiondef.
     → Retorna nome, foto, faixa e graus de cada aluno (sem campo "aula"; ver src/app/tablet/resultado-qr.ts)
   → Tablet exibe confirmação verde 5s (erro/QR inválido: 3s)
@@ -347,7 +347,7 @@ Ao concluir cadastro (`src/app/cadastro/cadastro-actions.ts`):
 |--------|-----------|
 | `profiles` | Perfil de cada utilizador (aluno, professor, admin, tablet, responsavel) |
 | `presencas` | Registo de presença (`aluno_id`, `registrado_em`; **sem `aula_id`**). Pode haver 2 no mesmo dia (o índice único por dia foi removido). Intervalos mínimos: ver 6.4 |
-| `qr_tokens` | Tokens temporários de 60s para validar presença. Em produção um token cobre vários alunos (`uuid[]`); o schema do repo ainda tem um só `aluno_id` (ver "Drift" abaixo) |
+| `qr_tokens` | Tokens temporários de 60s para validar presença. Em produção um token cobre vários alunos (`uuid[]`); a coluna `aluno_id` (o criador) mantém-se ao lado de `aluno_ids` |
 | `mensalidades` | Mensalidades por aluno (mês referência, vencimento, valor, status, `itens` jsonb com a composição) |
 | `turmas` | Definição de turmas (dia, hora, recorrência, lotação, categoria, professor, `modalidade_id`, `apenas_experimental`) |
 | `aulas` | Instâncias específicas de aulas geradas a partir de turmas |
@@ -406,7 +406,7 @@ O email **não** é coluna de `profiles`: vem do Auth (`admin.getUserById`).
 | RPC | O que faz |
 |-----|-----------|
 | `gerar_qr_token(p_aluno_ids uuid[])` | Cria token UUID válido 60s na tabela `qr_tokens` (um token para vários alunos). Chamado pelo cliente em `PresencaView`; devolve `{ token, mensagem }` |
-| `registrar_presenca_por_token(p_token)` | **Produção:** devolve jsonb `{ sucesso, mensagem, alunos[] }`; valida token (existe/não usado/não expirado) e bloqueio financeiro e insere uma presença por aluno. **Não** verifica reserva nem cooldown. (As migrations do repo descrevem uma versão antiga em TABLE com cooldown de 1 h) |
+| `registrar_presenca_por_token(p_token)` | **Produção:** devolve jsonb `{ sucesso, mensagem, alunos[] }`; valida token (existe/não usado/não expirado) e bloqueio financeiro e insere uma presença por aluno. **Não** verifica reserva nem cooldown. (As migrations arquivadas descrevem uma versão antiga em TABLE com cooldown de 1 h; a baseline tem a de produção) |
 | `verificar_bloqueio_financeiro(p_aluno_id)` | Helper que retorna `true` se aluno tem mensalidade atrasada ≥10 dias. Só o RPC do QR o chama; presença manual e reservas repetem a regra em JS (`src/lib/mensalidade-status.ts`). EXECUTE revogado a `authenticated` |
 | `gerar_aulas(p_turma_id, p_semanas)` | Gera as instâncias de `aulas` a partir de uma turma (`turma-actions.ts`, `turmas/nova/actions.ts`) |
 | `limpar_tokens_expirados()` | Remove tokens expirados — **nada a chama hoje** (sem cron nem `.rpc`) |
@@ -427,9 +427,15 @@ O email **não** é coluna de `profiles`: vem do Auth (`admin.getUserById`).
 | `Contrato` | PDF do contrato de prestação de serviços |
 | `feed` | Fotos do feed — público, 5 MB, `image/webp` e `image/jpeg` (JPEG porque o Safari/iPhone não gera WebP a partir do canvas; `comprimirFoto` em `src/lib/comprimir-imagem.ts` cai para JPEG) |
 
-### Drift entre migrations do repo e produção
+### Migrations: baseline de produção (T1, 2026-11-12)
 
-`supabase/migrations/` **não reproduz** a BD de produção. Diferenças conhecidas: `gerar_qr_token(uuid[])` e `qr_tokens` com vários alunos, a versão jsonb de `registrar_presenca_por_token`, a coluna `profiles.sem_login`, e os buckets `galeria` e `Contrato` (só `avatars` e `feed` têm migração). A fonte de verdade é a BD: ver definições com `pg_get_functiondef` ou o MCP do Supabase, e **não** confiar só nos `.sql` do repo. Migrations aplicadas pelo MCP ficam com a versão = hora da aplicação; o ficheiro do repo deve ser renomeado para essa versão.
+`supabase/migrations/` tem **uma só** migration, `20261112180000_baseline_producao.sql`, gerada com `pg_dump --schema-only` da produção (mais o trigger em `auth.users`, os buckets `avatars`/`galeria`/`Contrato`/`feed`, as policies de `storage.objects` e os `REVOKE` que a produção tem). Aplicada a um projecto Supabase vazio, dá o mesmo schema que produção. As 61 migrations antigas estão em `supabase/migrations_arquivo/` (só histórico; não reproduziam a BD). O histórico de produção (`supabase_migrations.schema_migrations`) lista só a baseline; as 61 linhas antigas estão em `supabase_migrations.schema_migrations_backup_20261112` (**não apagar**) e no manifesto JSON em `migrations_arquivo/`.
+
+- **Provar que dois projectos têm o mesmo schema:** correr `supabase/verificar-schema.sql` em ambos (MCP `execute_sql`) e comparar as 11 linhas (md5 por tipo de objecto). Ignora `\r` nos corpos das funções e a ordem das ACL; exclui os buckets vazios `comprovativos` e `Gracie Barra Famalicao`, que só existem em produção.
+- **Staging:** projecto `gracie-barra-staging` (`luakxrtecetdkccoctzm`, eu-west-2, plano grátis) criado só com a baseline; 11/11 igual a produção a 2026-11-12. Sem dados, sem Auth configurado e sem env na Vercel — isso é o T2.
+- **Migrations novas:** ficheiro novo em `supabase/migrations/`; depois de aplicar, correr `verificar-schema.sql` em produção e no staging. Migrations aplicadas pelo MCP ficam com a versão = hora da aplicação; o ficheiro do repo deve ser renomeado para essa versão.
+- **Grants:** o `pg_dump` só escreve `GRANT`. Os privilégios por defeito do Supabase dão tudo a `anon`/`authenticated` em objectos novos, por isso cada função ou tabela que não deva ser pública precisa de `REVOKE` explícito na migration (ver secção 4 da baseline).
+- Defaults de `modalidades.grupo_id` e `turmas.modalidade_id` são UUIDs de linhas de produção; num projecto vazio, o seed tem de criar essas linhas com esses ids.
 
 ---
 
@@ -561,6 +567,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 
 ## 11. Padrões e convenções
 
+- **Nada se apaga em produção sem backup** (regra do dono, 2026-11-12): antes de qualquer `delete`/`drop`/`truncate`, remoção no Storage ou alteração destrutiva em produção, fazer backup verificado (tabela `<tabela>_backup_AAAAMMDD` em produção + export para o repo, contagens conferidas) e pedir confirmação ao dono no momento. As tabelas de backup não se apagam. Até ao T2, dev e E2E usam a BD de produção, por isso isto vale também para testes
 - `createAdminClient()` para queries no dashboard e mutations admin (contorna RLS)
 - `Promise.all()` para queries paralelas em Server Components
 - `dynamic(() => import(...), { ssr: false })` — **apenas em Client Components** para `@zxing/browser`
@@ -597,7 +604,8 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | `proxy.ts` não suportado no Vercel | Usar `middleware.ts` (hoje `src/middleware.ts`) — em 2026-05 o Vercel não reconheceu `proxy.ts` como middleware. O Next 16 renomeou oficialmente o ficheiro para `proxy.ts` e deixou `middleware` deprecated; **não migrar sem testar** em produção com rollback à mão |
 | Reset de password abre "link inválido ou expirado" | O template "Reset Password" do Supabase é o `{{ .ConfirmationURL }}` por defeito (fluxo PKCE: só funciona no mesmo browser que pediu o reset). **Resolvido em 2026-10-29.** Código no PR #72 (página `/nova-senha` com botão "Continuar", ver 6.2) + configuração no Dashboard do Supabase, já aplicada e testada (pedido no PC, link aberto no telemóvel): Authentication → Email Templates → Reset Password usa o link `{{ .SiteURL }}/nova-senha?token_hash={{ .TokenHash }}&type=recovery`, e o **Site URL** (Authentication → URL Configuration) passou de `http://localhost:3000` para `https://gracie-barra-app.vercel.app` (as Redirect URLs `http://localhost:3000/**` e `https://gracie-barra-app.vercel.app/**` mantêm-se). Se o Site URL voltar a `localhost`, os links dos emails quebram. Rollback do template: `{{ .ConfirmationURL }}`; o código serve os dois formatos |
 | Login do tablet/iPad (Safari 15) falha em silêncio | O tablet da recepção é um iPad Air em iPadOS 15. Manter `.browserslistrc` com `safari >= 15` / `ios_saf >= 15`; autenticar por route handler (`/api/auth/login`) + `window.location.assign()`, não Server Action + `router.push()`; diagnosticar com `?debug=1` (`DebugConsole`). Sem `oklch()` nas cores |
-| Migration do repo diverge da BD | Ver "Drift entre migrations do repo e produção" na secção 7 |
+| Migration do repo diverge da BD | Resolvido no T1 (2026-11-12) com a baseline — ver "Migrations: baseline de produção" na secção 7. Não voltar a correr SQL de schema à mão no Dashboard: fazer sempre migration no repo e confirmar com `verificar-schema.sql` |
+| Função colada no Dashboard a partir do Windows | Fica com fins de linha CRLF no corpo (`gerar_qr_token`, `registrar_presenca_por_token`). Inofensivo, mas muda o md5; `verificar-schema.sql` ignora `\r` |
 | "Esqueci a senha" diz que enviou, mas o email não chega | Pode não haver conta no Auth com esse email: o Supabase responde "ok" a `/recover` mesmo assim, para não revelar que emails existem. Ver `auth.users` e `auth.audit_log_entries` (`user_deleted`). Apagar um utilizador do Auth deixa o perfil em `profiles` sem conta. Para o recuperar: `admin.createUser({ id: <id do perfil>, email, email_confirm: true })`, sem password (o trigger `handle_new_user` faz `ON CONFLICT DO NOTHING` desde 2026-11-02); depois a pessoa usa `/esqueci-senha` |
 | Hook RTK (se o utilizador o tiver) esconde merges no `git log` e faz `grep` varrer `.claude/worktrees/` | Usar `rtk proxy git log …` / `rtk proxy grep …`, ou as ferramentas Grep/Glob |
 
@@ -608,7 +616,6 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | Débito | Impacto | Prioridade |
 |--------|---------|------------|
 | **Multi-tenancy "fantasma"** | `academias` e `academia_id` (12 tabelas, nullable, sem default) existem mas **nada no código os usa** (confirmado em 2026-10-29): as RLS filtram só por `perfil`, as páginas admin usam `createAdminClient()` com `select("*")`; numa análise de 2026-07-23 o RPC do QR e `/api/admin/delete-user` também não verificavam tenant. **Bloqueio duro para vender a uma 2.ª academia** — resolve-se no item **1.1** do roadmap (secção 15) | Alta |
-| Migrations do repo ≠ produção | Ver "Drift" na secção 7; quem recriar a BD a partir dos `.sql` não obtém a BD real. Passo **T1** do roadmap: pré-requisito do ambiente de teste (T2) e do 1.1 | Alta |
 | Valores da academia e regras de negócio escritos no código | ~50 sítios com o nome da academia, WhatsApp e "Carlos" em textos, bloqueio de 10 dias copiado em 5 ficheiros — inventário na secção 16; resolve-se no item **1.3** | Alta (só para comercialização) |
 | Dia de vencimento por defeito inconsistente | `/cadastro` gera mensalidades no dia 5 (`cadastro-actions.ts`), mas `NovoAlunoForm.tsx` sugere dia 10 | Baixa |
 | Locale misturado na moeda | `FinanceiroView.tsx` formata EUR com `pt-BR`; o resto da app usa `pt-PT` | Baixa |
@@ -679,7 +686,7 @@ Tudo o que falta vem do roadmap comercial ([`docs/roadmap-saas.md`](docs/roadmap
 
 | # | Funcionalidade | Esforço | Estado |
 |---|---------------|---------|--------|
-| T1 | Reconciliar migrations do repo com a BD de produção | M | Por fazer |
+| T1 | Reconciliar migrations do repo com a BD de produção | M | ✅ Feito (2026-11-12): baseline + `verificar-schema.sql` + staging 11/11 igual |
 | T2 | Ambiente de teste separado (Supabase branch/staging + Preview da Vercel) | M | Por fazer |
 | 1.1 | **Multi-academia**: `academia_id` em todas as tabelas, RLS por academia, papéis por academia, criar academia, teste de isolamento | G | Por fazer |
 | 1.2 | **Cobrança automática**: Stripe Connect (cartão, SEPA, Apple/Google Pay), Asaas (Pix, boleto), webhooks, nova tentativa, baixa automática, reembolso; pagamento manual mantém-se | G | Por fazer |
@@ -720,14 +727,14 @@ Verificado em 2026-10-29. Antes de os mergear, rebasear/reconciliar com `master`
 Desde 2026-11-12 o rumo é **vender o app a outras academias**. O roadmap completo, com critérios de "pronto" e fontes, está em [`docs/roadmap-saas.md`](docs/roadmap-saas.md); a divisão em PRs e as skills a usar em cada item estão no plano mestre [`docs/superpowers/plans/2026-11-12-roadmap-saas-mestre.md`](docs/superpowers/plans/2026-11-12-roadmap-saas-mestre.md). Este resumo substitui os antigos Horizontes 2 (rede Gracie Barra) e 3 (white-label): o novo roadmap junta os dois.
 
 ### Horizonte 1 — Estabilização Famalicão *(concluído)*
-Relatórios (Fase 10), testes E2E dos fluxos críticos, Sentry, push (Fase 16), UI polishing (Fase 15), gamificação (Fase 17), feed e modo escuro (Fase 18) — todos em produção. Ficou em aberto: o destino dos PRs abertos (secção 14) e a reconciliação das migrations, que passou a ser o passo T1.
+Relatórios (Fase 10), testes E2E dos fluxos críticos, Sentry, push (Fase 16), UI polishing (Fase 15), gamificação (Fase 17), feed e modo escuro (Fase 18) — todos em produção. Ficou em aberto: o destino dos PRs abertos (secção 14). A reconciliação das migrations foi feita no T1 (2026-11-12).
 
 ### Fases do roadmap comercial
 
 | Fase | Objetivo | Pronto quando | Estado |
 |------|----------|---------------|--------|
 | 0. Gate | Saber se alguém paga e de quem é o app | 3 de 15 donos dispostos a pagar; titularidade acordada por escrito | ✅ Concluída (confirmado pelo dono em 2026-11-12) |
-| T. Pré-requisitos | Migrations fiéis à produção (T1) e ambiente de teste separado (T2) | Branch Supabase igual à produção; E2E e previews sem tocar na BD real | Por fazer |
+| T. Pré-requisitos | Migrations fiéis à produção (T1) e ambiente de teste separado (T2) | Branch Supabase igual à produção; E2E e previews sem tocar na BD real | T1 ✅ (2026-11-12); T2 por fazer |
 | 1. Bloqueadores | Poder cobrar de uma segunda academia com segurança (1.1–1.7) | 3 academias-piloto a operar sem mexer no código | Por fazer |
 | 2. Paridade | Fechar o que os concorrentes já têm (2.1–2.8), por pedido dos pilotos | Pilotos não citam falta de recurso ao cancelar | Por fazer |
 | 3. Operação | Suporte e escala sem apagar incêndios | Erros monitorados, backup testado, ajuda publicada | Por fazer |
