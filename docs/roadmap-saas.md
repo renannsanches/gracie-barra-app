@@ -31,7 +31,7 @@ Não estavam na lista original; saíram da análise do código (ver plano mestre
 
 | # | Mudança | Por que | Estado |
 | --- | --- | --- | --- |
-| T1 | Reconciliar `supabase/migrations/` com a BD de produção (migration baseline) | Hoje as migrations não reproduzem a BD (`CLAUDE.md` §7, "Drift"); sem isso não há ambiente de teste fiel | Por fazer |
+| T1 | Reconciliar `supabase/migrations/` com a BD de produção (migration baseline) | As migrations não reproduziam a BD; sem isso não há ambiente de teste fiel | ✅ Feito (2026-11-12): baseline, `verificar-schema.sql`, staging 11/11 igual a produção ([spec](superpowers/specs/2026-11-12-t1-baseline-migrations-design.md)) |
 | T2 | Ambiente de teste separado da produção (Supabase branch ou projecto de staging + env do Preview na Vercel) | O 1.1 reescreve a RLS de todas as tabelas; fazer isso direto em produção é o maior risco do roadmap. Antecipa o 1.º item da Fase 3 | Por fazer |
 
 ## Fase 1: bloqueadores (sem isso ninguém paga por ele)

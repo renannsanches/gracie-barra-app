@@ -1,6 +1,6 @@
 # Roadmap SaaS — plano mestre de execução
 
-> **Estado: por iniciar.** Fase 0 concluída (confirmado pelo dono em 2026-11-12). Próximo passo: T1.
+> **Estado: em curso.** Fase 0 concluída (confirmado pelo dono em 2026-11-12). T1 feito (2026-11-12). Próximo passo: T2.
 >
 > Este é o plano **mestre**: diz a ordem, como cada item se divide em PRs e que skills usar. Não é um plano de implementação passo a passo. Cada item, ao começar, ganha o seu próprio spec (`docs/superpowers/specs/`) e plano (`docs/superpowers/plans/`) pelo ciclo da secção A.
 
@@ -31,8 +31,8 @@ Itens que são só decisão (1.7, partes legais do 1.6) saltam 3–7: o resultad
 Não estavam no roadmap original. O 1.1 reescreve a RLS e o acesso a dados de todas as tabelas; sem estes dois passos isso teria de ser testado em produção.
 
 ### T1 — Reconciliar migrations com produção
-- [ ] Ler o schema real (Supabase MCP: `list_tables`, `list_migrations`; SQL `pg_get_functiondef` para os RPCs) e gerar uma migration baseline que reproduza a BD de produção: `gerar_qr_token(uuid[])`, `qr_tokens` multi-aluno, `registrar_presenca_por_token` jsonb, `profiles.sem_login`, buckets `galeria` e `Contrato`.
-- [ ] Marcar as migrations antigas como substituídas (sem as apagar do histórico de produção).
+- [x] Ler o schema real (Supabase MCP: `list_tables`, `list_migrations`; SQL `pg_get_functiondef` para os RPCs) e gerar uma migration baseline que reproduza a BD de produção: `gerar_qr_token(uuid[])`, `qr_tokens` multi-aluno, `registrar_presenca_por_token` jsonb, `profiles.sem_login`, buckets `galeria` e `Contrato`.
+- [x] Marcar as migrations antigas como substituídas: movidas para `supabase/migrations_arquivo/`; o histórico de produção foi substituído pela baseline com backup em `supabase_migrations.schema_migrations_backup_20261112` (regra do dono: nada se apaga sem backup).
 - **Pronto quando:** um branch Supabase criado do repo tem o mesmo schema que produção (comparar `list_tables` e as definições dos RPCs).
 - **Skills:** `database-design:postgresql-table-design`, `database-design:sql-pro` (agente), MCP Supabase.
 

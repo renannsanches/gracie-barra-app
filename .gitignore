@@ -58,3 +58,6 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# T1: dump local do schema de produção (gera a baseline; não commitar)
+supabase/dump-*.sql
