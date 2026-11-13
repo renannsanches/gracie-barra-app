@@ -5,8 +5,11 @@ import {
   calcularSequencia,
   grupoRanking,
   hojeLisboa,
+  limitesMes,
   limitesPeriodo,
+  mesesDoAno,
   mesesPerfeitos,
+  periodoRankingValido,
   mesesTop3,
   nomeRanking,
   ordenarRanking,
@@ -40,6 +43,31 @@ describe("datas em Lisboa", () => {
   it("limites do mês e do ano", () => {
     expect(limitesPeriodo("mes", "2026-02-10")).toEqual({ inicio: "2026-02-01", fim: "2026-02-28" });
     expect(limitesPeriodo("ano", "2026-02-10")).toEqual({ inicio: "2026-01-01", fim: "2026-12-31" });
+  });
+});
+
+describe("períodos do ranking", () => {
+  it("limitesMes: mês qualquer, incluindo fevereiro bissexto", () => {
+    expect(limitesMes("2026-10")).toEqual({ inicio: "2026-10-01", fim: "2026-10-31" });
+    expect(limitesMes("2028-02")).toEqual({ inicio: "2028-02-01", fim: "2028-02-29" });
+  });
+  it("mesesDoAno: janeiro até ao mês de hoje", () => {
+    expect(mesesDoAno("2026-11-02")).toEqual([
+      "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06",
+      "2026-07", "2026-08", "2026-09", "2026-10", "2026-11",
+    ]);
+    expect(mesesDoAno("2027-01-15")).toEqual(["2027-01"]);
+  });
+  it("periodoRankingValido: ano, ou mês do ano actual até hoje", () => {
+    const hoje = "2026-11-02";
+    expect(periodoRankingValido("ano", hoje)).toBe(true);
+    expect(periodoRankingValido("2026-01", hoje)).toBe(true);
+    expect(periodoRankingValido("2026-11", hoje)).toBe(true);
+    expect(periodoRankingValido("2026-12", hoje)).toBe(false); // futuro
+    expect(periodoRankingValido("2025-12", hoje)).toBe(false); // ano anterior
+    expect(periodoRankingValido("2026-1", hoje)).toBe(false);
+    expect(periodoRankingValido("2026-13", hoje)).toBe(false);
+    expect(periodoRankingValido("x", hoje)).toBe(false);
   });
 });
 

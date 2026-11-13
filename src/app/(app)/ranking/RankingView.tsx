@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { EyeOff, Trophy } from "lucide-react";
+import { toast } from "sonner";
+import { ChevronDown, EyeOff, Trophy } from "lucide-react";
 import { FaixaBJJ } from "@/components/FaixaBJJ";
 import { PageHeader } from "@/components/PageHeader";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { ordenarRanking, type GrupoRanking } from "@/lib/gamificacao";
 import type { CorFaixa } from "@/lib/types";
 import { definirVisibilidadeRanking } from "../conquistas/conquistas-actions";
+import { carregarPeriodoRanking } from "./ranking-actions";
 
 export interface LinhaRanking {
   alunoId: string;
@@ -22,9 +25,14 @@ export interface LinhaRanking {
 }
 
 export interface RankingViewProps {
+  /** Ranking do mês actual (vem do servidor) */
   mes: LinhaRanking[];
+  /** Ranking do ano actual (vem do servidor) */
   ano: LinhaRanking[];
-  rotuloMes: string;
+  /** Mês actual, YYYY-MM */
+  mesAtual: string;
+  /** Meses escolhíveis (YYYY-MM): janeiro até ao mês actual */
+  meses: string[];
   rotuloAno: string;
   /** O próprio e os dependentes — linhas destacadas */
   minhasPessoas: string[];
@@ -35,20 +43,69 @@ export interface RankingViewProps {
   embutido?: boolean;
 }
 
-type Periodo = "mes" | "ano";
+/** "ano" ou um mês YYYY-MM */
+type Periodo = string;
 
-export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, grupoPadrao, eu, embutido = false }: RankingViewProps) {
+const fmtMesLongo = new Intl.DateTimeFormat("pt-PT", { month: "long", timeZone: "UTC" });
+const fmtMesCurto = new Intl.DateTimeFormat("pt-PT", { month: "short", timeZone: "UTC" });
+
+function nomeMes(mes: string, curto = false): string {
+  const nome = (curto ? fmtMesCurto : fmtMesLongo).format(new Date(`${mes}-15T12:00:00Z`)).replace(".", "");
+  return nome.charAt(0).toUpperCase() + nome.slice(1);
+}
+
+export function RankingView({
+  mes,
+  ano,
+  mesAtual,
+  meses,
+  rotuloAno,
+  minhasPessoas,
+  grupoPadrao,
+  eu,
+  embutido = false,
+}: RankingViewProps) {
   const router = useRouter();
-  const [periodo, setPeriodo] = useState<Periodo>("mes");
+  // periodo = o escolhido (rótulo do botão); mostrado = aquele cujas linhas estão no ecrã
+  const [periodo, setPeriodo] = useState<Periodo>(mesAtual);
+  const [mostrado, setMostrado] = useState<Periodo>(mesAtual);
+  // Meses pedidos depois do 1.º render (o mês actual e o ano vêm sempre das props)
+  const [outros, setOutros] = useState<Record<string, LinhaRanking[]>>({});
+  const ultimoPedido = useRef<Periodo>(mesAtual);
+  const [aCarregar, startCarregar] = useTransition();
   const [grupo, setGrupo] = useState<GrupoRanking>(grupoPadrao);
   const [oculto, setOculto] = useState(eu?.oculto ?? false);
   const [erro, setErro] = useState("");
   const [aGuardar, startTransition] = useTransition();
 
-  const linhas = useMemo(
-    () => ordenarRanking((periodo === "mes" ? mes : ano).filter((l) => l.grupo === grupo)),
-    [periodo, grupo, mes, ano],
-  );
+  const linhasDe = (p: Periodo): LinhaRanking[] | undefined => (p === mesAtual ? mes : p === "ano" ? ano : outros[p]);
+  const base = linhasDe(mostrado) ?? mes;
+
+  const linhas = useMemo(() => ordenarRanking(base.filter((l) => l.grupo === grupo)), [base, grupo]);
+
+  function buscar(p: Periodo, anterior: Periodo) {
+    startCarregar(async () => {
+      const r = await carregarPeriodoRanking(p);
+      if (r.ok) setOutros((o) => ({ ...o, [p]: r.linhas }));
+      if (ultimoPedido.current !== p) return; // entretanto escolheu outro
+      if (!r.ok) {
+        toast.error(r.erro);
+        ultimoPedido.current = anterior;
+        setPeriodo(anterior);
+        return;
+      }
+      setMostrado(p);
+    });
+  }
+
+  function escolherPeriodo(p: Periodo) {
+    if (p === periodo) return;
+    const anterior = mostrado;
+    ultimoPedido.current = p;
+    setPeriodo(p);
+    if (linhasDe(p)) setMostrado(p);
+    else buscar(p, anterior);
+  }
   const minhas = new Set(minhasPessoas);
   const minhasLinhas = linhas.filter((l) => minhas.has(l.alunoId));
   const podio = linhas.filter((l) => l.posicao <= 3).slice(0, 3);
@@ -66,19 +123,20 @@ export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, gru
         return;
       }
       router.refresh();
+      // O mês actual e o ano chegam actualizados pelo refresh; os outros meses voltam a ser pedidos
+      setOutros({});
+      if (mostrado !== mesAtual && mostrado !== "ano") buscar(mostrado, mesAtual);
     });
   }
 
   const segmentos = (claro: boolean) => (
     <>
-      <Segmentos
+      <PeriodoPicker
         claro={claro}
         valor={periodo}
-        onChange={setPeriodo}
-        opcoes={[
-          { valor: "mes", label: rotuloMes.charAt(0).toUpperCase() + rotuloMes.slice(1) },
-          { valor: "ano", label: rotuloAno },
-        ]}
+        onChange={escolherPeriodo}
+        meses={meses}
+        rotuloAno={rotuloAno}
       />
       <Segmentos
         claro={claro}
@@ -122,35 +180,41 @@ export function RankingView({ mes, ano, rotuloMes, rotuloAno, minhasPessoas, gru
           </div>
         )}
 
-        {minhasLinhas.length > 0 && (
-          <div className="bg-surface rounded-2xl border border-gb-blue/30 p-3 space-y-1.5">
-            {minhasLinhas.map((l) => (
-              <p key={l.alunoId} className="text-[13px] text-fg">
-                <span className="font-semibold text-fg">{l.alunoId === eu?.id ? "A tua posição" : l.nome}</span>
-                {": "}
-                <span className="font-bold text-gb-blue">{l.posicao}.º</span> com {l.aulas} aula{l.aulas !== 1 ? "s" : ""}
-              </p>
-            ))}
-          </div>
-        )}
+        <div
+          className={cn("space-y-3 transition-opacity duration-fast", aCarregar && "opacity-60")}
+          aria-busy={aCarregar}
+          data-testid="ranking-resultados"
+        >
+          {minhasLinhas.length > 0 && (
+            <div className="bg-surface rounded-2xl border border-gb-blue/30 p-3 space-y-1.5">
+              {minhasLinhas.map((l) => (
+                <p key={l.alunoId} className="text-[13px] text-fg">
+                  <span className="font-semibold text-fg">{l.alunoId === eu?.id ? "A tua posição" : l.nome}</span>
+                  {": "}
+                  <span className="font-bold text-gb-blue">{l.posicao}.º</span> com {l.aulas} aula{l.aulas !== 1 ? "s" : ""}
+                </p>
+              ))}
+            </div>
+          )}
 
-        {linhas.length === 0 ? (
-          <div className="bg-surface rounded-2xl border border-line p-8 text-center">
-            <Trophy size={32} className="mx-auto text-line" />
-            <p className="text-[14px] text-fg-muted mt-3">Ainda ninguém treinou neste período.</p>
-          </div>
-        ) : (
-          <>
-            <Podio linhas={podio} minhas={minhas} />
-            {resto.length > 0 && (
-              <div className="bg-surface rounded-2xl border border-line divide-y divide-line" data-testid="ranking-lista">
-                {resto.map((l) => (
-                  <LinhaLista key={l.alunoId} linha={l} destaque={minhas.has(l.alunoId)} />
-                ))}
-              </div>
-            )}
-          </>
-        )}
+          {linhas.length === 0 ? (
+            <div className="bg-surface rounded-2xl border border-line p-8 text-center">
+              <Trophy size={32} className="mx-auto text-line" />
+              <p className="text-[14px] text-fg-muted mt-3">Ainda ninguém treinou neste período.</p>
+            </div>
+          ) : (
+            <>
+              <Podio linhas={podio} minhas={minhas} />
+              {resto.length > 0 && (
+                <div className="bg-surface rounded-2xl border border-line divide-y divide-line" data-testid="ranking-lista">
+                  {resto.map((l) => (
+                    <LinhaLista key={l.alunoId} linha={l} destaque={minhas.has(l.alunoId)} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
         {eu && !oculto && (
           <div className="flex items-center justify-between gap-3 px-1 pt-2">
@@ -201,6 +265,87 @@ function Segmentos<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+/** Botão com o período escolhido; abre uma bottom sheet com "Todo AAAA" e os meses do ano. */
+function PeriodoPicker({
+  valor,
+  onChange,
+  meses,
+  rotuloAno,
+  claro = false,
+}: {
+  valor: Periodo;
+  onChange: (v: Periodo) => void;
+  meses: string[];
+  rotuloAno: string;
+  claro?: boolean;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const rotulo = valor === "ano" ? `Todo ${rotuloAno}` : nomeMes(valor);
+
+  function escolher(p: Periodo) {
+    setAberto(false);
+    onChange(p);
+  }
+
+  return (
+    <>
+      {/* Mesmo contentor e altura dos segmentos ao lado */}
+      <div className={claro ? "flex bg-surface border border-line rounded-xl p-1" : "flex bg-white/10 rounded-xl p-1"}>
+        <button
+          type="button"
+          onClick={() => setAberto(true)}
+          aria-haspopup="dialog"
+          aria-label={`Período do ranking: ${rotulo}`}
+          data-testid="ranking-periodo"
+          className={cn(
+            "flex-1 min-w-0 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[13px] font-semibold transition-colors",
+            claro ? "text-fg hover:bg-subtle" : "text-white hover:bg-white/10",
+          )}
+        >
+          <span className="truncate">{rotulo}</span>
+          <ChevronDown size={14} className={claro ? "shrink-0 text-fg-muted" : "shrink-0 text-white/70"} />
+        </button>
+      </div>
+
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogContent variant="sheet" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Período do ranking</DialogTitle>
+          </DialogHeader>
+          <button
+            type="button"
+            onClick={() => escolher("ano")}
+            aria-pressed={valor === "ano"}
+            className={cn(
+              "w-full min-h-11 rounded-xl text-[15px] font-semibold transition-colors",
+              valor === "ano" ? "bg-brand text-white" : "bg-subtle text-fg hover:bg-line",
+            )}
+          >
+            Todo {rotuloAno}
+          </button>
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            {meses.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => escolher(m)}
+                aria-pressed={valor === m}
+                aria-label={nomeMes(m)}
+                className={cn(
+                  "min-h-11 rounded-xl text-[14px] font-semibold transition-colors",
+                  valor === m ? "bg-brand text-white" : "bg-subtle text-fg hover:bg-line",
+                )}
+              >
+                {nomeMes(m, true)}
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
