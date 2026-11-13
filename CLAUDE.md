@@ -46,7 +46,7 @@ Hoje serve uma academia só. O plano é vendê-lo a outras academias (secção 1
 
 Fluxo: ramo novo → PR para `master` em `renannsanches/gracie-barra-app` → preview Vercel verde → merge. **Cada PR actualiza este ficheiro (se mudou algo que ele descreve) e acrescenta uma entrada a `docs/CHANGELOG.md`.**
 
-Atenção: o `master` de produção pode estar à frente do `main` do outro repositório, e já houve deploys de produção feitos directamente de ramos não mergeados. Antes de mergear, comparar o SHA do último deploy `production` na Vercel com `master`. Os previews da Vercel dão 500 (o ambiente Preview não tem as variáveis do Supabase) — a validação final faz-se em produção, com rollback instantâneo na Vercel se preciso.
+Atenção: o `master` de produção pode estar à frente do `main` do outro repositório, e já houve deploys de produção feitos directamente de ramos não mergeados. Antes de mergear, comparar o SHA do último deploy `production` na Vercel com `master`. Desde o T2 (2026-11-13) os previews da Vercel usam o **staging** (env do ambiente Preview = chaves do `gracie-barra-staging`): validar cada PR no preview com dados fictícios antes do merge; produção continua com rollback instantâneo na Vercel se preciso.
 
 ```bash
 npm run dev      # servidor local em http://localhost:3000
@@ -84,7 +84,7 @@ npm run test:e2e:report   # ver relatório HTML do último run
 | `reset-senha.spec.ts` | Sem login, com tokens falsos: `/nova-senha?token_hash=…` mostra "Continuar" (e não o campo de senha), Continuar com token inválido mostra "link expirou", `/auth/callback` com `type=recovery` não verifica no GET, `/esqueci-senha?erro=link` |
 | `tema.spec.ts` | Interruptor em Minha conta liga/desliga `dark`, persiste no reload, /admin fica sempre claro, segue o esquema do sistema em /perfil mas não em /admin/alunos |
 
-A BD dos testes é a de produção: o `global-setup` põe `ocultar_ranking = true` nos utilizadores de teste para não aparecerem no ranking real.
+A BD dos testes é o **staging** (T2). O `global-setup` recusa correr se `NEXT_PUBLIC_SUPABASE_URL` apontar para a produção (`exigirForaDeProducao` em `src/lib/ambiente.ts`), antes de qualquer escrita. Os utilizadores de teste ficam com `ocultar_ranking = true` porque o `gamificacao.spec.ts` testa esse estado. **Referência no staging: 19/21** — as 2 falhas são as antigas de `financeiro.spec.ts` (marcar/desmarcar pago). O servidor tem de ser o do checkout em teste (num worktree, `npm --prefix <worktree> run dev`).
 
 **Troubleshooting:**
 - `global-setup` falha: verificar que `.env.local` tem todos os `PLAYWRIGHT_*` vars
@@ -119,15 +119,24 @@ A BD dos testes é a de produção: o `global-setup` põe `ocultar_ranking = tru
 
 ## 4. Variáveis de ambiente
 
+**Onde está cada projecto Supabase (T2, 2026-11-13):**
+
+| Onde | Projecto | Notas |
+|------|----------|-------|
+| `.env.local` (dev e E2E) | staging `luakxrtecetdkccoctzm` | Sem `GMAIL_*` (o contrato não sai; `send-contract-email.ts` engole o erro). As chaves de produção **não** ficam na máquina |
+| Vercel › Preview | staging | Só as 3 do Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`); sem `GMAIL_*`, `VAPID_PRIVATE_KEY`, `CRON_SECRET` |
+| Vercel › Production | produção `fjqiyilzxxyoyposqsfz` | Tudo o que está abaixo |
+
 ```bash
-# Público (seguro no cliente)
-NEXT_PUBLIC_SUPABASE_URL=https://fjqiyilzxxyoyposqsfz.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_3wPqhs8SFm2_dvKrH_99Jw_8Nt2tIVR
+# Público (seguro no cliente) — valores de PRODUÇÃO; o staging tem os seus
+NEXT_PUBLIC_SUPABASE_URL=https://fjqiyilzxxyoyposqsfz.supabase.co   # staging: https://luakxrtecetdkccoctzm.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_3wPqhs8SFm2_dvKrH_99Jw_8Nt2tIVR   # staging: sb_publishable_TukDUKToKvu4qBX8p7HxjA_Mjb7lWX0
+# next.config.ts tira daqui o host das imagens e do service worker (hostSupabase/padraoSupabase)
 
 # Secretas — NUNCA expor ao cliente, nunca commitar
-SUPABASE_SERVICE_ROLE_KEY=<somente em .env.local>
-GMAIL_USER=graciebarrafamalicao@gmail.com
-GMAIL_APP_PASSWORD=<app password do Gmail>
+SUPABASE_SERVICE_ROLE_KEY=<secret key do projecto: staging no .env.local, produção só na Vercel>
+GMAIL_USER=graciebarrafamalicao@gmail.com   # só Production
+GMAIL_APP_PASSWORD=<app password do Gmail>  # só Production
 
 # Sentry — Monitorização de erros (free tier)
 NEXT_PUBLIC_SENTRY_DSN=https://<key>@o<org>.ingest.sentry.io/<project>   # cliente (instrumentation-client.ts)
@@ -432,7 +441,9 @@ O email **não** é coluna de `profiles`: vem do Auth (`admin.getUserById`).
 `supabase/migrations/` tem **uma só** migration, `20261112180000_baseline_producao.sql`, gerada com `pg_dump --schema-only` da produção (mais o trigger em `auth.users`, os buckets `avatars`/`galeria`/`Contrato`/`feed`, as policies de `storage.objects` e os `REVOKE` que a produção tem). Aplicada a um projecto Supabase vazio, dá o mesmo schema que produção. As 61 migrations antigas estão em `supabase/migrations_arquivo/` (só histórico; não reproduziam a BD). O histórico de produção (`supabase_migrations.schema_migrations`) lista só a baseline; as 61 linhas antigas estão em `supabase_migrations.schema_migrations_backup_20261112` (**não apagar**) e no manifesto JSON em `migrations_arquivo/`.
 
 - **Provar que dois projectos têm o mesmo schema:** correr `supabase/verificar-schema.sql` em ambos (MCP `execute_sql`) e comparar as 11 linhas (md5 por tipo de objecto). Ignora `\r` nos corpos das funções e a ordem das ACL; exclui os buckets vazios `comprovativos` e `Gracie Barra Famalicao`, que só existem em produção.
-- **Staging:** projecto `gracie-barra-staging` (`luakxrtecetdkccoctzm`, eu-west-2, plano grátis) criado só com a baseline; 11/11 igual a produção a 2026-11-12. Sem dados, sem Auth configurado e sem env na Vercel — isso é o T2.
+- **Staging:** projecto `gracie-barra-staging` (`luakxrtecetdkccoctzm`, eu-west-2, plano grátis) criado só com a baseline; 11/11 igual a produção (2026-11-12 e de novo a 2026-11-13, depois do seed). Usado por dev local, E2E e previews da Vercel (T2). Histórico de migrations = só a baseline.
+- **Seed do staging:** `supabase/seed-staging.sql` — 13 pessoas fictícias (`sem_login`, ids `5eed0000-…`), local e modalidade padrão com os ids da baseline, 3 turmas + aulas, mensalidades de 3 meses (Diogo bloqueado por atraso ≥10 dias), presenças das últimas 13 semanas, 1 aviso, 1 álbum. Idempotente e sem `delete`: re-correr com o MCP (`execute_sql` no `luakxrtecetdkccoctzm`) para acrescentar semanas/meses novos. Só corre se existir o segredo `ambiente = staging` no Vault do projecto (o Supabase não deixa o `postgres` gravar GUCs próprios); em produção aborta no primeiro bloco.
+- **Auth do staging:** Site URL `http://localhost:3000`; Redirect URLs `http://localhost:3000/**` e `https://gracie-barra-*-renannsanches.vercel.app/**`. Templates de email = os de série (o plano grátis só os edita com SMTP próprio): registo e reset feitos à mão no staging não usam o código OTP — criar utilizadores em Authentication › Users › Add user com "Auto Confirm". O SMTP de série só entrega a membros da organização.
 - **Migrations novas:** ficheiro novo em `supabase/migrations/`; depois de aplicar, correr `verificar-schema.sql` em produção e no staging. Migrations aplicadas pelo MCP ficam com a versão = hora da aplicação; o ficheiro do repo deve ser renomeado para essa versão.
 - **Grants:** o `pg_dump` só escreve `GRANT`. Os privilégios por defeito do Supabase dão tudo a `anon`/`authenticated` em objectos novos, por isso cada função ou tabela que não deva ser pública precisa de `REVOKE` explícito na migration (ver secção 4 da baseline).
 - Defaults de `modalidades.grupo_id` e `turmas.modalidade_id` são UUIDs de linhas de produção; num projecto vazio, o seed tem de criar essas linhas com esses ids.
@@ -567,7 +578,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 
 ## 11. Padrões e convenções
 
-- **Nada se apaga em produção sem backup** (regra do dono, 2026-11-12): antes de qualquer `delete`/`drop`/`truncate`, remoção no Storage ou alteração destrutiva em produção, fazer backup verificado (tabela `<tabela>_backup_AAAAMMDD` em produção + export para o repo, contagens conferidas) e pedir confirmação ao dono no momento. As tabelas de backup não se apagam. Até ao T2, dev e E2E usam a BD de produção, por isso isto vale também para testes
+- **Nada se apaga em produção sem backup** (regra do dono, 2026-11-12): antes de qualquer `delete`/`drop`/`truncate`, remoção no Storage ou alteração destrutiva em produção, fazer backup verificado (tabela `<tabela>_backup_AAAAMMDD` em produção + export para o repo, contagens conferidas) e pedir confirmação ao dono no momento. As tabelas de backup não se apagam. Dev e E2E usam o staging desde o T2; a regra vale para tudo o que corra contra a produção (MCP, SQL Editor, scripts)
 - `createAdminClient()` para queries no dashboard e mutations admin (contorna RLS)
 - `Promise.all()` para queries paralelas em Server Components
 - `dynamic(() => import(...), { ssr: false })` — **apenas em Client Components** para `@zxing/browser`
@@ -597,7 +608,7 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | Enum `responsavel` em falta no DB | Adicionar ao enum Postgres antes de usar no código |
 | Índice único em `aulas` incompleto | Incluir `horario` — mesmo dia com horas diferentes gerava conflito |
 | Link de reset de password vai para `/login?erro=confirmacao` | `resetPasswordForEmail` usa fluxo OTP (`token_hash+type=recovery`), não PKCE — o callback tem de tratar ambos os casos com `verifyOtp` |
-| Dev/e2e a enviar push a alunos reais | Dev, e2e e produção partilham a BD e as chaves VAPID. Push só sai com `VERCEL_ENV=production` (`pushAtivo` em `src/lib/push-ativo.ts`); fora de produção as escritas de deduplicação (`notificacoes_*_enviadas`, `conquistas.notificada_em`) também são saltadas, para não gastar o "já notificado" |
+| Dev/e2e a enviar push a alunos reais | Dev e e2e usam o staging desde o T2, mas as chaves VAPID continuam as mesmas da produção. Push só sai com `VERCEL_ENV=production` (`pushAtivo` em `src/lib/push-ativo.ts`); fora de produção as escritas de deduplicação (`notificacoes_*_enviadas`, `conquistas.notificada_em`) também são saltadas, para não gastar o "já notificado" |
 | Push de mensalidade não chega a dependentes | Dependentes (`sem_login=true`) não têm push subscription própria — buscar na tabela `dependentes` e substituir pelos IDs dos responsáveis antes de consultar `push_subscriptions` |
 | `/api/push/send` bloqueada pelo middleware | Adicionar à lista de paths públicos — é chamada pelo Vercel Cron sem sessão de utilizador |
 | Pódio do feed a notificar duas vezes | O cron `feed_podio` corre todos os dias mas só publica nos dias 1 a 3 do mês (Lisboa; `dry` ignora a janela), para um post apagado não ressuscitar com novo push; é idempotente por mês (`referencia` única). Só manda push quem **insere** o post: se já existia ou o insert dá 23505 (outro pedido ganhou), não há push |
@@ -619,7 +630,8 @@ Utilitários: `pt-header` (40px ou notch + 16px), `pt-safe`, `pb-safe`, `pb-shee
 | Valores da academia e regras de negócio escritos no código | ~50 sítios com o nome da academia, WhatsApp e "Carlos" em textos, bloqueio de 10 dias copiado em 5 ficheiros — inventário na secção 16; resolve-se no item **1.3** | Alta (só para comercialização) |
 | Dia de vencimento por defeito inconsistente | `/cadastro` gera mensalidades no dia 5 (`cadastro-actions.ts`), mas `NovoAlunoForm.tsx` sugere dia 10 | Baixa |
 | Locale misturado na moeda | `FinanceiroView.tsx` formata EUR com `pt-BR`; o resto da app usa `pt-PT` | Baixa |
-| Testes E2E cobrem 7 fluxos (`cadastro`, `presenca`, `financeiro`, `gamificacao`, `feed`, `tema`, `reset-senha`); `financeiro.spec.ts` tem 2 testes que falham na árvore limpa ("marks mensalidade as pago" / "unmarks"): **7/9 é o estado de referência**. Testes unitários (8 ficheiros) só para a lógica pura de `src/lib` (gamificação, feed, Início, push, tema, relatório de alunos) | Risco em refactors; não culpar a mudança em curso pelas 2 falhas sem confirmar | Média |
+| Testes E2E cobrem 7 fluxos (`cadastro`, `presenca`, `financeiro`, `gamificacao`, `feed`, `tema`, `reset-senha`); `financeiro.spec.ts` tem 2 testes que falham na árvore limpa ("marks mensalidade as pago" / "unmarks"): **19/21 no staging é o estado de referência** (era "7/9" quando se contava só a produção). Testes unitários (8 ficheiros) só para a lógica pura de `src/lib` (gamificação, feed, Início, push, tema, relatório de alunos) | Risco em refactors; não culpar a mudança em curso pelas 2 falhas sem confirmar | Média |
+| Restos do E2E em produção | Os E2E correram na produção até ao T2: os utilizadores de teste (`test-aluno@…`, `test-admin@…`, ocultos do ranking) e 13 perfis órfãos `e2e-cadastro-…@graciebarrafamalicao.app` (o spec apagava o utilizador e deixava o perfil; corrigido no T2) — são os "13 perfis com login sem conta" de 2026-11-02. Limpar só com backup + confirmação do dono (§11) | Baixa |
 | Cadastro sem rollback transaccional | Perfis parciais se mensalidades falharem | Média |
 | Uploads de Storage não atómicos | Ficheiros órfãos se DB falhar a seguir | Média |
 | Race condition na capacidade de aulas | Exceder lotação com utilizadores simultâneos | Baixa (academia pequena) |
@@ -687,7 +699,7 @@ Tudo o que falta vem do roadmap comercial ([`docs/roadmap-saas.md`](docs/roadmap
 | # | Funcionalidade | Esforço | Estado |
 |---|---------------|---------|--------|
 | T1 | Reconciliar migrations do repo com a BD de produção | M | ✅ Feito (2026-11-12): baseline + `verificar-schema.sql` + staging 11/11 igual |
-| T2 | Ambiente de teste separado (Supabase branch/staging + Preview da Vercel) | M | Por fazer |
+| T2 | Ambiente de teste separado (Supabase branch/staging + Preview da Vercel) | M | ✅ Feito (2026-11-13): dev, E2E e previews no staging com seed; E2E recusa a produção |
 | 1.1 | **Multi-academia**: `academia_id` em todas as tabelas, RLS por academia, papéis por academia, criar academia, teste de isolamento | G | Por fazer |
 | 1.2 | **Cobrança automática**: Stripe Connect (cartão, SEPA, Apple/Google Pay), Asaas (Pix, boleto), webhooks, nova tentativa, baixa automática, reembolso; pagamento manual mantém-se | G | Por fazer |
 | 1.3 | **Configuração por academia** no lugar dos valores fixos (secção 16) | M | Por fazer |
@@ -734,7 +746,7 @@ Relatórios (Fase 10), testes E2E dos fluxos críticos, Sentry, push (Fase 16), 
 | Fase | Objetivo | Pronto quando | Estado |
 |------|----------|---------------|--------|
 | 0. Gate | Saber se alguém paga e de quem é o app | 3 de 15 donos dispostos a pagar; titularidade acordada por escrito | ✅ Concluída (confirmado pelo dono em 2026-11-12) |
-| T. Pré-requisitos | Migrations fiéis à produção (T1) e ambiente de teste separado (T2) | Branch Supabase igual à produção; E2E e previews sem tocar na BD real | T1 ✅ (2026-11-12); T2 por fazer |
+| T. Pré-requisitos | Migrations fiéis à produção (T1) e ambiente de teste separado (T2) | Branch Supabase igual à produção; E2E e previews sem tocar na BD real | ✅ T1 (2026-11-12) e T2 (2026-11-13) |
 | 1. Bloqueadores | Poder cobrar de uma segunda academia com segurança (1.1–1.7) | 3 academias-piloto a operar sem mexer no código | Por fazer |
 | 2. Paridade | Fechar o que os concorrentes já têm (2.1–2.8), por pedido dos pilotos | Pilotos não citam falta de recurso ao cancelar | Por fazer |
 | 3. Operação | Suporte e escala sem apagar incêndios | Erros monitorados, backup testado, ajuda publicada | Por fazer |
@@ -742,7 +754,7 @@ Relatórios (Fase 10), testes E2E dos fluxos críticos, Sentry, push (Fase 16), 
 Lista de itens e estado: secção 14.
 
 ### Ordem de execução
-1. **T1 → T2.** O 1.1 reescreve a RLS e o acesso a dados de todas as tabelas; sem migrations fiéis e ambiente de teste, isso seria testado em produção (hoje dev, E2E e produção partilham a BD).
+1. **T1 → T2.** O 1.1 reescreve a RLS e o acesso a dados de todas as tabelas; sem migrations fiéis e ambiente de teste, isso seria testado em produção. Feitos a 2026-11-12/13: o 1.1 testa-se no staging.
 2. **1.1 Multi-academia → 1.3 Configuração.** Quase tudo depende deles.
 3. **1.2 Cobrança automática.** Só faz sentido com cada academia isolada.
 4. **1.6 Privacidade e menores.** Antes de entrarem dados de academias de terceiros.
