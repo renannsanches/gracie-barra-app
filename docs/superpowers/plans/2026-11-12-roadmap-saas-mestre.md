@@ -1,6 +1,6 @@
 # Roadmap SaaS — plano mestre de execução
 
-> **Estado: em curso.** Fase 0 concluída (confirmado pelo dono em 2026-11-12). T1 feito (2026-11-12). Próximo passo: T2.
+> **Estado: em curso.** Fase 0 concluída (confirmado pelo dono em 2026-11-12). T1 feito (2026-11-12). T2 feito (2026-11-13). Próximo passo: 1.1 (e 1.7 em paralelo).
 >
 > Este é o plano **mestre**: diz a ordem, como cada item se divide em PRs e que skills usar. Não é um plano de implementação passo a passo. Cada item, ao começar, ganha o seu próprio spec (`docs/superpowers/specs/`) e plano (`docs/superpowers/plans/`) pelo ciclo da secção A.
 
@@ -37,9 +37,10 @@ Não estavam no roadmap original. O 1.1 reescreve a RLS e o acesso a dados de to
 - **Skills:** `database-design:postgresql-table-design`, `database-design:sql-pro` (agente), MCP Supabase.
 
 ### T2 — Ambiente de teste separado
-- [ ] Supabase branch (ou projecto de staging) a partir da baseline do T1, com seed de dados fictícios.
-- [ ] Variáveis do ambiente Preview da Vercel a apontar para staging (hoje os previews dão 500 por falta delas).
-- [ ] `e2e/global-setup.ts` e `.env.local` de testes a apontar para staging; o `ocultar_ranking` dos utilizadores de teste deixa de ser necessário.
+- [x] Supabase branch (ou projecto de staging) a partir da baseline do T1, com seed de dados fictícios. *(Projecto `gracie-barra-staging` + `supabase/seed-staging.sql`.)*
+- [x] Variáveis do ambiente Preview da Vercel a apontar para staging (hoje os previews dão 500 por falta delas).
+- [x] `e2e/global-setup.ts` e `.env.local` de testes a apontar para staging. *(O `ocultar_ranking` dos utilizadores de teste ficou: o `gamificacao.spec.ts` testa esse estado. O `global-setup` recusa o URL de produção.)*
+- Spec e plano: `docs/superpowers/specs/2026-11-13-t2-ambiente-teste-design.md`, `docs/superpowers/plans/2026-11-13-t2-ambiente-teste.md`.
 - **Pronto quando:** `npm run test:e2e` corre sem tocar na BD de produção e um preview da Vercel abre.
 - **Skills:** MCP Supabase (`create_branch`, `get_advisors`), MCP Vercel (`create_project_env`), `setup-deploy`, `engineering:testing-strategy`.
 

@@ -2,6 +2,7 @@ import { chromium, type FullConfig } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import * as fs from "fs";
 import * as path from "path";
+import { exigirBaseUrlDeTeste, exigirForaDeProducao, temSessaoDoProjeto } from "../src/lib/ambiente";
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -63,7 +64,7 @@ async function ensureUser(
       graus: 0,
       categoria: "adulto",
       sem_login: false,
-      // A BD de testes é a de produção: utilizadores de teste fora do ranking
+      // Fixture: gamificacao.spec.ts testa o estado "oculto do ranking"
       ocultar_ranking: true,
     },
     { onConflict: "id" }
@@ -87,12 +88,25 @@ async function saveAuthState(
   // Middleware redirects to /perfil (aluno) or /admin (admin)
   await page.waitForURL(/\/(perfil|admin)/, { timeout: 20_000 });
 
+  // O servidor em BASE_URL tem de usar o mesmo projecto Supabase que este setup (T2)
+  const nomes = (await context.cookies()).map((c) => c.name);
+  if (!temSessaoDoProjeto(nomes, SUPABASE_URL)) {
+    await browser.close();
+    throw new Error(
+      "E2E recusado: o servidor em BASE_URL não usa o mesmo projecto Supabase que NEXT_PUBLIC_SUPABASE_URL (staging)."
+    );
+  }
+
   fs.mkdirSync(path.dirname(authFile), { recursive: true });
   await context.storageState({ path: authFile });
   await browser.close();
 }
 
 export default async function globalSetup(_config: FullConfig) {
+  // Antes de qualquer escrita: o E2E corre no staging, nunca na produção (T2)
+  exigirForaDeProducao(SUPABASE_URL);
+  exigirBaseUrlDeTeste(process.env.BASE_URL);
+
   if (!SUPABASE_URL || !SERVICE_KEY) {
     throw new Error(
       "Missing env vars: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required"

@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 import withPWAInit from "@ducanh2912/next-pwa";
 import { withSentryConfig } from "@sentry/nextjs";
+import { hostSupabase, padraoSupabase } from "./src/lib/ambiente";
+
+// Produção, staging (dev/E2E/previews): o projecto Supabase vem do env (T2)
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 const withPWA = withPWAInit({
   dest: "public",
@@ -13,7 +17,7 @@ const withPWA = withPWAInit({
   workboxOptions: {
     runtimeCaching: [
       {
-        urlPattern: /^https:\/\/fjqiyilzxxyoyposqsfz\.supabase\.co\/.*/i,
+        urlPattern: padraoSupabase(SUPABASE_URL),
         handler: "NetworkOnly",
       },
     ],
@@ -30,7 +34,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "fjqiyilzxxyoyposqsfz.supabase.co",
+        hostname: hostSupabase(SUPABASE_URL),
       },
     ],
   },
