@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
 
 // Uses aluno storageState from playwright.config.ts.
-// O aluno de teste fica com ocultar_ranking = true (global-setup) para não aparecer
-// no ranking real — a BD de testes é a de produção. Não alterar a visibilidade aqui.
+// O aluno de teste fica com ocultar_ranking = true (global-setup): é a fixture do
+// estado "oculto do ranking" que estes testes verificam. Não alterar aqui.
 
 test.describe("Gamificação", () => {
   test("Início mostra as pílulas e troca de separador", async ({ page }) => {
