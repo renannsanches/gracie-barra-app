@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REF_PRODUCAO, eProducao, exigirForaDeProducao, hostSupabase, refDoProjeto } from "./ambiente";
+import { REF_PRODUCAO, eProducao, exigirForaDeProducao, hostSupabase, padraoSupabase, refDoProjeto } from "./ambiente";
 
 const PRODUCAO = "https://fjqiyilzxxyoyposqsfz.supabase.co";
 const STAGING = "https://luakxrtecetdkccoctzm.supabase.co";
@@ -53,5 +53,18 @@ describe("hostSupabase", () => {
   it("lança com URL em falta ou inválido", () => {
     expect(() => hostSupabase(undefined)).toThrow("NEXT_PUBLIC_SUPABASE_URL em falta ou inválido");
     expect(() => hostSupabase("lixo")).toThrow("NEXT_PUBLIC_SUPABASE_URL em falta ou inválido");
+  });
+});
+
+describe("padraoSupabase", () => {
+  const padrao = padraoSupabase(STAGING);
+
+  it("casa pedidos ao projecto configurado", () => {
+    expect(padrao.test("https://luakxrtecetdkccoctzm.supabase.co/storage/v1/object/public/feed/a.webp")).toBe(true);
+  });
+
+  it("não casa outro projecto nem um host com o ponto trocado", () => {
+    expect(padrao.test("https://fjqiyilzxxyoyposqsfz.supabase.co/rest/v1/x")).toBe(false);
+    expect(padrao.test("https://luakxrtecetdkccoctzmXsupabase.co/x")).toBe(false);
   });
 });

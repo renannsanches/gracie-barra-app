@@ -40,3 +40,9 @@ export function hostSupabase(url: string | undefined): string {
   if (!host) throw new Error("NEXT_PUBLIC_SUPABASE_URL em falta ou inválido");
   return host;
 }
+
+/** Pedidos ao projecto Supabase configurado (service worker: NetworkOnly). */
+export function padraoSupabase(url: string | undefined): RegExp {
+  const host = hostSupabase(url).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^https://${host}/.*`, "i");
+}
