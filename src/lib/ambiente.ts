@@ -35,6 +35,30 @@ export function exigirForaDeProducao(url: string | undefined): void {
   }
 }
 
+/**
+ * O E2E faz login pelo servidor em BASE_URL: tem de ser local ou um preview
+ * (os previews usam o staging). Nunca o domínio de produção.
+ */
+export function exigirBaseUrlDeTeste(url: string | undefined): void {
+  const host = parse(url ?? "http://localhost:3000")?.hostname.toLowerCase();
+  const local = host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+  const preview = !!host && /^gracie-barra-[a-z0-9-]+-renannsanches\.vercel\.app$/.test(host);
+  if (!local && !preview) {
+    throw new Error("E2E recusado: BASE_URL não é um servidor local nem um preview da Vercel.");
+  }
+}
+
+/**
+ * Prova que o servidor testado usa o mesmo projecto que o global-setup:
+ * o cookie de sessão do @supabase/ssr chama-se sb-<ref>-auth-token (ou .0, .1… em pedaços).
+ */
+export function temSessaoDoProjeto(nomesCookies: string[], supabaseUrl: string | undefined): boolean {
+  const ref = refDoProjeto(supabaseUrl);
+  if (!ref) return false;
+  const nome = `sb-${ref}-auth-token`;
+  return nomesCookies.some((c) => c === nome || c.startsWith(`${nome}.`));
+}
+
 export function hostSupabase(url: string | undefined): string {
   const host = parse(url)?.hostname;
   if (!host) throw new Error("NEXT_PUBLIC_SUPABASE_URL em falta ou inválido");
