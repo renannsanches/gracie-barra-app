@@ -42,6 +42,8 @@ test.afterAll(async () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
+  // O perfil não cai com o utilizador (profiles sem FK para auth.users): apagar os dois
+  await admin.from("profiles").delete().eq("id", throwawayUserId);
   await admin.auth.admin.deleteUser(throwawayUserId);
 });
 
